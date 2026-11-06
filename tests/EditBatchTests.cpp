@@ -160,6 +160,75 @@ void testCancel()
            "cancel takes the steps back");
 }
 
+// Frame 1 has a comparison mask, frame 2 dynamic zones (RuntimeFixtures::makeFullProject).
+void testIdentificationSteps()
+{
+    ProjectDocument document =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    const uint8_t mask = document.comparisonMaskId(1);
+    expect(mask != document::kNoComparisonMaskId && document.shapeComparisonMode(3) == 0,
+           "the fixture: frame 1 has a mask, frame 3 none and no shape mode");
+    edit::EditBatch batch("Identify");
+
+    batch.add(edit::setFrameComparison(document, 3, mask, true));
+    expect(document.comparisonMaskId(3) == mask && document.shapeComparisonMode(3) == 1,
+           "frame 3 gets the mask and the shape mode");
+    expect(!edit::setFrameComparison(document, 3, mask, true), "the same again changes nothing");
+    bool thrown = false;
+    try {
+        (void)edit::setFrameComparison(document, 3, 60, false);
+    } catch (const std::out_of_range&) {
+        thrown = true;
+    }
+    expect(thrown && document.comparisonMaskId(3) == mask, "a mask that does not exist");
+
+    const render::Size rom = document.originalFrameSize();
+    std::vector<uint8_t> ignored(static_cast<std::size_t>(rom.width) * rom.height, 0);
+    ignored[5] = 1;
+    batch.add(edit::setComparisonMask(document, mask, ignored));
+    expect(document.comparisonMaskPixel(mask, 5, 0) == 1 &&
+               document.comparisonMaskPixel(mask, 6, 0) == 0,
+           "the mask ignores just the pixel given");
+    thrown = false;
+    try {
+        (void)edit::setComparisonMask(document, mask, std::vector<uint8_t>(3, 0));
+    } catch (const std::invalid_argument&) {
+        thrown = true;
+    }
+    expect(thrown, "a mask of the wrong size");
+
+    const Resolution plane = document.dynamicPlane();
+    std::vector<uint16_t> colors(document.colorCount());
+    for (std::size_t shade = 0; shade < colors.size(); ++shade) {
+        colors[shade] = static_cast<uint16_t>(0xfc00 + shade);
+    }
+    const uint16_t otherSet = document.dynamicColor(2, plane, 4, 1);
+    batch.add(edit::setDynamicColors(document, 2, 3, colors));
+    expect(document.dynamicColor(2, plane, 3, 0) == 0xfc00 &&
+               document.dynamicColor(2, plane, 3, colors.size() - 1) ==
+                   colors.back() &&
+               document.dynamicColor(2, plane, 4, 1) == otherSet,
+           "one set of the frame gets the colors");
+    thrown = false;
+    try {
+        (void)edit::setDynamicColors(document, 2, 32, colors);
+    } catch (const std::out_of_range&) {
+        thrown = true;
+    }
+    expect(thrown, "a set out of range");
+
+    std::unique_ptr<edit::EditBatchCommand> command = batch.finish();
+    expect(command && command->stepCount() == 3, "three steps");
+    edit::UndoHistories histories;
+    histories.push(edit::structureHistoryKey(), std::move(command));
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.comparisonMaskId(3) == document::kNoComparisonMaskId &&
+               document.shapeComparisonMode(3) == 0 &&
+               document.comparisonMaskPixel(mask, 5, 0) == 0 &&
+               document.dynamicColor(2, plane, 3, 0) != 0xfc00,
+           "one undo takes them back");
+}
+
 // A picture of the plane's size: the color of each pixel from its position.
 std::vector<uint16_t> patternPicture(render::Size size)
 {
@@ -297,5 +366,6 @@ void runEditBatchTests()
 {
     testSteps();
     testCancel();
+    testIdentificationSteps();
     testPictures();
 }

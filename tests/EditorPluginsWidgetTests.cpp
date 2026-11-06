@@ -61,6 +61,117 @@ void MSGPIAPI onSettings(void* userData, int saved)
     answers->saved = saved;
 }
 
+// Version 5: libserum run over originals, and the identification of frames edited, on a
+// project with comparison masks and dynamic zones (RuntimeFixtures::makeFullProject: frames 0
+// and 7 are plain, frame 2 has mask 1 and dynamic zones).
+void testIdentification()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    edit::UndoHistories histories;
+    std::vector<std::string> recorded;
+    QMenu menu;
+    app::EditorPlugins::Window window;
+    window.menu = &menu;
+    window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
+        const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
+        recorded.push_back(batch ? batch->name() : std::string());
+        histories.push(edit::structureHistoryKey(), std::move(command));
+    };
+    window.currentFrame = []() { return std::optional<std::size_t>(0); };
+    window.selectedFrames = []() { return std::vector<std::size_t>{0}; };
+    app::EditorPlugins plugins(std::move(window));
+    const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
+    const uint32_t plugin = 7;
+    constexpr std::size_t kPixels = 128 * 32;
+
+    // Frame 0, frame 0 again, frame 0 with a pixel no frame has there, frame 7.
+    std::vector<uint8_t> originals;
+    const auto append = [&originals](const document::IndexedFrame& frame) {
+        originals.insert(originals.end(), frame.pixels.begin(), frame.pixels.end());
+    };
+    append(document.originalFrame(0));
+    append(document.originalFrame(0));
+    document::IndexedFrame changed = document.originalFrame(0);
+    const std::size_t pixel = 16 * 128 + 64;
+    changed.pixels[pixel] = static_cast<uint8_t>((changed.pixels[pixel] + 1) % 4);
+    append(changed);
+    append(document.originalFrame(7));
+    std::vector<ColorizingDMDRuntimeResult> results(4);
+    std::vector<uint16_t> pictures(4 * kPixels, 1);
+    expect(api->RunOriginals(originals.data(), 4, 0, results.data(), pictures.data()) == 1,
+           "libserum runs the originals");
+    expect(results[0].outcome == CDMDPI_RUNTIME_NEW && results[0].identified == 0 &&
+               results[0].shown == 0,
+           "the first is frame 0");
+    const document::Rgb565Frame& frame0 = document.colorizedFrame(0, render::Resolution::Sd);
+    bool same = true;
+    for (std::size_t index = 0; index < kPixels; ++index) {
+        same = same && pictures[index] == frame0.pixels[index];
+    }
+    expect(same, "shown in its colors");
+    expect(results[1].outcome == CDMDPI_RUNTIME_SAME && results[1].identified == CDMDPI_NONE &&
+               results[1].shown == 0,
+           "the same again keeps the picture");
+    expect(results[2].outcome == CDMDPI_RUNTIME_UNKNOWN && results[2].shown == 0 &&
+               pictures[2 * kPixels + 5] == frame0.pixels[5],
+           "an unknown frame leaves the display as it is");
+    expect(results[3].outcome == CDMDPI_RUNTIME_NEW && results[3].identified == 7,
+           "then frame 7");
+    std::vector<uint8_t> tooBright(kPixels, 4);
+    expect(api->RunOriginals(tooBright.data(), 1, 0, results.data(), nullptr) == 0,
+           "a shade the project's frames cannot have is refused");
+
+    // A mask that ignores every pixel makes frame 7 catch the unknown frame.
+    const std::vector<uint8_t> everything(kPixels, 1);
+    const uint32_t frames[] = {7};
+    const std::size_t masks = document.comparisonMaskCount();
+    std::vector<uint16_t> colors(4, 0xf800);
+    expect(api->SetFrameComparison(plugin, 7, 1, 0) == 0, "no change without a batch");
+    expect(api->BeginEdit(plugin, "Identify") == 1, "a batch");
+    expect(api->AddComparisonMask(plugin, everything.data(), kPixels, frames, 1) == 1 &&
+               document.comparisonMaskCount() == masks + 1 &&
+               document.comparisonMaskId(7) == masks,
+           "a new mask, given to frame 7");
+    expect(api->AddComparisonMask(plugin, everything.data(), 5, frames, 1) == 0 &&
+               api->AddComparisonMask(plugin, everything.data(), kPixels, frames + 1, 0) == 1 &&
+               document.comparisonMaskCount() == masks + 2,
+           "a mask of the wrong size is refused; a mask for no frame is added");
+    expect(api->SetFrameComparison(plugin, 0, 1, 1) == 1 && document.comparisonMaskId(0) == 1 &&
+               document.shapeComparisonMode(0) == 1 &&
+               api->SetFrameComparison(plugin, 0, CDMDPI_NONE, 0) == 1 &&
+               document.comparisonMaskId(0) == document::kNoComparisonMaskId &&
+               document.shapeComparisonMode(0) == 0,
+           "a frame's mask and shape mode, and none again");
+    expect(api->SetFrameComparison(plugin, 0, 60, 0) == 0 &&
+               api->SetFrameComparison(plugin, 0, 1, 2) == 0,
+           "a mask that does not exist or a shape mode other than 0 and 1 is refused");
+    std::vector<uint8_t> one(kPixels, 0);
+    one[3] = 1;
+    expect(api->SetComparisonMask(plugin, 1, one.data(), kPixels) == 1 &&
+               document.comparisonMaskPixel(1, 3, 0) == 1 &&
+               document.comparisonMaskPixel(1, 4, 0) == 0,
+           "a mask's pixels (mask 1 ignored the first 16 of the top row)");
+    expect(api->SetDynamicColors(plugin, 2, 4, colors.data(), 4) == 1 &&
+               document.dynamicColor(2, document.dynamicPlane(), 4, 3) == 0xf800 &&
+               api->SetDynamicColors(plugin, 2, 32, colors.data(), 4) == 0 &&
+               api->SetDynamicColors(plugin, 2, 4, colors.data(), 2) == 0,
+           "a dynamic set's colors; a set out of range or too few colors is refused");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded == std::vector<std::string>{"Identify"},
+           "one step");
+    expect(api->RunOriginals(changed.pixels.data(), 1, 0, results.data(), nullptr) == 1 &&
+               results[0].outcome == CDMDPI_RUNTIME_NEW && results[0].identified == 7,
+           "the frame that ignores every pixel catches the unknown frame");
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.comparisonMaskCount() == masks &&
+               document.comparisonMaskId(7) == document::kNoComparisonMaskId &&
+               document.comparisonMaskPixel(1, 4, 0) == 1 &&
+               document.dynamicColor(2, document.dynamicPlane(), 4, 3) != 0xf800,
+           "one undo takes it all back");
+}
+
 // Version 3: pictures, the review window and the settings form, on a project with
 // backgrounds and sprites (RuntimeFixtures::makeFullProject).
 void testPictures()
@@ -329,7 +440,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 4, "the API table is version 4");
+    expect(api && api->version == 5, "the API table is version 5");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&
@@ -446,6 +557,7 @@ void runEditorPluginsWidgetTests()
            "no plugin is chosen at first");
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     testPictures();
+    testIdentification();
 #endif
     QSettings().remove(QStringLiteral("plugins"));
     QCoreApplication::setOrganizationName(QString());

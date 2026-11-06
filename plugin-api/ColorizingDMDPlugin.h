@@ -1,8 +1,9 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 4 (version 3 without ShowForm and the file,
-// note and consent fields, version 2 without the pictures and the author's windows either,
-// version 1 without the editing part either).
+// ColorizingDMD editor API for plugins, version 5 (version 4 without identification and the
+// runtime, version 3 without ShowForm and the file, note and consent fields either, version 2
+// without the pictures and the author's windows either, version 1 without the editing part
+// either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -137,9 +138,22 @@ typedef struct ColorizingDMDSettingField
 // saved: 1 when the author saved the form (the settings are set by then), 0 when cancelled.
 typedef void(MSGPIAPI* cdmdpi_settings_callback)(void* userData, int saved);
 
+// What libserum did with one ROM frame of RunOriginals (version 5).
+#define CDMDPI_RUNTIME_NEW 0       // identified a frame and shows its picture
+#define CDMDPI_RUNTIME_SAME 1      // the picture on display stays: the frame identified last again,
+                                   // or another one with the same picture
+#define CDMDPI_RUNTIME_INACTIVE 2  // identified a frame that renders nothing; the display stays
+#define CDMDPI_RUNTIME_UNKNOWN 3   // identified no frame; the display stays
+typedef struct ColorizingDMDRuntimeResult
+{
+   uint32_t outcome;    // CDMDPI_RUNTIME_...
+   uint32_t identified; // the frame libserum reported (NEW, INACTIVE), else CDMDPI_NONE
+   uint32_t shown;      // the frame whose picture is on display after it; CDMDPI_NONE before any
+} ColorizingDMDRuntimeResult;
+
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 4
+   int version; // 5
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -294,4 +308,37 @@ typedef struct ColorizingDMDEditorAPI
    int(MSGPIAPI* ShowForm)(uint32_t endpointId, const char* title, const char* acceptLabel,
                            const ColorizingDMDSettingField* fields, uint32_t count,
                            cdmdpi_settings_callback callback, void* userData);
+
+   // ---- Identification and the runtime (version 5) ----------------------------------------
+   // Feeds ROM frames to libserum, one after the other, with the whole project loaded as a
+   // machine loads it (scenes included): what the player sees. libserum starts as after
+   // loading, its search at the first frame, and keeps what it identified from one frame to the
+   // next, so the order of the frames matters. Unknown frames stay unknown (no gray fallback
+   // after a time), and color rotations and scenes do not step. originals: count frames of the
+   // original size, one after the other; results: count of them. pictures, unless null: count
+   // pictures of the plane (hd 1: the HD plane), each of GetColorizedFrame's size, RGB565: the
+   // display after the frame. Returns 0 without a project, for originals with a shade the
+   // project's frames cannot have, or when libserum cannot load the project (nothing filled).
+   // The editor's runtime previews start again afterwards.
+   int(MSGPIAPI* RunOriginals)(const uint8_t* originals, uint32_t count, int hd,
+                               ColorizingDMDRuntimeResult* results, uint16_t* pictures);
+
+   // Changes of an edit batch, as those of version 2.
+   // How the frame is identified: its comparison mask (CDMDPI_NONE for none) and shape mode
+   // (1: any shade above 0 counts as lit).
+   int(MSGPIAPI* SetFrameComparison)(uint32_t endpointId, uint32_t frame, uint32_t mask,
+                                     uint32_t shapeMode);
+   // A new comparison mask ignoring the pixels where ignored is not 0 (the original's size,
+   // count = width * height), given to the frames (frameCount of them, none for 0). Its index is
+   // the project's comparisonMaskCount - 1 afterwards. Refused when the project has 64.
+   int(MSGPIAPI* AddComparisonMask)(uint32_t endpointId, const uint8_t* ignored, uint32_t count,
+                                    const uint32_t* frames, uint32_t frameCount);
+   // The pixels a comparison mask ignores, for every frame that has it.
+   int(MSGPIAPI* SetComparisonMask)(uint32_t endpointId, uint32_t mask, const uint8_t* ignored,
+                                    uint32_t count);
+   // The colors of one of the frame's dynamic sets on the dynamic plane: colors[shade], RGB565,
+   // colorCount of them (see GetDynamicColors).
+   int(MSGPIAPI* SetDynamicColors)(uint32_t endpointId, uint32_t frame, uint32_t set,
+                                   const uint16_t* colors, uint32_t count);
+
 } ColorizingDMDEditorAPI;

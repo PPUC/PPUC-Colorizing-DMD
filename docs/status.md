@@ -1200,6 +1200,13 @@ paragraph, no key or value) and Consent (shown unchecked every time; `PluginSett
 accepts only while every consent box is checked). The plugin lives in `../ColorizingDMD-VNI`
 (local); it builds libvni in and needs its `Vni_SetTime` (libvni 0.2.0 on
 its `main`, not pushed yet).
+v5 (2026-11-06, for the AI assistant's identification checks): RunOriginals feeds ROM frames
+to `RuntimePreview::openProject` + `colorize` (the frame tester's path; the preview is closed
+afterwards, unknown frames stay unknown) and reports per frame the outcome (new, same picture,
+inactive, unknown), the frame identified and the frame on display, with the display's picture;
+SetFrameComparison, AddComparisonMask, SetComparisonMask and SetDynamicColors are edit batch
+steps (`edit::setFrameComparison`, `addComparisonMaskForFrames`, `edit::setComparisonMask`,
+`edit::setDynamicColors`).
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.

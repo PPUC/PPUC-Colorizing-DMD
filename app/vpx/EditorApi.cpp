@@ -13,6 +13,7 @@
 #include "edit/EditBatch.h"
 #include "edit/Sections.h"
 #include "edit/StructureCommand.h"
+#include "runtime/RuntimePreview.h"
 #include "vpx/EditorApiHost.h"
 
 namespace colorizing::vpx {
@@ -751,8 +752,143 @@ int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
     return showForm(endpointId, title, nullptr, fields, count, callback, userData);
 }
 
+// ---- Identification and the runtime (version 5) --------------------------------------------
+
+int MSGPIAPI runOriginals(const uint8_t* originals, uint32_t count, int hd,
+                          ColorizingDMDRuntimeResult* results, uint16_t* pictures)
+{
+    const ProjectDocument* document = openDocument();
+    if (!document || !originals || !results) {
+        return 0;
+    }
+    const Resolution plane = hd ? Resolution::Hd : Resolution::Sd;
+    const render::ProjectGeometry& geometry = document->geometry();
+    if (pictures && !geometry.isEditable(plane)) {
+        return 0;
+    }
+    const render::Size romSize = document->originalFrameSize();
+    const std::size_t romPixels =
+        static_cast<std::size_t>(romSize.width) * static_cast<std::size_t>(romSize.height);
+    for (std::size_t index = 0; index < romPixels * count; ++index) {
+        if (originals[index] >= document->colorCount()) {
+            return 0;
+        }
+    }
+    const render::Size planeSize = geometry.planeSize(plane);
+    const std::size_t planePixels =
+        static_cast<std::size_t>(planeSize.width) * static_cast<std::size_t>(planeSize.height);
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    if (!preview.openProject(*document, runtime::PlaneRequest::Both)) {
+        return 0;
+    }
+    std::vector<uint16_t> display(planePixels, 0);
+    std::optional<std::size_t> shown;
+    bool ok = true;
+    for (uint32_t frame = 0; frame < count && ok; ++frame) {
+        document::IndexedFrame original;
+        original.size = romSize;
+        original.pixels.assign(originals + frame * romPixels, originals + (frame + 1) * romPixels);
+        const runtime::RuntimeFrame result = preview.colorize(original);
+        if (!result.ok()) {
+            ok = false;
+            break;
+        }
+        ColorizingDMDRuntimeResult& out = results[frame];
+        out.identified = CDMDPI_NONE;
+        if (result.unchanged) {
+            out.outcome = CDMDPI_RUNTIME_SAME;
+        } else if (result.skipped) {
+            out.outcome = CDMDPI_RUNTIME_INACTIVE;
+        } else if (!result.identified) {
+            out.outcome = CDMDPI_RUNTIME_UNKNOWN;
+        } else {
+            out.outcome = CDMDPI_RUNTIME_NEW;
+        }
+        if (out.outcome != CDMDPI_RUNTIME_SAME && result.frameIndex) {
+            out.identified = static_cast<uint32_t>(*result.frameIndex);
+        }
+        if (out.outcome == CDMDPI_RUNTIME_NEW) {
+            shown = result.shownFrameIndex ? result.shownFrameIndex : result.frameIndex;
+            const runtime::RuntimePlane* picture = result.plane(
+                planeSize.height == 32 ? runtime::PlaneRequest::Rows32
+                                       : runtime::PlaneRequest::Rows64);
+            if (picture && picture->image.pixelCount() == planePixels) {
+                for (std::size_t index = 0; index < planePixels; ++index) {
+                    display[index] = picture->image.pixels[index];
+                }
+            }
+        }
+        out.shown = shown ? static_cast<uint32_t>(*shown) : CDMDPI_NONE;
+        if (pictures) {
+            std::copy(display.begin(), display.end(), pictures + frame * planePixels);
+        }
+    }
+    preview.close();
+    return ok ? 1 : 0;
+}
+
+int MSGPIAPI setFrameComparison(uint32_t endpointId, uint32_t frame, uint32_t mask,
+                                uint32_t shapeMode)
+{
+    if ((mask != CDMDPI_NONE && mask >= document::kNoComparisonMaskId) || shapeMode > 1) {
+        return 0;
+    }
+    const uint8_t maskId =
+        mask == CDMDPI_NONE ? document::kNoComparisonMaskId : static_cast<uint8_t>(mask);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setFrameComparison(document, frame, maskId, shapeMode == 1);
+    });
+}
+
+int MSGPIAPI addComparisonMask(uint32_t endpointId, const uint8_t* ignored, uint32_t count,
+                               const uint32_t* frames, uint32_t frameCount)
+{
+    if (!ignored || (frameCount && !frames)) {
+        return 0;
+    }
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        document::IndexedFrame mask;
+        mask.size = document.originalFrameSize();
+        mask.pixels.assign(ignored, ignored + count);
+        std::vector<std::size_t> indices;
+        for (uint32_t index = 0; index < frameCount; ++index) {
+            if (frames[index] >= document.frameCount()) {
+                throw std::out_of_range("frame index out of range");
+            }
+            indices.push_back(frames[index]);
+        }
+        return std::unique_ptr<edit::EditCommand>(
+            edit::addComparisonMaskForFrames(document, mask, indices));
+    });
+}
+
+int MSGPIAPI setComparisonMask(uint32_t endpointId, uint32_t mask, const uint8_t* ignored,
+                               uint32_t count)
+{
+    if (!ignored) {
+        return 0;
+    }
+    std::vector<uint8_t> pixels(ignored, ignored + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setComparisonMask(document, mask, pixels);
+    });
+}
+
+int MSGPIAPI setDynamicColors(uint32_t endpointId, uint32_t frame, uint32_t set,
+                              const uint16_t* colors, uint32_t count)
+{
+    if (!colors) {
+        return 0;
+    }
+    std::vector<uint16_t> values(colors, colors + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::setDynamicColors(document, frame, set, values);
+    });
+}
+
 const ColorizingDMDEditorAPI kApi{
-    4,
+    5,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -791,6 +927,11 @@ const ColorizingDMDEditorAPI kApi{
     &reviewPictures,
     &editSettings,
     &showForm,
+    &runOriginals,
+    &setFrameComparison,
+    &addComparisonMask,
+    &setComparisonMask,
+    &setDynamicColors,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

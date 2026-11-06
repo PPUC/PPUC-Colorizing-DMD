@@ -64,4 +64,8 @@ a frame looks for, and the background and sprite the author works on; writes fra
 and sprite pictures in edit batches; and opens the review window and the settings form.
 Version 4 adds `ShowForm`, the settings form with its own accept button, and fields for a file,
 a paragraph of text and a confirmation that has to be checked.
+Version 5 feeds ROM frames to libserum with the whole project loaded (`RunOriginals`: what
+libserum identifies for each frame and what the display shows after it), and in edit batches
+sets a frame's comparison mask and shape mode, adds and changes comparison masks, and sets the
+colors of a frame's dynamic sets.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

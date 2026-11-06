@@ -5,6 +5,7 @@
 
 #include "document/ProjectDocument.h"
 #include "edit/FrameContentCommand.h"
+#include "edit/SameFrames.h"
 #include "edit/StateCommands.h"
 #include "edit/UndoHistories.h"
 
@@ -391,6 +392,80 @@ std::unique_ptr<EditCommand> clearColorRotations(ProjectDocument& document,
         commands.push_back(colorRotationsCommand(document, frameIndex, plane, std::move(before)));
     }
     return groupCommands(std::move(commands));
+}
+
+std::unique_ptr<EditCommand> setFrameComparison(ProjectDocument& document,
+                                                std::size_t frameIndex,
+                                                uint8_t maskId,
+                                                bool shape)
+{
+    checkFrame(document, frameIndex);
+    if (maskId != document::kNoComparisonMaskId && maskId >= document.comparisonMaskCount()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    std::vector<std::unique_ptr<EditCommand>> commands;
+    const uint32_t maskBefore =
+        frameAttributeValue(document, frameIndex, FrameAttribute::ComparisonMaskId);
+    if (maskBefore != maskId) {
+        commands.push_back(applied(std::make_unique<FrameAttributeEditCommand>(
+                                       frameIndex, FrameAttribute::ComparisonMaskId, maskBefore,
+                                       maskId),
+                                   document));
+    }
+    const uint32_t shapeBefore =
+        frameAttributeValue(document, frameIndex, FrameAttribute::ShapeComparisonMode);
+    const uint32_t shapeAfter = shape ? 1 : 0;
+    if (shapeBefore != shapeAfter) {
+        commands.push_back(applied(std::make_unique<FrameAttributeEditCommand>(
+                                       frameIndex, FrameAttribute::ShapeComparisonMode,
+                                       shapeBefore, shapeAfter),
+                                   document));
+    }
+    return groupCommands(std::move(commands));
+}
+
+std::unique_ptr<EditCommand> setComparisonMask(ProjectDocument& document,
+                                               std::size_t maskIndex,
+                                               const std::vector<uint8_t>& ignored)
+{
+    if (maskIndex >= document.comparisonMaskCount()) {
+        throw std::out_of_range("comparison mask index out of range");
+    }
+    document::IndexedFrame mask;
+    mask.size = document.originalFrameSize();
+    mask.pixels.assign(ignored.begin(), ignored.end());
+    return applied(replaceComparisonMask(document, maskIndex, mask), document);
+}
+
+std::unique_ptr<EditCommand> setDynamicColors(ProjectDocument& document,
+                                              std::size_t frameIndex,
+                                              std::size_t setIndex,
+                                              const std::vector<uint16_t>& colors)
+{
+    checkFrame(document, frameIndex);
+    if (setIndex >= document::kMaxDynamicSetsPerFrame) {
+        throw std::out_of_range("dynamic set index out of range");
+    }
+    if (colors.size() != document.colorCount()) {
+        throw std::invalid_argument("a dynamic set has a color per shade of the original");
+    }
+    if (!document.dynamicData(frameIndex)) {
+        throw std::logic_error("the frame has no dynamic data");
+    }
+    const Resolution plane = document.dynamicPlane();
+    std::vector<DynamicColorChange> changes;
+    for (std::size_t shade = 0; shade < colors.size(); ++shade) {
+        const uint16_t before = document.dynamicColor(frameIndex, plane, setIndex, shade);
+        if (before != colors[shade]) {
+            changes.push_back({shade, before, colors[shade]});
+        }
+    }
+    if (changes.empty()) {
+        return nullptr;
+    }
+    return applied(std::make_unique<DynamicColorsEditCommand>(frameIndex, plane, setIndex,
+                                                              std::move(changes)),
+                   document);
 }
 
 std::unique_ptr<EditCommand> setFramePicture(ProjectDocument& document,

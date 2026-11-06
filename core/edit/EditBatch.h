@@ -89,6 +89,23 @@ private:
 [[nodiscard]] std::unique_ptr<EditCommand> clearColorRotations(
     document::ProjectDocument& document,
     std::size_t frameIndex);
+// How the frame is identified: its comparison mask (document::kNoComparisonMaskId for none)
+// and whether it is compared by shape (any shade above 0 counts as lit).
+[[nodiscard]] std::unique_ptr<EditCommand> setFrameComparison(document::ProjectDocument& document,
+                                                              std::size_t frameIndex,
+                                                              uint8_t maskId,
+                                                              bool shape);
+// The comparison mask ignores the pixels where `ignored` (ROM frame size, row-major) is not 0,
+// for every frame that has it.
+[[nodiscard]] std::unique_ptr<EditCommand> setComparisonMask(document::ProjectDocument& document,
+                                                             std::size_t maskIndex,
+                                                             const std::vector<uint8_t>& ignored);
+// The colors of one of the frame's dynamic sets on the document's dynamicPlane(): colors[shade]
+// for each shade of the original (colorCount() of them).
+[[nodiscard]] std::unique_ptr<EditCommand> setDynamicColors(document::ProjectDocument& document,
+                                                            std::size_t frameIndex,
+                                                            std::size_t setIndex,
+                                                            const std::vector<uint16_t>& colors);
 
 // The pictures (RGB565, the plane's or the sprite's size, row-major) written where write is
 // not 0; an empty write mask writes every pixel. A frame, background or sprite without HD gets
