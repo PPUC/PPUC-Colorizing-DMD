@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.32
+
 - The license settings no longer cut off their texts, and name the devices as PPUC/DMD: the
   devices listed at ppuc.org, not for example PIN2DMD or PIN2DMD MMI. The `.cROMc` says the
   same.
