@@ -2,8 +2,11 @@
 
 #include <QApplication>
 #include <QDialogButtonBox>
+#include <QFile>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPushButton>
+#include <QTextBrowser>
 #include <QVBoxLayout>
 
 #include "AppInfo.h"
@@ -46,6 +49,9 @@ AboutDialog::AboutDialog(QWidget* parent)
     row->addLayout(text, 1);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    auto* licenses = buttons->addButton(tr("Third-Party Licenses"), QDialogButtonBox::ActionRole);
+    licenses->setObjectName(QStringLiteral("aboutThirdPartyLicenses"));
+    connect(licenses, &QPushButton::clicked, this, [this] { showThirdPartyNotices(); });
     auto* layout = new QVBoxLayout(this);
     layout->addLayout(row);
     layout->addWidget(buttons);
@@ -54,6 +60,39 @@ AboutDialog::AboutDialog(QWidget* parent)
 QString AboutDialog::versionText()
 {
     return tr("Version %1").arg(kApplicationVersion);
+}
+
+QString AboutDialog::thirdPartyNotices()
+{
+    QFile file(QStringLiteral(":/notices/THIRD-PARTY-NOTICES.md"));
+    if (!file.open(QIODevice::ReadOnly)) {
+        return {};
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+void AboutDialog::showThirdPartyNotices()
+{
+    if (auto* open = findChild<QDialog*>(QStringLiteral("thirdPartyNotices"))) {
+        open->raise();
+        open->activateWindow();
+        return;
+    }
+    auto* dialog = new QDialog(this);
+    dialog->setObjectName(QStringLiteral("thirdPartyNotices"));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle(tr("Third-Party Licenses"));
+    auto* text = new QTextBrowser(dialog);
+    text->setObjectName(QStringLiteral("thirdPartyNoticesText"));
+    text->setOpenExternalLinks(true);
+    text->setMarkdown(thirdPartyNotices());
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, dialog);
+    connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+    auto* layout = new QVBoxLayout(dialog);
+    layout->addWidget(text);
+    layout->addWidget(buttons);
+    dialog->resize(760, 640);
+    dialog->show();
 }
 
 }  // namespace colorizing::app

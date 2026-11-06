@@ -11,6 +11,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   project, to see which frame it identifies and what the display shows, and change how frames
   are identified (comparison masks, shape mode) and the colors of dynamic sets.
 - `Help -> About` links to libserum's original repository, `zesinger/libserum`.
+- `Help -> About` shows the licenses of the third-party software the editor contains and comes
+  with (`Third-Party Licenses`); every package has them as `THIRD-PARTY-NOTICES.md`.
 
 ## 3.99.32
 

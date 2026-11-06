@@ -17,10 +17,12 @@
 #include <QListWidget>
 #include <QPalette>
 #include <QPixmap>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSettings>
 #include <QSpinBox>
+#include <QTextBrowser>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWheelEvent>
@@ -424,6 +426,31 @@ void testAboutDialog()
            "the window title names the version");
 }
 
+// Help -> About shows the notices of the third-party software the packages ship, as their
+// licenses require (THIRD-PARTY-NOTICES.md, built in).
+void testAboutDialogThirdPartyNotices()
+{
+    colorizing::app::AboutDialog dialog;
+    auto* button = dialog.findChild<QPushButton*>(QStringLiteral("aboutThirdPartyLicenses"));
+    expect(button && button->text() == QStringLiteral("Third-Party Licenses"),
+           "the About dialog offers the third-party licenses");
+    if (!button) {
+        return;
+    }
+    button->click();
+    auto* text = dialog.findChild<QTextBrowser*>(QStringLiteral("thirdPartyNoticesText"));
+    const QString notices = text ? text->toPlainText() : QString();
+    expect(notices.contains(QStringLiteral("GNU Lesser General Public License")) &&
+               notices.contains(QStringLiteral("LGPL-3.0")) &&
+               notices.contains(QStringLiteral("https://github.com/lz4/lz4")) &&
+               notices.contains(QStringLiteral("Yann Collet")),
+           "the third-party licenses name the LGPL libraries and lz4 with its copyright");
+    auto* window = dialog.findChild<QDialog*>(QStringLiteral("thirdPartyNotices"));
+    button->click();
+    expect(window && dialog.findChildren<QDialog*>(QStringLiteral("thirdPartyNotices")).size() == 1,
+           "a second click brings the open notices to the front instead of opening them twice");
+}
+
 // Issue #28: the selected frames' duration together, for a scene made of them.
 void testSelectedFramesStatusText()
 {
@@ -518,6 +545,7 @@ void testFlowLayoutCentersRows()
 void runAppHelpersWidgetTests()
 {
     testAboutDialog();
+    testAboutDialogThirdPartyNotices();
     testActivityClock();
     testSelectSingleRow();
     testMayCloseProject();

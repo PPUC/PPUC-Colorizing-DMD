@@ -44,6 +44,7 @@ package="${stage}/PPUC-Colorizing-DMD"
 mkdir -p "${package}"
 cp "${exe}" "${package}/"
 cp "${here}/../LICENSE" "${package}/LICENSE.txt"
+cp "${here}/../THIRD-PARTY-NOTICES.md" "${package}/THIRD-PARTY-NOTICES.md"
 
 windeployqt6 --release --no-translations --no-system-d3d-compiler --no-opengl-sw \
     "${package}/PPUC-Colorizing-DMD.exe"

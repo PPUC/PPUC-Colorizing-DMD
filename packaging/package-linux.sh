@@ -49,6 +49,8 @@ trap 'rm -rf "${stage}"' EXIT
 cp "${here}/../app/icons/colorizingdmd-256.png" "${stage}/colorizingdmd.png"
 mkdir -p "${stage}/AppDir/usr/share/doc/colorizingdmd"
 cp "${here}/../LICENSE" "${stage}/AppDir/usr/share/doc/colorizingdmd/LICENSE"
+cp "${here}/../THIRD-PARTY-NOTICES.md" \
+    "${stage}/AppDir/usr/share/doc/colorizingdmd/THIRD-PARTY-NOTICES.md"
 
 # The VPX plugins the build made (DMDUtil with libdmdutil and the libraries it loads), each in
 # its folder in usr/bin/plugins, where the app looks for them; they find each other through

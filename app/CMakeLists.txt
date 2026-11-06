@@ -200,6 +200,13 @@ qt_add_resources(colorizing_qt_v2_widgets "handbook"
     BASE "${PROJECT_SOURCE_DIR}/handbook"
     FILES ${colorizing_qt_v2_handbook_files})
 
+# The third-party notices of the packages, built in as :/notices/THIRD-PARTY-NOTICES.md for
+# Help -> About (AboutDialog).
+qt_add_resources(colorizing_qt_v2_widgets "third_party_notices"
+    PREFIX "/notices"
+    BASE "${PROJECT_SOURCE_DIR}"
+    FILES "${PROJECT_SOURCE_DIR}/THIRD-PARTY-NOTICES.md")
+
 # The icons of the drawing tools, built in under :/tool-icons/ (DrawingToolIcons).
 file(GLOB colorizing_qt_v2_tool_icons
     CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/third-party/phosphor-icons/png/*.png")

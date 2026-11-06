@@ -39,6 +39,7 @@ cp -R "${app}" "${stage}/"
 bundle="${stage}/${name}.app"
 mkdir -p "${bundle}/Contents/Resources"
 cp "${here}/../LICENSE" "${bundle}/Contents/Resources/LICENSE"
+cp "${here}/../THIRD-PARTY-NOTICES.md" "${bundle}/Contents/Resources/THIRD-PARTY-NOTICES.md"
 
 "${macdeployqt}" "${bundle}" -verbose=1
 # After macdeployqt, which deploys Qt's plugins only. -P keeps the symbolic links, -X leaves

@@ -220,6 +220,11 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   `package-linux.sh`, `package-macos.sh`), the macOS `Info.plist.in` and the Linux desktop
   file. CMake option `COLORIZINGDMD_QT_V2_PACKAGE` (off by default) builds the app the way they
   expect it: called `ColorizingDMD`, an app bundle on macOS, no console window on Windows.
+  Every package ships `LICENSE` and `THIRD-PARTY-NOTICES.md`, which is also built in for
+  `Help -> About -> Third-Party Licenses`. The notices are kept by hand: a new dependency or a
+  changed pin (workflow, vpinball's, libdmdutil's or libzedmd's `platforms/config.sh`) updates
+  them. The exact DLLs MSYS2 contributes and the libraries linuxdeploy takes from Ubuntu are
+  not pinned; the notices list those that can end up in the package.
 - `tools/ui_dump/`: offscreen harness that drives the real `MainWindow` through about 785 scripted
   states and dumps widget state, document contents and canvas hashes. Used to prove refactors
   change nothing and to review intended changes. Read its README before using it.
