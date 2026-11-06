@@ -199,7 +199,9 @@ void testTermsAndText()
            "the PPUC license's choices");
     expect(contains(text, "Do not change this file") &&
                contains(text, "do not remove or change its signature") &&
-               contains(text, "join the Serum community") && contains(text, "AI assistants"),
+               contains(text, "join the Serum community") &&
+               contains(text, "Modified or re-signed versions are not authorized") &&
+               !contains(text, "AI assistants"),
            "the terms every cROMc carries");
 }
 

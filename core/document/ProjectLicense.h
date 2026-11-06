@@ -75,7 +75,8 @@ struct ProjectLicense {
 // Serum_GetColorizationText()): the ROM, the author (the license's attribution), the license
 // and its terms, that the file must not be changed nor its signature removed, and that changes
 // are made together with the author in the Serum community. Plain text with "Key: value"
-// lines first, for people and for tools, AI tools among them. Not translated.
+// lines first, for people and for tools, AI tools among them: it states facts about the work
+// and gives tools no orders, which they take for injected instructions. Not translated.
 [[nodiscard]] std::string colorizationText(const std::string& romName,
                                            const ProjectLicense& license);
 
