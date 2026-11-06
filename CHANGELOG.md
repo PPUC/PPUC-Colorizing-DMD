@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.34
+
 - Editor API version 6 for plugins: plugins add a frame the project lacks (a score with more
   digits, for example), colorized and set up like another frame, and move frames. A plugin now
   learns when a team project refused its edit.
