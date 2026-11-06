@@ -106,6 +106,16 @@ private:
                                                             std::size_t frameIndex,
                                                             std::size_t setIndex,
                                                             const std::vector<uint16_t>& colors);
+// A new frame with the original (the ROM frame's size, a shade per pixel), made like the frame
+// `like`: its colorized pictures, and its settings as Edit -> Copy Frame Settings copies them,
+// except the trigger and the DOF events, which belong to that frame alone. For a frame the ROM
+// shows that the project lacks, such as a score with more digits. It is appended as addFrames()
+// appends; *added (unless null) gets its index. Throws std::invalid_argument for an original
+// of another size or with a shade the project has no color for.
+[[nodiscard]] std::unique_ptr<EditCommand> addFrameLike(document::ProjectDocument& document,
+                                                        const std::vector<uint8_t>& original,
+                                                        std::size_t like,
+                                                        std::size_t* added);
 
 // The pictures (RGB565, the plane's or the sprite's size, row-major) written where write is
 // not 0; an empty write mask writes every pixel. A frame, background or sprite without HD gets

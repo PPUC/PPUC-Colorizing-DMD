@@ -229,6 +229,67 @@ void testIdentificationSteps()
            "one undo takes them back");
 }
 
+// A frame the ROM shows that the project lacks, made like another: frame 2 has dynamic zones,
+// frame 1 HD, a comparison mask and background 2.
+void testAddFrameLike()
+{
+    ProjectDocument document =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    const std::size_t frames = document.frameCount();
+    document.setPupTriggerId(2, 1234);
+    std::vector<uint8_t> original = document.originalFrame(2).pixels.toVector();
+    original[70] = static_cast<uint8_t>((original[70] + 1) % document.colorCount());
+    edit::EditBatch batch("Add");
+
+    std::size_t added = 0;
+    batch.add(edit::addFrameLike(document, original, 2, &added));
+    expect(document.frameCount() == frames + 1 && added == frames,
+           "the frame is appended behind the last one");
+    expect(document.originalFrame(added).pixels.toVector() == original, "with the original");
+    expect(samePixels(document.colorizedFrame(added, Resolution::Sd),
+                      document.colorizedFrame(2, Resolution::Sd)),
+           "the picture of frame 2");
+    expect(document.hasDynamicPixels(added) &&
+               document.dynamicColor(added, document.dynamicPlane(), 0, 1) ==
+                   document.dynamicColor(2, document.dynamicPlane(), 0, 1) &&
+               document.frameDurationMs(added) == document.frameDurationMs(2),
+           "its dynamic zones, colors and duration");
+    expect(document.pupTriggerId(added) == document::kNoTriggerId,
+           "but not its trigger, which belongs to frame 2");
+
+    std::size_t withHd = 0;
+    batch.add(edit::addFrameLike(document, document.originalFrame(1).pixels.toVector(), 1,
+                                 &withHd));
+    expect(withHd == frames + 1 && document.hasHdFrame(withHd) &&
+               samePixels(document.colorizedFrame(withHd, Resolution::Hd),
+                          document.colorizedFrame(1, Resolution::Hd)) &&
+               document.comparisonMaskId(withHd) == document.comparisonMaskId(1) &&
+               document.backgroundData(withHd)->backgroundId ==
+                   document.backgroundData(1)->backgroundId,
+           "like frame 1: HD, its comparison mask and its background");
+
+    bool thrown = false;
+    try {
+        (void)edit::addFrameLike(document, std::vector<uint8_t>(5, 0), 2, nullptr);
+    } catch (const std::invalid_argument&) {
+        thrown = true;
+    }
+    expect(thrown && document.frameCount() == frames + 2, "an original of the wrong size");
+    thrown = false;
+    try {
+        (void)edit::addFrameLike(document, original, frames + 5, nullptr);
+    } catch (const std::out_of_range&) {
+        thrown = true;
+    }
+    expect(thrown && document.frameCount() == frames + 2, "a frame that does not exist");
+
+    edit::UndoHistories histories;
+    histories.push(edit::structureHistoryKey(), batch.finish());
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.frameCount() == frames,
+           "one undo takes both frames back");
+}
+
 // A picture of the plane's size: the color of each pixel from its position.
 std::vector<uint16_t> patternPicture(render::Size size)
 {
@@ -367,5 +428,6 @@ void runEditBatchTests()
     testSteps();
     testCancel();
     testIdentificationSteps();
+    testAddFrameLike();
     testPictures();
 }

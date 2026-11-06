@@ -170,6 +170,30 @@ void testIdentification()
                document.comparisonMaskPixel(1, 4, 0) == 1 &&
                document.dynamicColor(2, document.dynamicPlane(), 4, 3) != 0xf800,
            "one undo takes it all back");
+
+    // Version 6: the changed frame 0 as a frame of its own, made like frame 2.
+    const std::size_t frameCount = document.frameCount();
+    uint32_t added = CDMDPI_NONE;
+    expect(api->AddFrame(plugin, changed.pixels.data(), kPixels, 2, &added) == 0,
+           "no frame without a batch");
+    expect(api->BeginEdit(plugin, "Add") == 1, "a batch for the frame");
+    expect(api->AddFrame(plugin, changed.pixels.data(), 5, 2, &added) == 0 &&
+               api->AddFrame(plugin, changed.pixels.data(), kPixels, 999, &added) == 0 &&
+               api->AddFrame(plugin, tooBright.data(), kPixels, 2, &added) == 0 &&
+               added == CDMDPI_NONE && document.frameCount() == frameCount,
+           "an original of the wrong size or shades, or a frame that does not exist, is refused");
+    expect(api->AddFrame(plugin, changed.pixels.data(), kPixels, 2, &added) == 1 &&
+               added == frameCount && document.frameCount() == frameCount + 1 &&
+               document.originalFrame(added).pixels.toVector() == changed.pixels.toVector() &&
+               document.hasDynamicPixels(added),
+           "the frame is appended, with the original and frame 2's dynamic zones");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded.back() == "Add", "one step");
+    expect(api->RunOriginals(changed.pixels.data(), 1, 0, results.data(), nullptr) == 1 &&
+               results[0].outcome == CDMDPI_RUNTIME_NEW && results[0].identified == added,
+           "libserum identifies the frame that was unknown");
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.frameCount() == frameCount,
+           "undo takes the frame back");
 }
 
 // Version 3: pictures, the review window and the settings form, on a project with
@@ -440,7 +464,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 5, "the API table is version 5");
+    expect(api && api->version == 6, "the API table is version 6");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&

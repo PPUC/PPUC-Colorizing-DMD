@@ -887,8 +887,27 @@ int MSGPIAPI setDynamicColors(uint32_t endpointId, uint32_t frame, uint32_t set,
     });
 }
 
+// ---- Frames (version 6) ----------------------------------------------------------------------
+
+int MSGPIAPI addFrame(uint32_t endpointId, const uint8_t* original, uint32_t count,
+                      uint32_t like, uint32_t* frame)
+{
+    if (!original) {
+        return 0;
+    }
+    std::vector<uint8_t> pixels(original, original + count);
+    std::size_t added = 0;
+    const int done = change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::addFrameLike(document, pixels, like, &added);
+    });
+    if (done && frame) {
+        *frame = static_cast<uint32_t>(added);
+    }
+    return done;
+}
+
 const ColorizingDMDEditorAPI kApi{
-    5,
+    6,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -932,6 +951,7 @@ const ColorizingDMDEditorAPI kApi{
     &addComparisonMask,
     &setComparisonMask,
     &setDynamicColors,
+    &addFrame,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

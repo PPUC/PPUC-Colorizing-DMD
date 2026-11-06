@@ -1,9 +1,9 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 5 (version 4 without identification and the
-// runtime, version 3 without ShowForm and the file, note and consent fields either, version 2
-// without the pictures and the author's windows either, version 1 without the editing part
-// either).
+// ColorizingDMD editor API for plugins, version 6 (version 5 without AddFrame, version 4
+// without identification and the runtime either, version 3 without ShowForm and the file, note
+// and consent fields either, version 2 without the pictures and the author's windows either,
+// version 1 without the editing part either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -153,7 +153,7 @@ typedef struct ColorizingDMDRuntimeResult
 
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 5
+   int version; // 6
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -340,5 +340,16 @@ typedef struct ColorizingDMDEditorAPI
    // colorCount of them (see GetDynamicColors).
    int(MSGPIAPI* SetDynamicColors)(uint32_t endpointId, uint32_t frame, uint32_t set,
                                    const uint16_t* colors, uint32_t count);
+
+   // ---- Frames (version 6) ----------------------------------------------------------------
+   // A change of an edit batch, as those of version 2: a new frame with the original (the
+   // original's size, count = width * height, a shade below colorCount per pixel), made like
+   // the frame `like`: its colorized pictures and its settings as Edit -> Copy Frame Settings
+   // copies them (dynamic zones and colors, background, sprites, comparison mask and shape
+   // mode, ...), without its trigger and DOF events. For a frame the ROM shows that the project
+   // lacks, such as a score with more digits. The editor appends it behind the last frame
+   // (before the signing notice when that is the last); *frame, unless null, gets its index.
+   int(MSGPIAPI* AddFrame)(uint32_t endpointId, const uint8_t* original, uint32_t count,
+                           uint32_t like, uint32_t* frame);
 
 } ColorizingDMDEditorAPI;

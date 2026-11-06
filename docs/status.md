@@ -1212,6 +1212,10 @@ inactive, unknown), the frame identified and the frame on display, with the disp
 SetFrameComparison, AddComparisonMask, SetComparisonMask and SetDynamicColors are edit batch
 steps (`edit::setFrameComparison`, `addComparisonMaskForFrames`, `edit::setComparisonMask`,
 `edit::setDynamicColors`).
+v6 (2026-11-06): AddFrame is the edit batch step `edit::addFrameLike`: `addFrames` with
+`makeUncolorizedFrame`, then the source's colorized pictures (`setFramePicture`, HD first so the
+HD settings have a plane) and `copyFrameSettings` with every part but Trigger and DofEvents, for
+ROM frames the project lacks (a score layout with more digits).
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.

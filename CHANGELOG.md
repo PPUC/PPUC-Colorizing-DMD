@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Editor API version 6 for plugins: plugins add a frame the project lacks (a score with more
+  digits, for example), colorized and set up like another frame.
+
 ## 3.99.33
 
 - Editor API version 4 for plugins: forms a plugin shows before it starts, with their own button,

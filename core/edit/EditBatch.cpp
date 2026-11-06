@@ -5,8 +5,10 @@
 
 #include "document/ProjectDocument.h"
 #include "edit/FrameContentCommand.h"
+#include "edit/FrameSettingsCopy.h"
 #include "edit/SameFrames.h"
 #include "edit/StateCommands.h"
+#include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 
 namespace colorizing::edit {
@@ -466,6 +468,50 @@ std::unique_ptr<EditCommand> setDynamicColors(ProjectDocument& document,
     return applied(std::make_unique<DynamicColorsEditCommand>(frameIndex, plane, setIndex,
                                                               std::move(changes)),
                    document);
+}
+
+std::unique_ptr<EditCommand> addFrameLike(ProjectDocument& document,
+                                          const std::vector<uint8_t>& original,
+                                          std::size_t like,
+                                          std::size_t* added)
+{
+    checkFrame(document, like);
+    document::IndexedFrame frame;
+    frame.size = document.originalFrameSize();
+    frame.pixels.assign(original.begin(), original.end());
+    std::vector<document::FrameRecord> records;
+    records.push_back(document.makeUncolorizedFrame(std::move(frame),
+                                                    document.frameDurationMs(like)));
+
+    EditBatch batch("Add frame");
+    try {
+        std::unique_ptr<StructureCommand> adding = addFrames(document, std::move(records));
+        const std::size_t index = adding->recordIndices().front();
+        batch.add(std::move(adding));
+        // A frame added before the signing notice moves the notice one back.
+        const std::size_t source = like >= index ? like + 1 : like;
+        // The pictures first: an HD picture gives the new frame HD, which the settings of
+        // that plane need.
+        for (const Resolution plane : colorizedPlanes(document, source)) {
+            batch.add(setFramePicture(document, index, plane,
+                                      document.colorizedFrame(source, plane).pixels.toVector(),
+                                      {}));
+        }
+        std::vector<FrameSettingsPart> parts;
+        for (const FrameSettingsPart part : kFrameSettingsParts) {
+            if (part != FrameSettingsPart::Trigger && part != FrameSettingsPart::DofEvents) {
+                parts.push_back(part);
+            }
+        }
+        batch.add(copyFrameSettings(document, source, {index}, parts).command);
+        if (added) {
+            *added = index;
+        }
+    } catch (...) {
+        batch.cancel(document);
+        throw;
+    }
+    return batch.finish();
 }
 
 std::unique_ptr<EditCommand> setFramePicture(ProjectDocument& document,

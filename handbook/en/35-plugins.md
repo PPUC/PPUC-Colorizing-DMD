@@ -68,4 +68,7 @@ Version 5 feeds ROM frames to libserum with the whole project loaded (`RunOrigin
 libserum identifies for each frame and what the display shows after it), and in edit batches
 sets a frame's comparison mask and shape mode, adds and changes comparison masks, and sets the
 colors of a frame's dynamic sets.
+Version 6 adds a frame in an edit batch (`AddFrame`): a ROM frame the project lacks, such as a
+score with more digits, with the colorized pictures and the settings of a frame of the same
+kind, as `Edit -> Copy Frame Settings...` copies them, without its trigger and DOF events.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.
