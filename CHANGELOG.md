@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.31
+
 - The license choice offers Creative Commons without changes (CC BY-ND, CC BY-NC-ND, with an
   optional permission for commercial use with a PPUC DMD) and the PPUC Colorization License,
   which can also limit use on real pinball machines to a PPUC DMD. No license lets others
