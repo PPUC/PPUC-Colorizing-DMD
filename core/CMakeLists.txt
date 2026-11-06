@@ -72,6 +72,7 @@ add_library(colorizing_qt_v2_core STATIC
     runtime/SpeakerLightPlayer.cpp
     team/Claims.cpp
     team/TeamChanges.cpp
+    team/TeamHistory.cpp
     team/TeamMerge.cpp
 )
 

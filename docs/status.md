@@ -108,7 +108,10 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   - Teams (`core/team/`): `TeamState` (document/TeamState.h,
     in the project file as team/state.json and team/common.bin) holds the common revision of
     every component, the common frame order and settings hash, the packages sent and who
-    merged them, and the partners' packages merged. Changed = revision differs from the common
+    merged them, the partners' packages merged, and the history of the packages shared and
+    merged (`TeamHistory.h`: author, time, comment, IDs added/changed/deleted; Team -> History
+    and the merge preview show it, merges of older editors come from the package cache).
+    Changed = revision differs from the common
     one, so Share and Merge need a saved copy. A save keeps the common version of each changed
     component in team/base from the file it replaces (`ProjectFileOptions::baseSourcePath`;
     the autosave has to pass the project file). A change package (`TeamChanges.h`, file kind

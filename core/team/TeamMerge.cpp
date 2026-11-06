@@ -8,6 +8,7 @@
 
 #include "document/EditorMetadata.h"
 #include "project/ProjectFile.h"
+#include "team/TeamHistory.h"
 
 namespace colorizing::team {
 
@@ -647,6 +648,7 @@ std::unique_ptr<TeamMergeCommand> mergeChangePackage(ProjectDocument& document,
         team.commonSettingsHash = theirSettingsHash(package);
     }
     team.mergedPackages.push_back(package.packageId);
+    recordInHistory(team, package);
     for (auto sent = team.sent.begin(); sent != team.sent.end();) {
         if (std::find(package.merged.begin(), package.merged.end(), sent->id) !=
                 package.merged.end() &&

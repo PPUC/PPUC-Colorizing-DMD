@@ -34,6 +34,24 @@ struct SentPackage {
     bool operator==(const SentPackage&) const = default;
 };
 
+// A shared change package as the team history shows it (team/TeamHistory.h): who shared it,
+// when, the author's comment and what it changed, by component ID. Kept by every copy that
+// shared or merged the package, so that the partners can read later what a merge took in.
+struct TeamHistoryEntry {
+    ComponentId packageId;
+    std::string author;
+    int64_t createdMs = 0;
+    std::string comment;
+    // Per ComponentKind: the components the package added, changed and deleted.
+    std::array<std::vector<ComponentId>, kComponentKindCount> added;
+    std::array<std::vector<ComponentId>, kComponentKindCount> changed;
+    std::array<std::vector<ComponentId>, kComponentKindCount> deleted;
+    bool orderChanged = false;
+    bool settingsChanged = false;
+
+    bool operator==(const TeamHistoryEntry&) const = default;
+};
+
 // What a copy of a team project keeps about the team (design: "Working as a team"). Saved in
 // the project file (team/state.json, team/common.bin); a project without it is a solo one.
 struct TeamState {
@@ -53,6 +71,9 @@ struct TeamState {
     std::vector<SentPackage> sent;
     // The partners' packages merged into this copy.
     std::vector<ComponentId> mergedPackages;
+    // The packages this copy shared and merged, in the order it did; older copies have none
+    // of the packages before (team::teamHistory()).
+    std::vector<TeamHistoryEntry> history;
 
     bool operator==(const TeamState&) const = default;
 };

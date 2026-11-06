@@ -17,6 +17,7 @@
 #include "project/ProjectFile.h"
 #include "team/Claims.h"
 #include "team/TeamChanges.h"
+#include "team/TeamHistory.h"
 #include "team/TeamMerge.h"
 
 namespace {
@@ -65,10 +66,12 @@ ProjectDocument load(const std::string& path)
 }
 
 team::ChangePackage share(ProjectDocument& document, const std::string& path,
-                          const std::string& author, int64_t time, const std::string& name)
+                          const std::string& author, int64_t time, const std::string& name,
+                          const std::string& comment = {})
 {
     save(document, path, author, time);
-    const team::ChangePackage made = team::makeChangePackage(document, author, time);
+    team::ChangePackage made = team::makeChangePackage(document, author, time);
+    made.comment = comment;
     const std::string packagePath = tempPath(name + ".cdmdchanges");
     expect(team::writeChangePackage(packagePath, made, "test").ok, "the package is written");
     document::TeamState state = *document.team();
@@ -444,6 +447,74 @@ void testAuthorTimes()
     std::filesystem::remove(platform::pathFromUtf8(packagePath));
 }
 
+void testHistory()
+{
+    Team team = startTeam();
+    const document::ComponentId deleted = team.owner.frameMeta(5).id;
+    std::vector<std::size_t> remove = {5};
+    (void)team.owner.removeFrames(remove);
+    document::RemovedFrames added;
+    added.indices = {2};
+    added.frames.push_back(team.owner.makeUncolorizedFrame(
+        document::makeIndexedFrame(team.owner.originalFrameSize(), 1), 50));
+    added.tables = team.owner.recordTables();
+    team.owner.insertFrames(std::move(added));
+    const document::ComponentId newFrame = team.owner.frameMeta(2).id;
+    team.owner.setFrameDurationMs(4, 333);
+    const document::ComponentId changedFrame = team.owner.frameMeta(4).id;
+    team.owner.setComparisonMaskPixel(1, 3, 3, 1);
+    const team::ChangePackage package = share(team.owner, team.ownerPath, "kraken", 2000, "h1",
+                                              "Fixed the 8-digit score: a frame and mask 1");
+    expect(package.comment == "Fixed the 8-digit score: a frame and mask 1",
+           "the comment goes through the package file");
+
+    const document::TeamHistoryEntry entry = team::historyEntryOf(package);
+    expect(entry.packageId == package.packageId && entry.author == "kraken" &&
+               entry.createdMs == 2000 && entry.comment == package.comment &&
+               entry.orderChanged && !entry.settingsChanged,
+           "the entry has the package's author, time, comment and facts");
+    expect(entry.added[0] == std::vector<document::ComponentId>{newFrame} &&
+               entry.changed[0] == std::vector<document::ComponentId>{changedFrame} &&
+               entry.deleted[0] == std::vector<document::ComponentId>{deleted} &&
+               entry.changed[1].size() == 1 && entry.added[1].empty() &&
+               entry.changed[2].empty() && entry.changed[3].empty() && entry.changed[4].empty(),
+           "the entry has what the package added, changed and deleted, not what came along");
+
+    expect(team.partner.team()->history.empty(), "nothing in the history before the merge");
+    const ProjectDocument before = team.partner;
+    const auto merge = team::mergeChangePackage(team.partner, package, {}, "enthusiast");
+    expect(team.partner.team()->history == std::vector<document::TeamHistoryEntry>{entry},
+           "the merge records the package in the history");
+    const std::vector<team::HistoryChange> changes =
+        team::describeHistoryEntry(team.partner.team()->history[0], team.partner);
+    using What = team::HistoryChange::What;
+    expect(changes.size() == 4 && changes[0].kind == ComponentKind::Frame &&
+               changes[0].what == What::Added &&
+               changes[0].numbers == std::vector<std::size_t>{2} && changes[0].missing == 0 &&
+               changes[1].what == What::Changed &&
+               changes[1].numbers == std::vector<std::size_t>{4} &&
+               changes[2].what == What::Deleted && changes[2].numbers.empty() &&
+               changes[2].missing == 1 && changes[2].count() == 1 &&
+               changes[3].kind == ComponentKind::ComparisonMask &&
+               changes[3].what == What::Changed &&
+               changes[3].numbers == std::vector<std::size_t>{1},
+           "the description has the numbers in the project now");
+
+    // The history is saved with the project.
+    save(team.partner, team.partnerPath, "enthusiast", 3000);
+    const ProjectDocument reloaded = load(team.partnerPath);
+    expect(reloaded.team() && reloaded.team()->history == team.partner.team()->history,
+           "the history goes through the project file");
+
+    // Recorded once, and undone with the merge.
+    document::TeamState state = *team.partner.team();
+    team::recordInHistory(state, package);
+    expect(state.history.size() == 1, "a package is recorded once");
+    merge->revert(team.partner);
+    expect(team.partner.team()->history.empty() && *team.partner.team() == *before.team(),
+           "undoing the merge takes it out of the history");
+}
+
 void runTeamTests()
 {
     testStart();
@@ -454,4 +525,5 @@ void runTeamTests()
     testClaims();
     testMergedClaimsRelease();
     testAuthorTimes();
+    testHistory();
 }

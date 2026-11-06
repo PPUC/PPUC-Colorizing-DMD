@@ -842,6 +842,33 @@ JsonValue stringsJson(const std::vector<std::string>& texts)
     return array;
 }
 
+// The names of the kinds in a team history entry.
+constexpr std::array<const char*, document::kComponentKindCount> kHistoryKindNames = {
+    "frames", "masks", "backgrounds", "sprites", "palettes"};
+
+JsonValue historyEntryJson(const document::TeamHistoryEntry& entry)
+{
+    JsonValue item = JsonValue::object();
+    item.set("id", entry.packageId.toString());
+    item.set("author", entry.author);
+    item.set("created", entry.createdMs);
+    item.set("comment", entry.comment);
+    item.set("orderChanged", entry.orderChanged);
+    item.set("settingsChanged", entry.settingsChanged);
+    for (std::size_t kind = 0; kind < document::kComponentKindCount; ++kind) {
+        if (entry.added[kind].empty() && entry.changed[kind].empty() &&
+            entry.deleted[kind].empty()) {
+            continue;
+        }
+        JsonValue lists = JsonValue::object();
+        lists.set("added", idsJson(entry.added[kind]));
+        lists.set("changed", idsJson(entry.changed[kind]));
+        lists.set("deleted", idsJson(entry.deleted[kind]));
+        item.set(kHistoryKindNames[kind], std::move(lists));
+    }
+    return item;
+}
+
 JsonValue teamStateJson(const document::TeamState& team)
 {
     JsonValue root = JsonValue::object();
@@ -864,6 +891,13 @@ JsonValue teamStateJson(const document::TeamState& team)
         merged.push(id.toString());
     }
     root.set("mergedPackages", std::move(merged));
+    if (!team.history.empty()) {
+        JsonValue history = JsonValue::array();
+        for (const document::TeamHistoryEntry& entry : team.history) {
+            history.push(historyEntryJson(entry));
+        }
+        root.set("history", std::move(history));
+    }
     return root;
 }
 
@@ -1728,6 +1762,28 @@ std::vector<std::string> readStrings(const JsonObjectReader& object, std::string
     return texts;
 }
 
+document::TeamHistoryEntry readHistoryEntry(const JsonValue& item)
+{
+    const JsonObjectReader reader = objectItem(item, "team history entry");
+    document::TeamHistoryEntry entry;
+    entry.packageId = parseId(reader.string("id"), "team history entry");
+    entry.author = reader.string("author", "");
+    entry.createdMs = reader.integer("created", INT64_MIN, INT64_MAX, 0);
+    entry.comment = reader.string("comment", "");
+    entry.orderChanged = reader.boolean("orderChanged", false);
+    entry.settingsChanged = reader.boolean("settingsChanged", false);
+    for (std::size_t kind = 0; kind < document::kComponentKindCount; ++kind) {
+        if (!reader.has(kHistoryKindNames[kind])) {
+            continue;
+        }
+        const JsonObjectReader lists = reader.object(kHistoryKindNames[kind]);
+        entry.added[kind] = readIds(lists, "added");
+        entry.changed[kind] = readIds(lists, "changed");
+        entry.deleted[kind] = readIds(lists, "deleted");
+    }
+    return entry;
+}
+
 document::TeamState readTeamState(const JsonValue& value, std::string_view common)
 {
     const JsonObjectReader state(value, "team state");
@@ -1753,6 +1809,9 @@ document::TeamState readTeamState(const JsonValue& value, std::string_view commo
             throw FormatError("the team state has a damaged list of merged packages");
         }
         team.mergedPackages.push_back(parseId(*text, "team state"));
+    }
+    for (const JsonValue& item : state.optionalArray("history")) {
+        team.history.push_back(readHistoryEntry(item));
     }
     Cursor cursor(common, "the team's common state");
     team.common = readRevisions(cursor);
