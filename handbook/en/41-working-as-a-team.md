@@ -43,8 +43,8 @@ A team project has a `Team` section in the right side bar (it is not there for o
   (and their GitHub picture), when, and their comment; a double click merges them, as `Merge
   Changes (2)...` below does;
 - when the editor last looked for them (`Checked at 14:05:12`);
-- `Merge Changes...` and `Share My Changes`, as in the `Team` menu, and `Add File...` for
-  shared changes that come as a file (see below).
+- `Merge Changes...`, `Share My Changes` and `History...`, as in the `Team` menu, and
+  `Add File...` for shared changes that come as a file (see below).
 
 Below the buttons, `Time spent` lists the time each of you spent on the project, as far as the
 shared changes have brought it to your copy: your shared changes carry your time, a merge takes
@@ -60,9 +60,12 @@ section is closed; it goes once they are merged.
   merge (frames, comparison masks, backgrounds, sprites, palettes, the frame order, and the
   settings: license, scenes, speaker lights, helper lines, sections). Changes are counted per frame
   (and per mask, background, sprite, palette), not per pixel.
-- `Team -> Merge Changes...` takes in the changes the partners shared, oldest first. What only a
-  partner changed is taken; new frames come in their place, deleted ones go. The merge is one
-  undo step per shared package; it ends the undo histories of the frames it replaced.
+- `Team -> Merge Changes...` first lists the changes the partners shared, oldest first, with who
+  shared them, when, their comment and what they change (as `Team -> History...` shows them,
+  below). Read them, then `Merge` takes them in, in that order; `Cancel` leaves them waiting.
+  What only a partner changed is taken; new frames come in their place, deleted ones go. The
+  merge is one undo step per shared package; it ends the undo histories of the frames it
+  replaced.
 - When you and a partner changed the same frame, the merge asks which to keep: for each conflict
   your version, the partner's and the one before both changes side by side, and `Keep Mine` or
   `Take Theirs` (for a frame one of you deleted, `Delete It` or `Keep It Deleted`). What you keep
@@ -72,6 +75,27 @@ section is closed; it goes once they are merged.
 
 The project is saved before sharing and merging, and after merging: a save gives the changed
 frames their new revisions, by which the copies tell what changed.
+
+## The history of the shared changes
+
+`Team -> History...` (or `History...` in the `Team` section) lists the changes shared in the team
+project, newest first, so that you can read later what a merge took in. Each shows:
+
+- who shared it and when; `waiting to be merged` for a partner's change you have not merged yet;
+- the comment its author typed at `Share My Changes` (`No comment` when it stayed empty);
+- what it changed, with the numbers as your project has them now: `Frames added: 2360`,
+  `Frames changed: 12-15, 40`, `Comparison masks changed: 36`, the same for backgrounds, sprites
+  and palettes, how many were deleted, and whether the frame order or the settings changed.
+  A frame that is no longer in the project is counted, as `1 no longer in the project`; one a
+  waiting change adds is counted as `new`.
+
+Double-click a line of frames to select them in the frame list. The window stays open while you
+work, and follows the merges and the partners' new changes.
+
+Your copy keeps the history in the project file: your own shared changes and the ones you merged.
+A waiting change shows what it changes once the editor has downloaded it (a change that comes as
+a file once you added it); before, its comment. Changes merged with an older editor, which kept no
+history, are taken from the editor's download folder, as far as this computer downloaded them.
 
 ## Large changes as a file
 

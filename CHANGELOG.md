@@ -5,6 +5,11 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Team -> History...` lists the changes shared in a team project: who shared them, when, their
+  comment and what they changed (frames, comparison masks, backgrounds, sprites, palettes, frame
+  order, settings), with the frame numbers to select them. `Merge Changes...` shows the waiting
+  changes the same way before it merges them.
+
 ## 3.99.34
 
 - Editor API version 6 for plugins: plugins add a frame the project lacks (a score with more

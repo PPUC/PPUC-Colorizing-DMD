@@ -154,6 +154,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     team/TeamController.h
     team/TeamDialogs.cpp
     team/TeamDialogs.h
+    team/TeamHistoryDialog.cpp
+    team/TeamHistoryDialog.h
     team/TeamPanel.cpp
     team/TeamPanel.h
     team/TeamSession.cpp

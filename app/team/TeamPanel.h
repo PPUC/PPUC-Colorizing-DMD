@@ -23,8 +23,9 @@ namespace colorizing::app {
 
 // The Team section of the right side bar, for a team project: the repository, who is signed
 // in, the partners' shared changes waiting to be merged (as the background sync last found
-// them) and the buttons to merge them and to share this copy's changes. It shows what the
-// TeamController gives it; the buttons ask the controller.
+// them) and the buttons to merge them, to share this copy's changes and to read the history of
+// the shared changes. It shows what the TeamController gives it; the buttons ask the
+// controller.
 class TeamPanel final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(TeamPanel)
 
@@ -63,6 +64,8 @@ public:
     std::function<void()> onSignInRequested;
     std::function<void()> onMergeRequested;
     std::function<void()> onShareRequested;
+    // History: the team's shared changes (Team -> History).
+    std::function<void()> onHistoryRequested;
     // Add File, or a file dropped on the section: a shared change a partner sent as a file.
     std::function<void(const QString& path)> onAddFileRequested;
 
@@ -76,6 +79,7 @@ private:
     QPushButton* m_mergeButton = nullptr;
     QPushButton* m_shareButton = nullptr;
     QPushButton* m_addFileButton = nullptr;
+    QPushButton* m_historyButton = nullptr;
     QLabel* m_timesLabel = nullptr;
     bool m_signedIn = false;
 

@@ -6828,6 +6828,24 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>MergePreviewDialog</name>
+    <message>
+        <source>Merge Changes</source>
+        <translation>Änderungen zusammenführen</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners, merged in this order. Read what they change before you merge them.</source>
+        <translation>
+            <numerusform>%n geteilte Änderung der Partner, in dieser Reihenfolge zusammengeführt. Lesen Sie, was sie ändert, bevor Sie sie zusammenführen.</numerusform>
+            <numerusform>%n geteilte Änderungen der Partner, in dieser Reihenfolge zusammengeführt. Lesen Sie, was sie ändern, bevor Sie sie zusammenführen.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Zusammenführen</translation>
+    </message>
+</context>
+<context>
     <name>MovieImportDialog</name>
     <message>
         <source>Import Movie Clip: %1</source>
@@ -8814,6 +8832,127 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>SharedChangesView</name>
+    <message>
+        <source>Frames added</source>
+        <translation>Frames hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Frames changed</source>
+        <translation>Frames geändert</translation>
+    </message>
+    <message>
+        <source>Frames deleted</source>
+        <translation>Frames gelöscht</translation>
+    </message>
+    <message>
+        <source>Comparison masks added</source>
+        <translation>Vergleichsmasken hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Comparison masks changed</source>
+        <translation>Vergleichsmasken geändert</translation>
+    </message>
+    <message>
+        <source>Comparison masks deleted</source>
+        <translation>Vergleichsmasken gelöscht</translation>
+    </message>
+    <message>
+        <source>Backgrounds added</source>
+        <translation>Hintergründe hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Backgrounds changed</source>
+        <translation>Hintergründe geändert</translation>
+    </message>
+    <message>
+        <source>Backgrounds deleted</source>
+        <translation>Hintergründe gelöscht</translation>
+    </message>
+    <message>
+        <source>Sprites added</source>
+        <translation>Sprites hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Sprites changed</source>
+        <translation>Sprites geändert</translation>
+    </message>
+    <message>
+        <source>Sprites deleted</source>
+        <translation>Sprites gelöscht</translation>
+    </message>
+    <message>
+        <source>Palettes added</source>
+        <translation>Paletten hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Palettes changed</source>
+        <translation>Paletten geändert</translation>
+    </message>
+    <message>
+        <source>Palettes deleted</source>
+        <translation>Paletten gelöscht</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n new</source>
+        <translation>
+            <numerusform>%n neu</numerusform>
+            <numerusform>%n neu</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n no longer in the project</source>
+        <translation>
+            <numerusform>%n nicht mehr im Projekt</numerusform>
+            <numerusform>%n nicht mehr im Projekt</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <comment>a kind of change and the numbers</comment>
+        <translation>%1: %2</translation>
+    </message>
+    <message>
+        <source>%1, %2: waiting to be merged</source>
+        <translation>%1, %2: wartet auf das Zusammenführen</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 und %n weiterer</numerusform>
+            <numerusform>%1 und %n weitere</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No comment</source>
+        <translation>Kein Kommentar</translation>
+    </message>
+    <message>
+        <source>Shared as a file: what it changes shows once you add the file in the Team section</source>
+        <translation>Als Datei geteilt: was sie ändert, zeigt sich, sobald Sie die Datei im Bereich Team hinzufügen</translation>
+    </message>
+    <message>
+        <source>Not downloaded yet: what it changes shows once it is</source>
+        <translation>Noch nicht heruntergeladen: was sie ändert, zeigt sich danach</translation>
+    </message>
+    <message>
+        <source>Double-click to select these frames</source>
+        <translation>Doppelklick wählt diese Frames aus</translation>
+    </message>
+    <message>
+        <source>The frame order changed</source>
+        <translation>Die Reihenfolge der Frames wurde geändert</translation>
+    </message>
+    <message>
+        <source>The settings changed (license, scenes, lights, helper lines, sections)</source>
+        <translation>Die Einstellungen wurden geändert (Lizenz, Szenen, Lichter, Hilfslinien, Abschnitte)</translation>
+    </message>
+</context>
+<context>
     <name>ShortcutsSettingsPage</name>
     <message>
         <source>Search the entries and keys</source>
@@ -9481,6 +9620,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Die Änderungen, die die Partner geteilt haben, in dieses Projekt übernehmen</translation>
     </message>
     <message>
+        <source>H&amp;istory...</source>
+        <translation>Ver&amp;lauf...</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project: who shared them, when, their comment and what they changed</source>
+        <translation>Die in diesem Teamprojekt geteilten Änderungen: wer sie geteilt hat, wann, ihr Kommentar und was sie geändert haben</translation>
+    </message>
+    <message>
         <source>&amp;Reserve Selected Frames</source>
         <translation>Ausgewählte Frames &amp;reservieren</translation>
     </message>
@@ -9763,6 +9910,21 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>TeamHistoryDialog</name>
+    <message>
+        <source>Team History</source>
+        <translation>Team-Verlauf</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project, newest first: who shared them, when, their comment and what they changed. Double-click a line of frames to select them.</source>
+        <translation>Die in diesem Teamprojekt geteilten Änderungen, die neuesten zuerst: wer sie geteilt hat, wann, ihr Kommentar und was sie geändert haben. Ein Doppelklick auf eine Zeile mit Frames wählt diese aus.</translation>
+    </message>
+    <message>
+        <source>No changes shared yet.</source>
+        <translation>Noch keine Änderungen geteilt.</translation>
+    </message>
+</context>
+<context>
     <name>TeamPanel</name>
     <message>
         <source>Sign In To GitHub...</source>
@@ -9795,6 +9957,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Add a shared change a partner sent as a file (too large for GitHub); dropping the file here does the same</source>
         <translation>Eine geteilte Änderung hinzufügen, die ein Partner als Datei geschickt hat (zu groß für GitHub); die Datei hier abzulegen bewirkt dasselbe</translation>
+    </message>
+    <message>
+        <source>History...</source>
+        <translation>Verlauf...</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project: who shared them, when, their comment and what they changed</source>
+        <translation>Die in diesem Teamprojekt geteilten Änderungen: wer sie geteilt hat, wann, ihr Kommentar und was sie geändert haben</translation>
     </message>
     <message>
         <source>The time each of you spent on the project, as far as your shared changes have brought it here</source>

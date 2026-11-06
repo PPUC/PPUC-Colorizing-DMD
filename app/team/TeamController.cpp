@@ -156,6 +156,12 @@ void TeamController::createMenu(QMenuBar* menuBar)
     m_mergeAction = withShortcutId(menu->addAction(tr("&Merge Changes...")), "merge-changes");
     m_mergeAction->setToolTip(tr("Take the changes the partners shared into this project"));
     QObject::connect(m_mergeAction, &QAction::triggered, m_window, [this]() { merge(); });
+    m_historyAction = withShortcutId(menu->addAction(tr("H&istory...")), "team-history");
+    m_historyAction->setToolTip(
+        tr("The changes shared in this team project: who shared them, when, their comment "
+           "and what they changed"));
+    QObject::connect(m_historyAction, &QAction::triggered, m_window,
+                     [this]() { showHistory(); });
     menu->addSeparator();
     m_reserveAction =
         withShortcutId(menu->addAction(tr("&Reserve Selected Frames")), "reserve-selected-frames");
@@ -199,8 +205,8 @@ void TeamController::updateActions()
     m_signInAction->setEnabled(!signedIn);
     m_signOutAction->setEnabled(signedIn);
     m_startAction->setEnabled(document && !team);
-    for (QAction* action : {m_shareAction, m_mergeAction, m_reserveAction, m_releaseAction,
-                            m_breakLockAction, m_refreshAction}) {
+    for (QAction* action : {m_shareAction, m_mergeAction, m_historyAction, m_reserveAction,
+                            m_releaseAction, m_breakLockAction, m_refreshAction}) {
         action->setEnabled(team);
     }
 }
@@ -561,8 +567,10 @@ void TeamController::merge()
         m_host.status(tr("No changes from the partners to merge"), 5000);
         return;
     }
-    std::size_t merged = 0;
-    team::TeamMergeCommand::Counts total;
+    // First all packages there are, so that the author reads what they change before the
+    // merge; one shared as a file stops them until it is added.
+    std::vector<team::ChangePackage> packages;
+    QString waitingFor;
     for (const QString& name : pending) {
         std::optional<team::ChangePackage> package;
         // Downloaded in the background already, as a rule; one shared as a file is there once
@@ -574,15 +582,14 @@ void TeamController::merge()
         }
         if (!package && isPackageNotice(name)) {
             const std::optional<PackageName> parsed = parsePackageName(name);
-            QMessageBox::information(
-                m_window, tr("Merge Changes"),
+            waitingFor =
                 tr("The shared change of %1 from %2 comes as a file. Add it with Add File in the "
                    "Team section; the changes after it wait until then.")
                     .arg(parsed ? parsed->login : name,
                          parsed ? QLocale().toString(
                                       QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
                                       QLocale::ShortFormat)
-                                : QString()));
+                                : QString());
             break;
         }
         if (!package) {
@@ -601,6 +608,27 @@ void TeamController::merge()
                                  tr("A package could not be read: %1").arg(error));
             break;
         }
+        packages.push_back(std::move(*package));
+    }
+    if (packages.empty()) {
+        if (!waitingFor.isEmpty()) {
+            QMessageBox::information(m_window, tr("Merge Changes"), waitingFor);
+        }
+        return;
+    }
+    std::vector<HistoryItem> preview;
+    for (const team::ChangePackage& package : packages) {
+        preview.push_back(pendingHistoryItem(package));
+    }
+    MergePreviewDialog previewDialog(preview, *document, m_window);
+    previewDialog.view()->onShowFrames = m_host.showFrames;
+    if (previewDialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    std::size_t merged = 0;
+    team::TeamMergeCommand::Counts total;
+    for (const team::ChangePackage& mergedPackage : packages) {
+        const team::ChangePackage* package = &mergedPackage;
         const team::MergePlan plan = team::planMerge(*document, *package);
         if (!plan.problem.empty()) {
             QMessageBox::warning(m_window, tr("Merge Changes"),
@@ -632,6 +660,9 @@ void TeamController::merge()
             QMessageBox::warning(m_window, tr("Merge Changes"), QString::fromUtf8(ex.what()));
             break;
         }
+    }
+    if (!waitingFor.isEmpty() && merged == packages.size()) {
+        QMessageBox::information(m_window, tr("Merge Changes"), waitingFor);
     }
     if (merged == 0) {
         return;
@@ -914,8 +945,51 @@ void TeamController::addPackageFile(const QString& path)
     updateSync();
 }
 
+void TeamController::showHistory()
+{
+    if (!isTeamProject()) {
+        return;
+    }
+    if (!m_historyDialog) {
+        m_historyDialog = new TeamHistoryDialog(m_window);
+        m_historyDialog->setAttribute(Qt::WA_DeleteOnClose);
+        m_historyDialog->view()->onShowFrames = [this](const std::vector<std::size_t>& frames) {
+            if (m_host.showFrames) {
+                m_host.showFrames(frames);
+            }
+        };
+    }
+    refreshHistory();
+    m_historyDialog->show();
+    m_historyDialog->raise();
+    m_historyDialog->activateWindow();
+}
+
+std::vector<HistoryItem> TeamController::historyItems() const
+{
+    const document::ProjectDocument* document = m_host.document();
+    if (!document || !document->team()) {
+        return {};
+    }
+    return teamHistoryItems(*document, cacheFolder(), m_pending, m_notes);
+}
+
+void TeamController::refreshHistory()
+{
+    if (!m_historyDialog) {
+        return;
+    }
+    const document::ProjectDocument* document = m_host.document();
+    if (!document || !document->team()) {
+        m_historyDialog->close();
+        return;
+    }
+    m_historyDialog->setItems(historyItems(), *document);
+}
+
 void TeamController::notifyTeamChanged()
 {
+    refreshHistory();
     if (m_mergeAction) {
         m_mergeAction->setText(m_pending.empty()
                                    ? tr("&Merge Changes...")

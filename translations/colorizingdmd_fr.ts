@@ -6828,6 +6828,24 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>MergePreviewDialog</name>
+    <message>
+        <source>Merge Changes</source>
+        <translation>Fusionner les modifications</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n shared change(s) from the partners, merged in this order. Read what they change before you merge them.</source>
+        <translation>
+            <numerusform>%n modification partagée par les partenaires, fusionnée dans cet ordre. Lisez ce qu&apos;elle change avant de la fusionner.</numerusform>
+            <numerusform>%n modifications partagées par les partenaires, fusionnées dans cet ordre. Lisez ce qu&apos;elles changent avant de les fusionner.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Merge</source>
+        <translation>Fusionner</translation>
+    </message>
+</context>
+<context>
     <name>MovieImportDialog</name>
     <message>
         <source>Import Movie Clip: %1</source>
@@ -8814,6 +8832,127 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>SharedChangesView</name>
+    <message>
+        <source>Frames added</source>
+        <translation>Frames ajoutées</translation>
+    </message>
+    <message>
+        <source>Frames changed</source>
+        <translation>Frames modifiées</translation>
+    </message>
+    <message>
+        <source>Frames deleted</source>
+        <translation>Frames supprimées</translation>
+    </message>
+    <message>
+        <source>Comparison masks added</source>
+        <translation>Masques de comparaison ajoutés</translation>
+    </message>
+    <message>
+        <source>Comparison masks changed</source>
+        <translation>Masques de comparaison modifiés</translation>
+    </message>
+    <message>
+        <source>Comparison masks deleted</source>
+        <translation>Masques de comparaison supprimés</translation>
+    </message>
+    <message>
+        <source>Backgrounds added</source>
+        <translation>Arrière-plans ajoutés</translation>
+    </message>
+    <message>
+        <source>Backgrounds changed</source>
+        <translation>Arrière-plans modifiés</translation>
+    </message>
+    <message>
+        <source>Backgrounds deleted</source>
+        <translation>Arrière-plans supprimés</translation>
+    </message>
+    <message>
+        <source>Sprites added</source>
+        <translation>Sprites ajoutés</translation>
+    </message>
+    <message>
+        <source>Sprites changed</source>
+        <translation>Sprites modifiés</translation>
+    </message>
+    <message>
+        <source>Sprites deleted</source>
+        <translation>Sprites supprimés</translation>
+    </message>
+    <message>
+        <source>Palettes added</source>
+        <translation>Palettes ajoutées</translation>
+    </message>
+    <message>
+        <source>Palettes changed</source>
+        <translation>Palettes modifiées</translation>
+    </message>
+    <message>
+        <source>Palettes deleted</source>
+        <translation>Palettes supprimées</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n new</source>
+        <translation>
+            <numerusform>%n pas encore dans le projet</numerusform>
+            <numerusform>%n pas encore dans le projet</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n no longer in the project</source>
+        <translation>
+            <numerusform>%n n&apos;est plus dans le projet</numerusform>
+            <numerusform>%n ne sont plus dans le projet</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>%1: %2</source>
+        <comment>a kind of change and the numbers</comment>
+        <translation>%1 : %2</translation>
+    </message>
+    <message>
+        <source>%1, %2: waiting to be merged</source>
+        <translation>%1, %2 : en attente de fusion</translation>
+    </message>
+    <message>
+        <source>%1, %2</source>
+        <translation>%1, %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%1 and %n more</source>
+        <translation>
+            <numerusform>%1 et %n autre</numerusform>
+            <numerusform>%1 et %n autres</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>No comment</source>
+        <translation>Aucun commentaire</translation>
+    </message>
+    <message>
+        <source>Shared as a file: what it changes shows once you add the file in the Team section</source>
+        <translation>Partagée en fichier : ce qu&apos;elle change apparaît une fois le fichier ajouté dans la section Équipe</translation>
+    </message>
+    <message>
+        <source>Not downloaded yet: what it changes shows once it is</source>
+        <translation>Pas encore téléchargée : ce qu&apos;elle change apparaît une fois téléchargée</translation>
+    </message>
+    <message>
+        <source>Double-click to select these frames</source>
+        <translation>Double-cliquez pour sélectionner ces frames</translation>
+    </message>
+    <message>
+        <source>The frame order changed</source>
+        <translation>L&apos;ordre des frames a changé</translation>
+    </message>
+    <message>
+        <source>The settings changed (license, scenes, lights, helper lines, sections)</source>
+        <translation>Les réglages ont changé (licence, scènes, lumières, lignes d&apos;aide, sections)</translation>
+    </message>
+</context>
+<context>
     <name>ShortcutsSettingsPage</name>
     <message>
         <source>Search the entries and keys</source>
@@ -9481,6 +9620,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Reprendre dans ce projet les modifications que les partenaires ont partagées</translation>
     </message>
     <message>
+        <source>H&amp;istory...</source>
+        <translation>H&amp;istorique...</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project: who shared them, when, their comment and what they changed</source>
+        <translation>Les modifications partagées dans ce projet d&apos;équipe : qui les a partagées, quand, leur commentaire et ce qu&apos;elles ont changé</translation>
+    </message>
+    <message>
         <source>&amp;Reserve Selected Frames</source>
         <translation>&amp;Réserver les frames sélectionnées</translation>
     </message>
@@ -9763,6 +9910,21 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>TeamHistoryDialog</name>
+    <message>
+        <source>Team History</source>
+        <translation>Historique de l&apos;équipe</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project, newest first: who shared them, when, their comment and what they changed. Double-click a line of frames to select them.</source>
+        <translation>Les modifications partagées dans ce projet d&apos;équipe, les plus récentes d&apos;abord : qui les a partagées, quand, leur commentaire et ce qu&apos;elles ont changé. Double-cliquez sur une ligne de frames pour les sélectionner.</translation>
+    </message>
+    <message>
+        <source>No changes shared yet.</source>
+        <translation>Aucune modification partagée pour l&apos;instant.</translation>
+    </message>
+</context>
+<context>
     <name>TeamPanel</name>
     <message>
         <source>Sign In To GitHub...</source>
@@ -9795,6 +9957,14 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Add a shared change a partner sent as a file (too large for GitHub); dropping the file here does the same</source>
         <translation>Ajouter une modification partagée qu’un partenaire a envoyée sous forme de fichier (trop grosse pour GitHub) ; déposer le fichier ici fait de même</translation>
+    </message>
+    <message>
+        <source>History...</source>
+        <translation>Historique...</translation>
+    </message>
+    <message>
+        <source>The changes shared in this team project: who shared them, when, their comment and what they changed</source>
+        <translation>Les modifications partagées dans ce projet d&apos;équipe : qui les a partagées, quand, leur commentaire et ce qu&apos;elles ont changé</translation>
     </message>
     <message>
         <source>The time each of you spent on the project, as far as your shared changes have brought it here</source>

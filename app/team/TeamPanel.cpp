@@ -46,10 +46,15 @@ TeamPanel::TeamPanel(QWidget* parent)
     m_addFileButton->setToolTip(
         tr("Add a shared change a partner sent as a file (too large for GitHub); dropping the "
            "file here does the same"));
+    m_historyButton = new QPushButton(tr("History..."), this);
+    m_historyButton->setToolTip(
+        tr("The changes shared in this team project: who shared them, when, their comment "
+           "and what they changed"));
     auto* buttons = new QGridLayout;
     buttons->addWidget(m_mergeButton, 0, 0);
     buttons->addWidget(m_shareButton, 0, 1);
-    buttons->addWidget(m_addFileButton, 1, 0, 1, 2);
+    buttons->addWidget(m_addFileButton, 1, 0);
+    buttons->addWidget(m_historyButton, 1, 1);
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_accountLabel);
@@ -83,6 +88,11 @@ TeamPanel::TeamPanel(QWidget* parent)
     connect(m_shareButton, &QPushButton::clicked, this, [this]() {
         if (onShareRequested) {
             onShareRequested();
+        }
+    });
+    connect(m_historyButton, &QPushButton::clicked, this, [this]() {
+        if (onHistoryRequested) {
+            onHistoryRequested();
         }
     });
     connect(m_addFileButton, &QPushButton::clicked, this, [this]() {

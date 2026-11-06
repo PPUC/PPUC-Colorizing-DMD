@@ -1,6 +1,7 @@
 // The team controller's guard (team/TeamController.h): an edit of what a partner claimed is
 // refused, others are not, and looking at a deletion leaves it as it was. The Team section
-// lists the partners' shared changes, and its header shows a bell while some wait.
+// lists the partners' shared changes, and its header shows a bell while some wait. Team ->
+// History lists them too, with their comments, and follows the sync.
 
 #include <cstdlib>
 #include <iostream>
@@ -32,6 +33,7 @@
 #include "team/TeamChanges.h"
 #include "team/TeamController.h"
 #include "team/TeamDialogs.h"
+#include "team/TeamHistoryDialog.h"
 #include "team/TeamPanel.h"
 
 namespace {
@@ -378,10 +380,49 @@ void testStartTeamDialog()
 
 }  // namespace
 
+void testHistoryWindow()
+{
+    document::ProjectDocument document = teamProject();
+    QWidget window;
+    app::TeamController::Host host;
+    host.document = [&document]() { return &document; };
+    host.projectPath = []() { return QString(); };
+    host.save = []() { return false; };
+    host.record = [](std::unique_ptr<edit::EditCommand>) {};
+    host.status = [](const QString&, int) {};
+    host.selectedFrames = []() { return std::vector<std::size_t>{}; };
+    app::TeamController controller(&window, host);
+    controller.setClaims({}, QStringLiteral("kraken"));
+    expect(controller.historyItems().empty(), "nothing shared yet");
+    controller.showHistory();
+    auto* dialog = dynamic_cast<app::TeamHistoryDialog*>(window.findChild<QDialog*>());
+    expect(dialog && dialog->isVisible() && dialog->view()->texts().isEmpty(),
+           "Team -> History opens, empty");
+
+    // The sync finds a partner's change, not downloaded yet: its comment shows.
+    app::TeamSync::Result result;
+    result.claims = team::Claims{};
+    result.pendingPackages = {packageName(1761220000000, "enthusiast")};
+    result.notes[result.pendingPackages[0]].comment = QStringLiteral("Mask 36 for the score");
+    controller.deliverSyncResultForTest(result);
+    const std::vector<app::HistoryItem> items = controller.historyItems();
+    expect(items.size() == 1 && items[0].pending &&
+               items[0].author == QStringLiteral("enthusiast") &&
+               items[0].comment == QStringLiteral("Mask 36 for the score"),
+           "a pending change with its comment");
+    const QStringList texts = dialog->view()->texts();
+    expect(texts.size() == 3 && texts[0].startsWith(QStringLiteral("enthusiast, ")) &&
+               texts[1] == QStringLiteral("  Mask 36 for the score") &&
+               texts[2].startsWith(QStringLiteral("  Not downloaded yet")),
+           "the open window follows the sync: " + texts.join(QLatin1Char('|')).toStdString());
+    dialog->close();
+}
+
 void runTeamControllerWidgetTests()
 {
     testRefusals();
     testTeamSection();
+    testHistoryWindow();
     testAvatars();
     testClaimedFrames();
     testStartTeamDialog();

@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "AppInfo.h"
+#include "team/TeamHistory.h"
 
 namespace colorizing::app {
 
@@ -361,16 +362,18 @@ void TeamSession::publish(document::ProjectDocument& document,
     }
     const team::ChangePackage& package = *prepared.package;
     const document::SentPackage sent = team::sentPackageOf(package);
+    const document::TeamHistoryEntry history = team::historyEntryOf(package);
     m_remote.writePackage(
         asFile ? changePackageNoticeName(package) : changePackageName(package),
         asFile ? changePackageNotice(package, prepared.bytes.size()) : prepared.bytes,
-        [this, &document, sent, nowMs, done = std::move(done)](QString writeError) {
+        [this, &document, sent, history, nowMs, done = std::move(done)](QString writeError) {
             if (!writeError.isEmpty()) {
                 done(writeError);
                 return;
             }
             document::TeamState team = *document.team();
             team.sent.push_back(sent);
+            team.history.push_back(history);
             document.setTeam(std::move(team));
             syncClaims(document, {}, nowMs,
                        [done](std::optional<team::Claims>, QString claimsError) {

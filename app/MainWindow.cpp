@@ -561,6 +561,11 @@ MainWindow::MainWindow(QWidget* parent)
         m_projectTime.merge(theirs, authorName().toStdString(), sessionTimeMs());
         updateTimeLabel();
     };
+    teamHost.showFrames = [this](const std::vector<std::size_t>& frames) {
+        if (!frames.empty()) {
+            showFramesForPlugin(frames.front(), frames);
+        }
+    };
     m_team = std::make_unique<TeamController>(this, std::move(teamHost));
     createActions();
     createCentralView();
@@ -2186,6 +2191,7 @@ void MainWindow::createCentralView()
     m_teamPanel->onSignInRequested = [this]() { m_team->signIn(); };
     m_teamPanel->onMergeRequested = [this]() { m_team->merge(); };
     m_teamPanel->onShareRequested = [this]() { m_team->share(); };
+    m_teamPanel->onHistoryRequested = [this]() { m_team->showHistory(); };
     m_teamPanel->onAddFileRequested = [this](const QString& path) {
         m_team->addPackageFile(path);
     };

@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QPointer>
 #include <QString>
 #include <QTimer>
 
@@ -17,6 +18,7 @@
 #include "team/Avatars.h"
 #include "team/Claims.h"
 #include "team/GitHub.h"
+#include "team/TeamHistoryDialog.h"
 #include "team/TeamPanel.h"
 #include "team/TeamSync.h"
 
@@ -59,6 +61,8 @@ public:
         // the partner's of a merged one.
         std::function<std::map<std::string, uint64_t>()> authorTimes;
         std::function<void(const std::map<std::string, uint64_t>&)> mergeAuthorTimes;
+        // Selects these frames (frame numbers), going to the first: from the team history.
+        std::function<void(const std::vector<std::size_t>&)> showFrames;
     };
 
     TeamController(QWidget* window, Host host);
@@ -102,6 +106,10 @@ public:
     void signIn();
     void share();
     void merge();
+    // Team -> History: the team's shared changes, newest first (TeamHistoryDialog).
+    void showHistory();
+    // What the history shows now (teamHistoryItems()).
+    [[nodiscard]] std::vector<HistoryItem> historyItems() const;
     // Adds a shared change a partner sent as a file (Team section); asks for the file without
     // a path.
     void addPackageFile(const QString& path = QString());
@@ -145,6 +153,7 @@ private:
     void updateActions();
     // The merge action's text and the Team section follow the pending packages.
     void notifyTeamChanged();
+    void refreshHistory();
     // Asks to sign in when signed out; false when the user did not.
     bool ensureSignedIn();
     // Runs a step that answers through `finished`, with a busy window after a moment; returns
@@ -188,6 +197,9 @@ private:
     QAction* m_startAction = nullptr;
     QAction* m_shareAction = nullptr;
     QAction* m_mergeAction = nullptr;
+    QAction* m_historyAction = nullptr;
+    // Team -> History while it is open; it follows what the team does.
+    QPointer<TeamHistoryDialog> m_historyDialog;
     QAction* m_reserveAction = nullptr;
     QAction* m_releaseAction = nullptr;
     QAction* m_breakLockAction = nullptr;
