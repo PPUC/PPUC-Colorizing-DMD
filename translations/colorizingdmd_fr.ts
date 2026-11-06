@@ -7285,6 +7285,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <source>Plugin settings</source>
         <translation>Réglages du plugin</translation>
     </message>
+    <message>
+        <source>Choose...</source>
+        <translation>Choisir...</translation>
+    </message>
 </context>
 <context>
     <name>ProjectSettingsDialog</name>

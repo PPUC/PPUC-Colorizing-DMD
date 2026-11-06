@@ -1,7 +1,8 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 3 (version 2 without the pictures and the
-// author's windows, version 1 without the editing part either).
+// ColorizingDMD editor API for plugins, version 4 (version 3 without ShowForm and the file,
+// note and consent fields, version 2 without the pictures and the author's windows either,
+// version 1 without the editing part either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -59,6 +60,11 @@
 #define CDMDPI_FIELD_PASSWORD 1 // text shown as dots
 #define CDMDPI_FIELD_CHECKBOX 2 // "1" or "0"
 #define CDMDPI_FIELD_CHOICE 3   // one of the field's choices
+// Version 4:
+#define CDMDPI_FIELD_FILE 4     // a file's path, with a button that chooses the file
+#define CDMDPI_FIELD_NOTE 5     // a paragraph of text (the label); it has no value
+#define CDMDPI_FIELD_CONSENT 6  // a checkbox shown unchecked every time; the form can be
+                                // accepted only while it is checked; kept as "1"
 
 typedef struct ColorizingDMDProjectInfo
 {
@@ -122,15 +128,18 @@ typedef struct ColorizingDMDSettingField
    uint32_t kind;            // CDMDPI_FIELD_...
    const char* defaultValue; // null for ""
    // CDMDPI_FIELD_CHOICE: the choices, one per line, each "value" or "value=label".
+   // CDMDPI_FIELD_FILE: the files to choose from, as name filters ("PAL files (*.pal)"), one
+   // per line; null for any file.
    const char* choices;
    const char* help;         // a line under the field; null for none
 } ColorizingDMDSettingField;
+// A field of kind CDMDPI_FIELD_NOTE needs no key; its label is the text.
 // saved: 1 when the author saved the form (the settings are set by then), 0 when cancelled.
 typedef void(MSGPIAPI* cdmdpi_settings_callback)(void* userData, int saved);
 
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 3
+   int version; // 4
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -276,4 +285,13 @@ typedef struct ColorizingDMDEditorAPI
    int(MSGPIAPI* EditSettings)(uint32_t endpointId, const char* title,
                                const ColorizingDMDSettingField* fields, uint32_t count,
                                cdmdpi_settings_callback callback, void* userData);
+
+   // ---- Forms (version 4) ----------------------------------------------------------------
+   // The form of EditSettings with its accept button named acceptLabel (null or "": "Save"),
+   // for a form the author fills in before the plugin does something ("Start"). The callback
+   // runs when the author accepts or cancels it; the values are kept as settings as with
+   // EditSettings. Both take the fields of version 4.
+   int(MSGPIAPI* ShowForm)(uint32_t endpointId, const char* title, const char* acceptLabel,
+                           const ColorizingDMDSettingField* fields, uint32_t count,
+                           cdmdpi_settings_callback callback, void* userData);
 } ColorizingDMDEditorAPI;

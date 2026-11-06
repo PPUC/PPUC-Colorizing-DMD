@@ -706,9 +706,9 @@ std::vector<std::pair<std::string, std::string>> choicesOf(const char* text)
     return choices;
 }
 
-int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
-                          const ColorizingDMDSettingField* fields, uint32_t count,
-                          cdmdpi_settings_callback callback, void* userData)
+int MSGPIAPI showForm(uint32_t endpointId, const char* title, const char* acceptLabel,
+                      const ColorizingDMDSettingField* fields, uint32_t count,
+                      cdmdpi_settings_callback callback, void* userData)
 {
     if (!g_backend || !fields || count == 0 || !callback) {
         return 0;
@@ -716,11 +716,18 @@ int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
     std::vector<SettingField> form;
     for (uint32_t index = 0; index < count; ++index) {
         const ColorizingDMDSettingField& item = fields[index];
-        if (!item.key || !*item.key || item.kind > CDMDPI_FIELD_CHOICE) {
+        if (item.kind > CDMDPI_FIELD_CONSENT) {
+            return 0;
+        }
+        const bool note = item.kind == CDMDPI_FIELD_NOTE;
+        if (!note && (!item.key || !*item.key)) {
+            return 0;
+        }
+        if (note && (!item.label || !*item.label)) {
             return 0;
         }
         SettingField field;
-        field.key = item.key;
+        field.key = note ? "" : item.key;
         field.label = item.label ? item.label : item.key;
         field.kind = static_cast<SettingField::Kind>(item.kind);
         field.defaultValue = item.defaultValue ? item.defaultValue : "";
@@ -732,13 +739,20 @@ int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
         form.push_back(std::move(field));
     }
     const bool opened = g_backend->editSettings(
-        pluginIdOf(endpointId), title ? title : "", std::move(form),
-        [callback, userData](bool saved) { callback(userData, saved ? 1 : 0); });
+        pluginIdOf(endpointId), title ? title : "", acceptLabel ? acceptLabel : "",
+        std::move(form), [callback, userData](bool saved) { callback(userData, saved ? 1 : 0); });
     return opened ? 1 : 0;
 }
 
+int MSGPIAPI editSettings(uint32_t endpointId, const char* title,
+                          const ColorizingDMDSettingField* fields, uint32_t count,
+                          cdmdpi_settings_callback callback, void* userData)
+{
+    return showForm(endpointId, title, nullptr, fields, count, callback, userData);
+}
+
 const ColorizingDMDEditorAPI kApi{
-    3,
+    4,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -776,6 +790,7 @@ const ColorizingDMDEditorAPI kApi{
     &setSpritePicture,
     &reviewPictures,
     &editSettings,
+    &showForm,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

@@ -34,12 +34,18 @@ struct SettingField {
         Password,
         Checkbox,
         Choice,
+        // A path, with a button that chooses the file; choices holds the name filters.
+        File,
+        // A paragraph (the label), without a value.
+        Note,
+        // A checkbox shown unchecked, which has to be checked to accept the form.
+        Consent,
     };
     std::string key;
     std::string label;
     Kind kind = Kind::Text;
     std::string defaultValue;
-    // Choice: the values and their labels.
+    // Choice: the values and their labels; File: the name filters, each as value and label.
     std::vector<std::pair<std::string, std::string>> choices;
     std::string help;
 };
@@ -90,8 +96,10 @@ public:
                                 const std::string& undoName,
                                 std::vector<ProposedPicture> pictures,
                                 std::function<void(std::size_t applied)> done) = 0;
+    // acceptLabel: the accept button's text; empty for Save.
     virtual bool editSettings(const std::string& pluginId,
                               const std::string& title,
+                              const std::string& acceptLabel,
                               std::vector<SettingField> fields,
                               std::function<void(bool saved)> done) = 0;
 };

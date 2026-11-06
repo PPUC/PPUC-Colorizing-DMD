@@ -359,6 +359,7 @@ void EditorPlugins::applyReview(const std::string& pluginId)
 
 bool EditorPlugins::editSettings(const std::string& pluginId,
                                  const std::string& title,
+                                 const std::string& acceptLabel,
                                  std::vector<vpx::SettingField> fields,
                                  std::function<void(bool saved)> done)
 {
@@ -367,10 +368,13 @@ bool EditorPlugins::editSettings(const std::string& pluginId,
     }
     std::map<std::string, std::string> values;
     for (const vpx::SettingField& field : fields) {
-        values[field.key] = setting(pluginId, field.key);
+        if (!field.key.empty()) {
+            values[field.key] = setting(pluginId, field.key);
+        }
     }
-    auto* dialog = new PluginSettingsDialog(QString::fromStdString(title), std::move(fields),
-                                            values, m_window.parent);
+    auto* dialog = new PluginSettingsDialog(QString::fromStdString(title),
+                                            QString::fromStdString(acceptLabel),
+                                            std::move(fields), values, m_window.parent);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     m_settings[pluginId] = Settings{dialog, std::move(done)};
     QObject::connect(dialog, &QDialog::finished, [this, pluginId](int result) {

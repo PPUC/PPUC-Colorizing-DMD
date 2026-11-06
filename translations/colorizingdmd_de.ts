@@ -7285,6 +7285,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <source>Plugin settings</source>
         <translation>Plugin-Einstellungen</translation>
     </message>
+    <message>
+        <source>Choose...</source>
+        <translation>Auswählen...</translation>
+    </message>
 </context>
 <context>
     <name>ProjectSettingsDialog</name>

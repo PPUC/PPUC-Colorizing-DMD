@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Editor API version 4 for plugins: forms a plugin shows before it starts, with their own button,
+  a file to choose, explanations and a confirmation that has to be checked each time.
+
 ## 3.99.32
 
 - The license settings no longer cut off their texts, and name the devices as PPUC/DMD: the

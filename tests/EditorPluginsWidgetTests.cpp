@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -11,6 +12,7 @@
 #include <QCoreApplication>
 #include <QLineEdit>
 #include <QMenu>
+#include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
 
@@ -225,6 +227,54 @@ void testPictures()
                    plugins.setting("", "dynamic") == "0" && !plugins.settingsWindow(""),
                "Save keeps the values and tells the plugin");
 
+        // A form of version 4: a note, a file and a consent box, accepted with Start.
+        const ColorizingDMDSettingField runFields[] = {
+            {nullptr, "What the run does.", CDMDPI_FIELD_NOTE, nullptr, nullptr, nullptr},
+            {"pal", "PAL file", CDMDPI_FIELD_FILE, nullptr, "PAL files (*.pal)\nAll files (*)",
+             "The colorization"},
+            {"consent", "I made it", CDMDPI_FIELD_CONSENT, "1", nullptr, nullptr},
+        };
+        ColorizingDMDSettingField emptyNote = runFields[0];
+        emptyNote.label = nullptr;
+        expect(api->ShowForm(plugin, "VNI", "Start", &emptyNote, 1, &onSettings, &answers) == 0,
+               "a note without text is refused");
+        ColorizingDMDSettingField unknown = runFields[1];
+        unknown.kind = CDMDPI_FIELD_CONSENT + 1;
+        expect(api->ShowForm(plugin, "VNI", "Start", &unknown, 1, &onSettings, &answers) == 0,
+               "a field of an unknown kind is refused");
+        plugins.setSetting("", "pal", "/colorizations/game/pin2dmd.pal");
+        plugins.setSetting("", "consent", "1");
+        expect(api->ShowForm(plugin, "VNI", "Start", runFields, 3, &onSettings, &answers) == 1,
+               "the form opens");
+        form = plugins.settingsWindow("");
+        auto* pal = form ? qobject_cast<QLineEdit*>(form->input("pal")) : nullptr;
+        auto* consent = form ? qobject_cast<QCheckBox*>(form->input("consent")) : nullptr;
+        expect(pal && consent && pal->text() == "/colorizations/game/pin2dmd.pal" &&
+                   !consent->isChecked() && form->acceptButton() &&
+                   form->acceptButton()->text() == "Start" &&
+                   !form->acceptButton()->isEnabled() && !form->canAccept(),
+               "the file with its setting, the consent box unchecked although it was given");
+        form->accept();
+        expect(answers.forms == 1 && plugins.settingsWindow("") == form,
+               "it is not accepted without consent");
+        consent->setChecked(true);
+        expect(form->acceptButton()->isEnabled(), "consent enables Start");
+        pal->setText("/colorizations/other.pal");
+        form->accept();
+        const std::map<std::string, std::string> kept{
+            {"pal", plugins.setting("", "pal")}, {"consent", plugins.setting("", "consent")}};
+        expect(answers.forms == 2 && answers.saved == 1 &&
+                   kept.at("pal") == "/colorizations/other.pal" && kept.at("consent") == "1" &&
+                   plugins.setting("", "").empty() && !plugins.settingsWindow(""),
+               "Start keeps the values, the note has none");
+        expect(api->EditSettings(plugin, "VNI", runFields, 3, &onSettings, &answers) == 1,
+               "EditSettings takes the fields of version 4 too");
+        form = plugins.settingsWindow("");
+        expect(form && form->acceptButton()->text().contains("Save"),
+               "with its Save button");
+        form->reject();
+        expect(answers.forms == 3 && answers.saved == 0, "Cancel tells the plugin");
+
         // A window still open when the plugins go: closed without calling back.
         expect(api->ReviewPictures(plugin, "Upscale", "Gone", proposals, 1, &onReviewed,
                                    &answers) == 1,
@@ -279,7 +329,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 3, "the API table is version 3");
+    expect(api && api->version == 4, "the API table is version 4");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&

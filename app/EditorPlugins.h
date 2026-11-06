@@ -109,6 +109,7 @@ public:
                         std::function<void(std::size_t applied)> done) override;
     bool editSettings(const std::string& pluginId,
                       const std::string& title,
+                      const std::string& acceptLabel,
                       std::vector<vpx::SettingField> fields,
                       std::function<void(bool saved)> done) override;
 

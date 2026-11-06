@@ -44,7 +44,10 @@ by one of the same id in your folder.
   window does not block the editor, so the frames can be looked at meanwhile; but once the
   project changes, the proposal is outdated and can no longer be applied: ask the plugin again.
 - A plugin can show a form for its own settings (a service address, for example); `Save` keeps
-  them for the plugin.
+  them for the plugin. A plugin can also ask for what it needs before it starts, in a form with
+  its own button (`Start`, for example): a file is chosen with `Choose...` or typed in, and a
+  box that confirms something (that you may use a file, for example) is unchecked every time
+  the form opens; the button stays off until it is checked.
 - What a plugin logs is in `Help -> Plugin Log`.
 - Plugins that are not part of the editor's packages come from their authors; load only those
   you trust, as they run inside the editor.
@@ -59,4 +62,6 @@ backgrounds and clears color rotations; the changes apply at once and are record
 Version 3 reads background masks, background and sprite pictures and sprite shapes, the sprites
 a frame looks for, and the background and sprite the author works on; writes frame, background
 and sprite pictures in edit batches; and opens the review window and the settings form.
+Version 4 adds `ShowForm`, the settings form with its own accept button, and fields for a file,
+a paragraph of text and a confirmation that has to be checked.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.
