@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.33
+
 - Editor API version 4 for plugins: forms a plugin shows before it starts, with their own button,
   a file to choose, explanations and a confirmation that has to be checked each time.
 - Editor API version 5 for plugins: plugins run ROM frames through libserum with the whole
