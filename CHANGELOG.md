@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.35
+
 - Editor API version 7 for plugins: plugins copy frame settings as `Edit -> Copy Frame
   Settings...` does, dynamic shadows included.
 - `Team -> History...` lists the changes shared in a team project: who shared them, when, their
