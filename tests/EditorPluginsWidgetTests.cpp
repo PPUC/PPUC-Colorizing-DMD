@@ -75,10 +75,17 @@ void testIdentification()
     window.menu = &menu;
     window.document = [&document]() { return &document; };
     window.editableDocument = [&document]() { return &document; };
+    // As a team project refuses an edit a partner's claim blocks: taken back, not recorded.
+    bool refuse = false;
     window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
+        if (refuse) {
+            command->revert(document);
+            return false;
+        }
         const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
         recorded.push_back(batch ? batch->name() : std::string());
         histories.push(edit::structureHistoryKey(), std::move(command));
+        return true;
     };
     window.currentFrame = []() { return std::optional<std::size_t>(0); };
     window.selectedFrames = []() { return std::vector<std::size_t>{0}; };
@@ -194,6 +201,31 @@ void testIdentification()
     expect(histories.undo(edit::structureHistoryKey(), document) &&
                document.frameCount() == frameCount,
            "undo takes the frame back");
+
+    // Version 6: frames moved, and a batch the editor refuses.
+    const document::IndexedFrame first = document.originalFrame(0);
+    const document::IndexedFrame second = document.originalFrame(1);
+    const uint32_t moved[] = {1};
+    expect(api->BeginEdit(plugin, "Move") == 1 &&
+               api->MoveFrames(plugin, moved, 1, static_cast<uint32_t>(frameCount) + 1) == 0 &&
+               api->MoveFrames(plugin, moved, 1, 0) == 1,
+           "a place behind the frame count is refused; frame 1 goes before frame 0");
+    expect(document.originalFrame(0).pixels.toVector() == second.pixels.toVector() &&
+               document.originalFrame(1).pixels.toVector() == first.pixels.toVector(),
+           "frames 0 and 1 changed places");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded.back() == "Move", "the move is one step");
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.originalFrame(0).pixels.toVector() == first.pixels.toVector(),
+           "undo moves them back");
+    refuse = true;
+    expect(api->BeginEdit(plugin, "Refused") == 1 &&
+               api->AddFrame(plugin, changed.pixels.data(), kPixels, 2, &added) == 1 &&
+               document.frameCount() == frameCount + 1,
+           "the frame is there while the batch is open");
+    expect(api->EndEdit(plugin, 1) == 0 && document.frameCount() == frameCount &&
+               recorded.back() == "Move",
+           "EndEdit tells the plugin when the editor refused the batch");
+    refuse = false;
 }
 
 // Version 3: pictures, the review window and the settings form, on a project with
@@ -214,6 +246,7 @@ void testPictures()
         const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
         recorded.push_back(batch ? batch->name() : std::string());
         histories.push(edit::structureHistoryKey(), std::move(command));
+        return true;
     };
     window.currentFrame = []() { return std::optional<std::size_t>(4); };
     window.selectedFrames = []() { return std::vector<std::size_t>{4}; };
@@ -441,6 +474,7 @@ void runEditorPluginsWidgetTests()
         const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
         recorded.push_back(batch ? batch->name() : std::string());
         histories.push(edit::structureHistoryKey(), std::move(command));
+        return true;
     };
     window.currentFrame = [&current]() { return current; };
     window.selectedFrames = [&selected]() { return selected; };

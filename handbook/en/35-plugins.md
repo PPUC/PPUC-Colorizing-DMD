@@ -70,5 +70,8 @@ sets a frame's comparison mask and shape mode, adds and changes comparison masks
 colors of a frame's dynamic sets.
 Version 6 adds a frame in an edit batch (`AddFrame`): a ROM frame the project lacks, such as a
 score with more digits, with the colorized pictures and the settings of a frame of the same
-kind, as `Edit -> Copy Frame Settings...` copies them, without its trigger and DOF events.
+kind, as `Edit -> Copy Frame Settings...` copies them, without its trigger and DOF events. It
+also moves frames in an edit batch (`MoveFrames`, as the frame list moves them), and `EndEdit`
+tells the plugin when the editor did not record its batch: in a team project, an edit of what a
+partner works on is taken back, and the status bar says why.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

@@ -183,11 +183,9 @@ document::ProjectDocument* EditorPlugins::editableDocument()
     return m_window.editableDocument ? m_window.editableDocument() : nullptr;
 }
 
-void EditorPlugins::recordEdit(std::unique_ptr<edit::EditCommand> command)
+bool EditorPlugins::recordEdit(std::unique_ptr<edit::EditCommand> command)
 {
-    if (m_window.recordEdit && command) {
-        m_window.recordEdit(std::move(command));
-    }
+    return m_window.recordEdit && command && m_window.recordEdit(std::move(command));
 }
 
 std::optional<std::size_t> EditorPlugins::currentFrame() const
@@ -346,7 +344,8 @@ void EditorPlugins::applyReview(const std::string& pluginId)
         return;
     }
     if (std::unique_ptr<edit::EditBatchCommand> command = batch.finish()) {
-        recordEdit(std::move(command));
+        // A refusal is the editor's to explain (the status bar).
+        (void)recordEdit(std::move(command));
     }
     std::function<void(std::size_t)> done = std::move(review->second.done);
     m_reviews.erase(review);

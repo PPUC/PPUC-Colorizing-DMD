@@ -1,6 +1,7 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 6 (version 5 without AddFrame, version 4
+// ColorizingDMD editor API for plugins, version 6 (version 5 without AddFrame, MoveFrames and
+// EndEdit's refusal, version 4
 // without identification and the runtime either, version 3 without ShowForm and the file, note
 // and consent fields either, version 2 without the pictures and the author's windows either,
 // version 1 without the editing part either).
@@ -215,7 +216,9 @@ typedef struct ColorizingDMDEditorAPI
    // Returns 0 without a project or while a batch is open.
    int(MSGPIAPI* BeginEdit)(uint32_t endpointId, const char* name);
    // apply 1: records the batch (nothing when no change changed anything); 0: takes its changes
-   // back. Returns 0 when the plugin has no batch open.
+   // back. Returns 0 when the plugin has no batch open, and from version 6 also when the editor
+   // refused to record the batch and took it back (in a team project, a partner's claim on what
+   // it changes; the editor tells the author why).
    int(MSGPIAPI* EndEdit)(uint32_t endpointId, int apply);
    // The changes. Each returns 1 when it was made (also when it changed nothing) and 0 when the
    // plugin has no batch open or the change is refused (a frame or record that does not
@@ -351,5 +354,11 @@ typedef struct ColorizingDMDEditorAPI
    // (before the signing notice when that is the last); *frame, unless null, gets its index.
    int(MSGPIAPI* AddFrame)(uint32_t endpointId, const uint8_t* original, uint32_t count,
                            uint32_t like, uint32_t* frame);
+   // Moves the frames (count of them, any order) as one block, keeping their order, before the
+   // frame `before` (as numbered now), or behind the last frame when it is the frame count, as
+   // the frame list moves them: sections and the sprites' source frames follow their frames.
+   // The order matters to identification: libserum searches in frame order.
+   int(MSGPIAPI* MoveFrames)(uint32_t endpointId, const uint32_t* frames, uint32_t count,
+                             uint32_t before);
 
 } ColorizingDMDEditorAPI;

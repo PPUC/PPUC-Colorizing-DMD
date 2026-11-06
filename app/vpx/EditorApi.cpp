@@ -11,6 +11,7 @@
 #include "document/ProjectDocument.h"
 #include "document/Triggers.h"
 #include "edit/EditBatch.h"
+#include "edit/FrameMove.h"
 #include "edit/Sections.h"
 #include "edit/StructureCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -352,24 +353,26 @@ void MSGPIAPI setSetting(uint32_t endpointId, const char* key, const char* value
     }
 }
 
-void finishBatch(bool apply)
+// Whether the batch is recorded, or taken back as asked: false when the editor refused it.
+bool finishBatch(bool apply)
 {
     if (!g_batch) {
-        return;
+        return false;
     }
     OpenBatch open = std::move(*g_batch);
     g_batch.reset();
     if (!g_backend || g_backend->editableDocument() != open.document) {
         // The project it was made on is gone.
-        return;
+        return false;
     }
     if (!apply) {
         open.batch.cancel(*open.document);
-        return;
+        return true;
     }
     if (std::unique_ptr<edit::EditBatchCommand> command = open.batch.finish()) {
-        g_backend->recordEdit(std::move(command));
+        return g_backend->recordEdit(std::move(command));
     }
+    return true;
 }
 
 int MSGPIAPI beginEdit(uint32_t endpointId, const char* name)
@@ -387,8 +390,7 @@ int MSGPIAPI endEdit(uint32_t endpointId, int apply)
     if (!g_batch || g_batch->endpointId != endpointId) {
         return 0;
     }
-    finishBatch(apply != 0);
-    return 1;
+    return finishBatch(apply != 0) ? 1 : 0;
 }
 
 // Runs one change of the plugin's open batch: 0 when it has none or the change is refused.
@@ -906,6 +908,21 @@ int MSGPIAPI addFrame(uint32_t endpointId, const uint8_t* original, uint32_t cou
     return done;
 }
 
+int MSGPIAPI moveFrames(uint32_t endpointId, const uint32_t* frames, uint32_t count,
+                        uint32_t before)
+{
+    if (!frames || !count) {
+        return 0;
+    }
+    const std::vector<std::size_t> indices(frames, frames + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        if (before > document.frameCount()) {
+            throw std::out_of_range("frame index out of range");
+        }
+        return std::unique_ptr<edit::EditCommand>(edit::moveFrames(document, indices, before));
+    });
+}
+
 const ColorizingDMDEditorAPI kApi{
     6,
     &getProjectInfo,
@@ -952,6 +969,7 @@ const ColorizingDMDEditorAPI kApi{
     &setComparisonMask,
     &setDynamicColors,
     &addFrame,
+    &moveFrames,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

@@ -1215,7 +1215,10 @@ steps (`edit::setFrameComparison`, `addComparisonMaskForFrames`, `edit::setCompa
 v6 (2026-11-06): AddFrame is the edit batch step `edit::addFrameLike`: `addFrames` with
 `makeUncolorizedFrame`, then the source's colorized pictures (`setFramePicture`, HD first so the
 HD settings have a plane) and `copyFrameSettings` with every part but Trigger and DofEvents, for
-ROM frames the project lacks (a score layout with more digits).
+ROM frames the project lacks (a score layout with more digits). MoveFrames is `edit::moveFrames`
+(join the section, split sections stay with their frames). EndEdit returns 0 when the backend's
+recordEdit refuses the batch (`MainWindow::recordPluginEdit`: the team's `admitEdit` reverted it
+into `m_refusedCommands`); before v6 a refused batch looked recorded.
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.

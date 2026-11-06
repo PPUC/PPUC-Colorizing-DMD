@@ -1039,7 +1039,8 @@ private:
     void recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                  const QString& status);
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
-    void recordPluginEdit(std::unique_ptr<edit::EditCommand> command);
+    // False when the team project refused the edit and took it back.
+    bool recordPluginEdit(std::unique_ptr<edit::EditCommand> command);
     // After an edit batch ran either way: it may have changed any frame and record.
     void refreshAfterEditBatch();
     // A project of the Win32 editor takes the scenes and scaling settings of the files beside

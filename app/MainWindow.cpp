@@ -576,7 +576,7 @@ MainWindow::MainWindow(QWidget* parent)
         return m_document ? &*m_document : nullptr;
     };
     pluginWindow.recordEdit = [this](std::unique_ptr<edit::EditCommand> command) {
-        recordPluginEdit(std::move(command));
+        return recordPluginEdit(std::move(command));
     };
     pluginWindow.currentFrame = [this]() { return currentFrameIndex(); };
     pluginWindow.selectedFrames = [this]() { return selectedFrameIndices(); };
@@ -12763,17 +12763,23 @@ void MainWindow::refreshAfterSceneEdit(const edit::SceneEditCommand& command)
     updateStructureControls();
 }
 
-void MainWindow::recordPluginEdit(std::unique_ptr<edit::EditCommand> command)
+bool MainWindow::recordPluginEdit(std::unique_ptr<edit::EditCommand> command)
 {
     if (!m_document || !command) {
-        return;
+        return false;
     }
     const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
     const QString name = batch ? QString::fromStdString(batch->name()) : QString();
+    // A refused command waits in m_refusedCommands, reverted, and the status bar says why.
+    const std::size_t refusedBefore = m_refusedCommands.size();
     m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
+    if (m_refusedCommands.size() > refusedBefore) {
+        return false;
+    }
     refreshAfterEditBatch();
     updateUndoRedoActions();
     showStructureEditStatus(name, 3000);
+    return true;
 }
 
 void MainWindow::refreshAfterEditBatch()

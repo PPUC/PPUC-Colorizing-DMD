@@ -62,8 +62,9 @@ public:
     // The same, for the editing part of the API, which changes it only through edit commands
     // and hands each finished batch to recordEdit().
     [[nodiscard]] virtual document::ProjectDocument* editableDocument() = 0;
-    // Records an applied command as one undoable step and refreshes the views.
-    virtual void recordEdit(std::unique_ptr<edit::EditCommand> command) = 0;
+    // Records an applied command as one undoable step and refreshes the views. False when the
+    // editor refused it and took it back (a partner's claim in a team project).
+    virtual bool recordEdit(std::unique_ptr<edit::EditCommand> command) = 0;
     [[nodiscard]] virtual std::optional<std::size_t> currentFrame() const = 0;
     // Ascending; the current frame when no other is selected.
     [[nodiscard]] virtual std::vector<std::size_t> selectedFrames() const = 0;
