@@ -226,6 +226,28 @@ void testIdentification()
                recorded.back() == "Move",
            "EndEdit tells the plugin when the editor refused the batch");
     refuse = false;
+
+    // Version 7: Copy Frame Settings, here the shadows of frame 2 on a frame made like it.
+    const render::Resolution plane = document.dynamicPlane();
+    expect(api->BeginEdit(plugin, "Shadows") == 1 &&
+               api->AddFrame(plugin, changed.pixels.data(), kPixels, 2, &added) == 1,
+           "a frame like frame 2");
+    document.setDynamicShadowDirection(2, plane, 0, 5);
+    document.setDynamicShadowColor(2, plane, 0, 0x07e0);
+    const uint32_t targets[] = {added};
+    expect(document.dynamicShadowDirection(added, plane, 0) != 5,
+           "the new frame has the shadow frame 2 had before");
+    expect(api->CopyFrameSettings(plugin, 2, targets, 1, 0) == 0 &&
+               api->CopyFrameSettings(plugin, 2, targets, 1, 0x1000) == 0 &&
+               api->CopyFrameSettings(plugin, 999, targets, 1, CDMDPI_SETTINGS_DURATION) == 0,
+           "no part, an unknown part or a frame that does not exist is refused");
+    expect(api->CopyFrameSettings(plugin, 2, targets, 1, CDMDPI_SETTINGS_DYNAMIC_SHADOWS) == 1 &&
+               document.dynamicShadowDirection(added, plane, 0) == 5 &&
+               document.dynamicShadowColor(added, plane, 0) == 0x07e0,
+           "the shadow of frame 2 is copied");
+    expect(api->CopyFrameSettings(plugin, 2, targets, 1, CDMDPI_SETTINGS_DYNAMIC_SHADOWS) == 1,
+           "copying what is equal already is no refusal");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded.back() == "Shadows", "one step");
 }
 
 // Version 3: pictures, the review window and the settings form, on a project with
@@ -498,7 +520,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 6, "the API table is version 6");
+    expect(api && api->version == 7, "the API table is version 7");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&

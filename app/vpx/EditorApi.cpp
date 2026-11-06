@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
+#include <iterator>
 #include <set>
 
 #include "ColorizingDMDPlugin.h"
@@ -12,6 +13,7 @@
 #include "document/Triggers.h"
 #include "edit/EditBatch.h"
 #include "edit/FrameMove.h"
+#include "edit/FrameSettingsCopy.h"
 #include "edit/Sections.h"
 #include "edit/StructureCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -923,8 +925,44 @@ int MSGPIAPI moveFrames(uint32_t endpointId, const uint32_t* frames, uint32_t co
     });
 }
 
+// ---- Frame settings (version 7) -------------------------------------------------------------
+
+int MSGPIAPI copyFrameSettings(uint32_t endpointId, uint32_t source, const uint32_t* frames,
+                               uint32_t count, uint32_t parts)
+{
+    // The API's bits, in the order of their values.
+    static constexpr edit::FrameSettingsPart kParts[] = {
+        edit::FrameSettingsPart::DynamicZones,   edit::FrameSettingsPart::DynamicColors,
+        edit::FrameSettingsPart::DynamicShadows, edit::FrameSettingsPart::Background,
+        edit::FrameSettingsPart::BackgroundMask, edit::FrameSettingsPart::Sprites,
+        edit::FrameSettingsPart::ColorRotations, edit::FrameSettingsPart::Identification,
+        edit::FrameSettingsPart::Trigger,        edit::FrameSettingsPart::Lights,
+        edit::FrameSettingsPart::Duration,       edit::FrameSettingsPart::DofEvents,
+    };
+    constexpr uint32_t kAllParts = (1u << std::size(kParts)) - 1;
+    if (!frames || !count || !parts || (parts & ~kAllParts)) {
+        return 0;
+    }
+    std::vector<edit::FrameSettingsPart> chosen;
+    for (std::size_t bit = 0; bit < std::size(kParts); ++bit) {
+        if (parts & (1u << bit)) {
+            chosen.push_back(kParts[bit]);
+        }
+    }
+    const std::vector<std::size_t> targets(frames, frames + count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        for (const std::size_t target : targets) {
+            if (target >= document.frameCount()) {
+                throw std::out_of_range("frame index out of range");
+            }
+        }
+        return std::unique_ptr<edit::EditCommand>(
+            edit::copyFrameSettings(document, source, targets, chosen).command);
+    });
+}
+
 const ColorizingDMDEditorAPI kApi{
-    6,
+    7,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -970,6 +1008,7 @@ const ColorizingDMDEditorAPI kApi{
     &setDynamicColors,
     &addFrame,
     &moveFrames,
+    &copyFrameSettings,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

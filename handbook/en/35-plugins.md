@@ -74,4 +74,6 @@ kind, as `Edit -> Copy Frame Settings...` copies them, without its trigger and D
 also moves frames in an edit batch (`MoveFrames`, as the frame list moves them), and `EndEdit`
 tells the plugin when the editor did not record its batch: in a team project, an edit of what a
 partner works on is taken back, and the status bar says why.
+Version 7 copies frame settings in an edit batch (`CopyFrameSettings`), the parts
+`Edit -> Copy Frame Settings...` offers, such as dynamic zones, their colors and shadows.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

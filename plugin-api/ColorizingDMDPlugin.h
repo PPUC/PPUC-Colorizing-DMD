@@ -1,10 +1,10 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 6 (version 5 without AddFrame, MoveFrames and
-// EndEdit's refusal, version 4
-// without identification and the runtime either, version 3 without ShowForm and the file, note
-// and consent fields either, version 2 without the pictures and the author's windows either,
-// version 1 without the editing part either).
+// ColorizingDMD editor API for plugins, version 7 (version 6 without CopyFrameSettings, version
+// 5 without AddFrame, MoveFrames and EndEdit's refusal either, version 4 without identification
+// and the runtime either, version 3 without ShowForm and the file, note and consent fields
+// either, version 2 without the pictures and the author's windows either, version 1 without the
+// editing part either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -152,9 +152,24 @@ typedef struct ColorizingDMDRuntimeResult
    uint32_t shown;      // the frame whose picture is on display after it; CDMDPI_NONE before any
 } ColorizingDMDRuntimeResult;
 
+// The parts of a frame's settings CopyFrameSettings copies, as Edit -> Copy Frame Settings
+// offers them (version 7); or them together.
+#define CDMDPI_SETTINGS_DYNAMIC_ZONES 0x001    // the zones, on the dynamic plane
+#define CDMDPI_SETTINGS_DYNAMIC_COLORS 0x002   // the colors of every set
+#define CDMDPI_SETTINGS_DYNAMIC_SHADOWS 0x004  // every set's shadow
+#define CDMDPI_SETTINGS_BACKGROUND 0x008       // the assigned background
+#define CDMDPI_SETTINGS_BACKGROUND_MASK 0x010
+#define CDMDPI_SETTINGS_SPRITES 0x020          // every sprite slot with its bounds
+#define CDMDPI_SETTINGS_COLOR_ROTATIONS 0x040
+#define CDMDPI_SETTINGS_IDENTIFICATION 0x080   // the comparison mask and the shape mode
+#define CDMDPI_SETTINGS_TRIGGER 0x100
+#define CDMDPI_SETTINGS_LIGHTS 0x200
+#define CDMDPI_SETTINGS_DURATION 0x400
+#define CDMDPI_SETTINGS_DOF_EVENTS 0x800
+
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 6
+   int version; // 7
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -360,5 +375,14 @@ typedef struct ColorizingDMDEditorAPI
    // The order matters to identification: libserum searches in frame order.
    int(MSGPIAPI* MoveFrames)(uint32_t endpointId, const uint32_t* frames, uint32_t count,
                              uint32_t before);
+
+   // ---- Frame settings (version 7) --------------------------------------------------------
+   // A change of an edit batch, as those of version 2: Edit -> Copy Frame Settings, the parts
+   // (CDMDPI_SETTINGS_*) of the frame `source` put on the frames given (count of them), each
+   // part replacing the target's. A frame of a scene does not take what it cannot have, and a
+   // frame without the data a part needs is left alone, as in the editor. Refused for no part,
+   // an unknown part or a frame that does not exist; nothing changed is no refusal.
+   int(MSGPIAPI* CopyFrameSettings)(uint32_t endpointId, uint32_t source, const uint32_t* frames,
+                                    uint32_t count, uint32_t parts);
 
 } ColorizingDMDEditorAPI;

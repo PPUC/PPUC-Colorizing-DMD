@@ -1222,6 +1222,9 @@ ROM frames the project lacks (a score layout with more digits). MoveFrames is `e
 (join the section, split sections stay with their frames). EndEdit returns 0 when the backend's
 recordEdit refuses the batch (`MainWindow::recordPluginEdit`: the team's `admitEdit` reverted it
 into `m_refusedCommands`); before v6 a refused batch looked recorded.
+v7 (2026-11-07): CopyFrameSettings is `edit::copyFrameSettings` with CDMDPI_SETTINGS_* bits in
+the order of the API (not `kFrameSettingsParts`' order); the plugin API had no other way to
+set dynamic shadows.
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
 it in the editor's packages.

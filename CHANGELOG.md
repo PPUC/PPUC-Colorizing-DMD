@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Editor API version 7 for plugins: plugins copy frame settings as `Edit -> Copy Frame
+  Settings...` does, dynamic shadows included.
 - `Team -> History...` lists the changes shared in a team project: who shared them, when, their
   comment and what they changed (frames, comparison masks, backgrounds, sprites, palettes, frame
   order, settings), with the frame numbers to select them. `Merge Changes...` shows the waiting
