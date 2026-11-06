@@ -119,11 +119,13 @@ BY-NC, BY-NC-SA) keeps it and shows it as no longer offered until another is cho
 
 The Creative Commons licenses link their full text (the "deed") below the box. `Attribution`
 says who is to be named, for example the authors; `Link` where the colorization or its license
-can be found. Changing the license is one undo step, together with the other project settings.
+can be found; `Contact` how to reach you, for example an e-mail address or a Discord name.
+Changing the license is one undo step, together with the other project settings.
 
 The license is stored in the project file, and the exported `.cROMc` carries it readable at its
 start, in plain text: the ROM, the author (`Attribution`, or else `Your name` from
-`Settings -> Projects`), the license with its address and terms, and the terms every
+`Settings -> Projects`, or else the GitHub account of your signing certificate; "not named"
+without any of them), the contact, the license with its address and terms, and the terms every
 colorization has: the file must not be changed, a signature must not be removed, and changes
 are made together with the author in the Serum community. libserum writes the text to its log
 when it loads the file. Anyone who opens the file sees it first, tools and AI tools too.

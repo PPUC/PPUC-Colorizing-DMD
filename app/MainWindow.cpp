@@ -741,7 +741,7 @@ void MainWindow::createActions()
         }
         CromcHeaderDialog dialog(CromcHeaderDialog::text(m_document->romName(),
                                                          m_document->license(),
-                                                         loadAuthorName()),
+                                                         exportAuthorName()),
                                  this);
         dialog.exec();
     });
@@ -3824,6 +3824,23 @@ void MainWindow::openFrameTester()
     }
 }
 
+QString MainWindow::exportAuthorName() const
+{
+    const QString name = loadAuthorName().trimmed();
+    if (!name.isEmpty()) {
+        return name;
+    }
+    // The GitHub account the signing certificate is for.
+    const AuthorSigningKey key = loadAuthorSigningKey();
+    if (key.seed && !key.certificate.isEmpty()) {
+        const CertificateCheck check = checkCertificate(key.certificate, key.seed);
+        if (check.trusted && !check.name.isEmpty()) {
+            return QStringLiteral("%1 (%2)").arg(check.name, check.identity);
+        }
+    }
+    return {};
+}
+
 void MainWindow::editSigningNotice()
 {
     if (!m_document) {
@@ -3902,9 +3919,9 @@ void MainWindow::exportCromc(bool modifiedForTesting)
     {
         document::ProjectSnapshot snapshot = m_document->toSnapshot();
         // The cROMc names the author (document::colorizationText()): the license's
-        // attribution, or else the name in Settings -> Projects, as CromcHeaderDialog shows it.
+        // attribution, or else exportAuthorName(), as CromcHeaderDialog shows it.
         if (snapshot.license.attribution.empty()) {
-            snapshot.license.attribution = loadAuthorName().trimmed().toStdString();
+            snapshot.license.attribution = exportAuthorName().toStdString();
         }
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =

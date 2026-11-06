@@ -200,6 +200,10 @@ private:
     // Writes the project's .cROMc through libserum, see runtime::exportCromc().
     // modifiedForTesting: File -> Export Modified .cROMc for Testing (CromcSigning).
     void exportCromc(bool modifiedForTesting = false);
+    // The author the exported cROMc names when the license's attribution is empty: the name in
+    // Settings -> Projects, or else the GitHub account of the signing certificate; empty
+    // without either.
+    [[nodiscard]] QString exportAuthorName() const;
     // Edit -> Edit Signing Notice: goes to the signing notice, adding it first if needed.
     void editSigningNotice();
     // See FrameTesterDialog.

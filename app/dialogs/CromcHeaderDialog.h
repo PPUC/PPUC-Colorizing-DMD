@@ -19,7 +19,7 @@ public:
     CromcHeaderDialog(const QString& text, QWidget* parent = nullptr);
 
     // The text for the project: its license, with authorName as the author when the license
-    // names nobody, as the export does.
+    // names nobody, as the export does (MainWindow::exportAuthorName()).
     [[nodiscard]] static QString text(const std::string& romName,
                                       document::ProjectLicense license,
                                       const QString& authorName);

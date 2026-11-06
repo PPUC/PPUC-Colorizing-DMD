@@ -186,9 +186,11 @@ void testTermsAndText()
     ppuc.kind = LicenseKind::PpucColorization;
     ppuc.attribution = "Kraken";
     ppuc.url = "https://example.org/colorization";
+    ppuc.contact = "kraken@example.org";
     ppuc.realMachinesOnlyPpucDmd = true;
     const std::string text = document::colorizationText("afm_113b", ppuc);
     expect(text.rfind("Serum colorization\nROM: afm_113b\nAuthor: Kraken\n"
+                      "Contact: kraken@example.org\n"
                       "License: PPUC Colorization License 1.0\n",
                       0) == 0,
            "the text starts with its fields: " + text);
@@ -201,8 +203,12 @@ void testTermsAndText()
                contains(text, "do not remove or change its signature") &&
                contains(text, "join the Serum community") &&
                contains(text, "Modified or re-signed versions are not authorized") &&
+               contains(text, "together with its author (contact: kraken@example.org).") &&
                !contains(text, "AI assistants"),
            "the terms every cROMc carries");
+    expect(contains(document::colorizationText("afm_113b", ProjectLicense{}),
+                    "Author: not named\n"),
+           "a text without an author says so");
 }
 
 // The project file keeps the new kinds and their choices.
@@ -215,6 +221,7 @@ void testProjectFile()
     snapshot.license.kind = LicenseKind::PpucColorization;
     snapshot.license.commercialWithPpucDmd = true;
     snapshot.license.realMachinesOnlyPpucDmd = true;
+    snapshot.license.contact = "Discord: kraken";
     const std::filesystem::path path = tempPath(".cdmd");
     const legacy::LegacySaveResult saved =
         project::saveProjectFile(platform::utf8FromPath(path), snapshot, {"test"});
@@ -222,7 +229,7 @@ void testProjectFile()
     const legacy::LegacyLoadResult loaded =
         project::loadProjectFile(platform::utf8FromPath(path));
     expect(loaded.ok && loaded.snapshot.license == snapshot.license,
-           "the PPUC license and its choices come back");
+           "the PPUC license, its choices and the contact come back");
     std::filesystem::remove(path);
 }
 

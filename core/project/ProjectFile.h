@@ -25,7 +25,7 @@ namespace colorizing::project {
 //                    one), editorVersion, projectId, romName, colorCount, libserumTarget
 //                    ("2.9"; earlier files may say "2.8", read and ignored), layout
 //                    ("ordinary", "native-extra", "native-original"), cromRevision (21, read
-//                    and ignored), license (kind, text, attribution, url,
+//                    and ignored), license (kind, text, attribution, url, and contact,
 //                    commercialWithPpucDmd and realMachinesOnlyPpucDmd when set),
 //                    colorization (the cROM's settings: scalingAlgorithm, shadowOffset,
 //                    sign (false when the exported cROMc is not signed), scenes, each with

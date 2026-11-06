@@ -75,6 +75,10 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     m_licenseUrlEdit = new QLineEdit(this);
     m_licenseUrlEdit->setPlaceholderText(QStringLiteral("https://..."));
     m_licenseUrlEdit->setToolTip(tr("Where the colorization or its license can be found"));
+    m_contactEdit = new QLineEdit(this);
+    m_contactEdit->setPlaceholderText(tr("For example an e-mail address or a Discord name"));
+    m_contactEdit->setToolTip(
+        tr("How to reach you about the colorization; the exported .cROMc names it"));
     // The boxes can be narrower than their longest entry, see makeInspectorForm().
     for (QComboBox* box : {m_scalingComboBox, m_shadowComboBox, m_licenseComboBox}) {
         box->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
@@ -105,6 +109,7 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
     layout->addRow(m_licenseTextEdit);
     layout->addRow(tr("Attribution"), m_attributionEdit);
     layout->addRow(tr("Link"), m_licenseUrlEdit);
+    layout->addRow(tr("Contact"), m_contactEdit);
 
     const auto changed = [this](int) {
         if (!m_filling && onScalingChanged) {
@@ -174,9 +179,11 @@ void ProjectSettingsPanel::setProject(const document::ProjectDocument* document)
     m_licenseTextEdit->setPlainText(QString::fromStdString(license.customText));
     m_attributionEdit->setText(QString::fromStdString(license.attribution));
     m_licenseUrlEdit->setText(QString::fromStdString(license.url));
+    m_contactEdit->setText(QString::fromStdString(license.contact));
     updateLicenseLabel();
     for (QWidget* widget : std::initializer_list<QWidget*>{
              m_licenseComboBox, m_licenseTextEdit, m_attributionEdit, m_licenseUrlEdit,
+             m_contactEdit,
              m_commercialCheckBox, m_ppucCommercialCheckBox, m_ppucOnlyCheckBox}) {
         widget->setEnabled(document != nullptr);
     }
@@ -228,6 +235,7 @@ document::ProjectLicense ProjectSettingsPanel::license() const
     license.customText = m_licenseTextEdit->toPlainText().toStdString();
     license.attribution = m_attributionEdit->text().trimmed().toStdString();
     license.url = m_licenseUrlEdit->text().trimmed().toStdString();
+    license.contact = m_contactEdit->text().trimmed().toStdString();
     return license;
 }
 

@@ -44,6 +44,9 @@ struct ProjectLicense {
     std::string attribution;
     // Where the colorization or its license can be found; may be empty.
     std::string url;
+    // How to reach the author, for example an e-mail address, a Discord name or a link; may be
+    // empty. The cROMc names it (colorizationText()).
+    std::string contact;
     // With CcByNcNd (as an additional permission, "CC+") and PpucColorization: commercial use
     // is allowed on a real pinball machine with a PPUC DMD (ppuc.org), with no other display.
     bool commercialWithPpucDmd = false;
@@ -55,7 +58,8 @@ struct ProjectLicense {
     [[nodiscard]] bool isSet() const
     {
         return kind != LicenseKind::Unspecified || !customText.empty() || !attribution.empty() ||
-               !url.empty() || commercialWithPpucDmd || realMachinesOnlyPpucDmd;
+               !url.empty() || !contact.empty() || commercialWithPpucDmd ||
+               realMachinesOnlyPpucDmd;
     }
 
     bool operator==(const ProjectLicense&) const = default;
@@ -72,7 +76,8 @@ struct ProjectLicense {
 [[nodiscard]] std::vector<std::string> licenseTerms(const ProjectLicense& license);
 
 // The text the exported cROMc keeps readable in its header (libserum's
-// Serum_GetColorizationText()): the ROM, the author (the license's attribution), the license
+// Serum_GetColorizationText()): the ROM, the author (the license's attribution; "not named"
+// without one) and how to contact them, the license
 // and its terms, that the file must not be changed nor its signature removed, and that changes
 // are made together with the author in the Serum community. Plain text with "Key: value"
 // lines first, for people and for tools, AI tools among them: it states facts about the work

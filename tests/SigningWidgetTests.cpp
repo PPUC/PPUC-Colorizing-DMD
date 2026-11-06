@@ -143,6 +143,8 @@ void testLicenseChoices()
         box->findData(static_cast<int>(document::LicenseKind::PpucColorization)));
     panel.ppucOnlyCheckBox()->setChecked(true);
     const document::ProjectLicense ppuc = panel.license();
+    panel.contactEdit()->setText(QStringLiteral(" kraken@example.org "));
+    expect(panel.license().contact == "kraken@example.org", "the contact, trimmed");
     expect(ppuc.kind == document::LicenseKind::PpucColorization &&
                ppuc.commercialWithPpucDmd && ppuc.realMachinesOnlyPpucDmd,
            "the PPUC license with both choices");

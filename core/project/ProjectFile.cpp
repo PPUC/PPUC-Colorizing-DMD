@@ -495,6 +495,9 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
     license.set("text", snapshot.license.customText);
     license.set("attribution", snapshot.license.attribution);
     license.set("url", snapshot.license.url);
+    if (!snapshot.license.contact.empty()) {
+        license.set("contact", snapshot.license.contact);
+    }
     if (snapshot.license.commercialWithPpucDmd) {
         license.set("commercialWithPpucDmd", true);
     }
@@ -1501,6 +1504,7 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
         snapshot.license.customText = license.string("text", "");
         snapshot.license.attribution = license.string("attribution", "");
         snapshot.license.url = license.string("url", "");
+        snapshot.license.contact = license.string("contact", "");
         snapshot.license.commercialWithPpucDmd = license.boolean("commercialWithPpucDmd", false);
         snapshot.license.realMachinesOnlyPpucDmd =
             license.boolean("realMachinesOnlyPpucDmd", false);
@@ -2236,6 +2240,9 @@ std::string settingsContent(const ProjectSnapshot& snapshot)
     license.set("text", snapshot.license.customText);
     license.set("attribution", snapshot.license.attribution);
     license.set("url", snapshot.license.url);
+    if (!snapshot.license.contact.empty()) {
+        license.set("contact", snapshot.license.contact);
+    }
     if (snapshot.license.commercialWithPpucDmd) {
         license.set("commercialWithPpucDmd", true);
     }

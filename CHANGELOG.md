@@ -9,7 +9,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   optional permission for commercial use with a PPUC DMD) and the PPUC Colorization License,
   which can also limit use on real pinball machines to a PPUC DMD. No license lets others
   change the colorization any more.
-- The exported `.cROMc` carries the author, the license and its terms readable at its start,
+- The exported `.cROMc` carries the author, an optional contact (`Contact` in the project
+  settings), the license and its terms readable at its start,
   with the request not to change the file or remove its signature, and to work on changes
   together with the author in the Serum community. `File -> Show .cROMc Header...` shows it.
 - Built with libserum 2.99.15: an unsigned `.cROMc` of the current format loads 30 seconds

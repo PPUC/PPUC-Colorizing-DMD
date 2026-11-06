@@ -145,8 +145,11 @@ std::string colorizationText(const std::string& romName, const ProjectLicense& l
 {
     std::string text = "Serum colorization\n";
     text += "ROM: " + romName + "\n";
-    if (!license.attribution.empty()) {
-        text += "Author: " + license.attribution + "\n";
+    text += "Author: " + (!license.attribution.empty() ? license.attribution
+                                                        : std::string("not named")) +
+            "\n";
+    if (!license.contact.empty()) {
+        text += "Contact: " + license.contact + "\n";
     }
     const std::string name = licenseShortName(license.kind);
     text += "License: " +
@@ -171,7 +174,9 @@ std::string colorizationText(const std::string& romName, const ProjectLicense& l
     text += "- If this file is signed, do not remove or change its signature. libserum checks "
             "it and shows players when a file was changed.\n";
     text += "- To change or correct the colorization, join the Serum community and work on it "
-            "together with its author.\n";
+            "together with its author" +
+            (!license.contact.empty() ? " (contact: " + license.contact + ")" : std::string()) +
+            ".\n";
     text += "\nThis colorization is the author's work, licensed without permission to modify "
             "it. Modified or re-signed versions are not authorized by the author. Changes and "
             "corrections are made together with the author in the Serum community.\n";

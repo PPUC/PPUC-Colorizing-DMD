@@ -56,6 +56,7 @@ public:
     [[nodiscard]] QPlainTextEdit* licenseTextEdit() const { return m_licenseTextEdit; }
     [[nodiscard]] QLineEdit* attributionEdit() const { return m_attributionEdit; }
     [[nodiscard]] QLineEdit* licenseUrlEdit() const { return m_licenseUrlEdit; }
+    [[nodiscard]] QLineEdit* contactEdit() const { return m_contactEdit; }
     [[nodiscard]] QLabel* licenseLabel() const { return m_licenseLabel; }
     [[nodiscard]] QCheckBox* commercialCheckBox() const { return m_commercialCheckBox; }
     [[nodiscard]] QCheckBox* ppucCommercialCheckBox() const { return m_ppucCommercialCheckBox; }
@@ -80,6 +81,7 @@ private:
     QPlainTextEdit* m_licenseTextEdit = nullptr;
     QLineEdit* m_attributionEdit = nullptr;
     QLineEdit* m_licenseUrlEdit = nullptr;
+    QLineEdit* m_contactEdit = nullptr;
     bool m_filling = false;
 };
 

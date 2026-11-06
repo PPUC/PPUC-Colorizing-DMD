@@ -7400,6 +7400,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Kein anderes DMD an einem echten Flipper, etwa PIN2DMD oder PIN2DMD MMI. Virtueller Flipper ist nicht betroffen.</translation>
     </message>
     <message>
+        <source>For example an e-mail address or a Discord name</source>
+        <translation>Zum Beispiel eine E-Mail-Adresse oder ein Discord-Name</translation>
+    </message>
+    <message>
+        <source>How to reach you about the colorization; the exported .cROMc names it</source>
+        <translation>Wie man Sie zur Kolorierung erreicht; die exportierte .cROMc nennt es</translation>
+    </message>
+    <message>
         <source>Upscaling</source>
         <translation>Hochskalierung</translation>
     </message>
@@ -7434,6 +7442,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Link</source>
         <translation>Link</translation>
+    </message>
+    <message>
+        <source>Contact</source>
+        <translation>Kontakt</translation>
     </message>
     <message>
         <source>%1 (allows changes, no longer offered)</source>
