@@ -1,5 +1,6 @@
 #include "document/ProjectSnapshot.h"
 
+#include <algorithm>
 #include <stdexcept>
 #include <utility>
 
@@ -216,6 +217,33 @@ bool isValidProjectSnapshot(const ProjectSnapshot& snapshot, std::string* errorM
     }
 
     return true;
+}
+
+std::vector<std::string> componentAuthors(const ProjectSnapshot& snapshot)
+{
+    std::vector<std::string> authors;
+    const auto add = [&authors](const ComponentMeta& meta) {
+        if (!meta.author.empty() &&
+            std::find(authors.begin(), authors.end(), meta.author) == authors.end()) {
+            authors.push_back(meta.author);
+        }
+    };
+    for (const ProjectFrameSnapshot& frame : snapshot.frames) {
+        add(frame.meta);
+    }
+    for (const ComponentMeta& meta : snapshot.comparisonMaskMeta) {
+        add(meta);
+    }
+    for (const BackgroundRecord& background : snapshot.backgrounds) {
+        add(background.meta);
+    }
+    for (const SpriteRecord& sprite : snapshot.sprites) {
+        add(sprite.meta);
+    }
+    for (const PaletteRecord& palette : snapshot.palettes) {
+        add(palette.meta);
+    }
+    return authors;
 }
 
 Size originalFrameSize(const ProjectSnapshot& snapshot)

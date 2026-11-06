@@ -123,9 +123,12 @@ can be found; `Contact` how to reach you, for example an e-mail address or a Dis
 Changing the license is one undo step, together with the other project settings.
 
 The license is stored in the project file, and the exported `.cROMc` carries it readable at its
-start, in plain text: the ROM, the author (`Attribution`, or else `Your name` from
-`Settings -> Projects`, or else the GitHub account of your signing certificate; "not named"
-without any of them), the contact, the license with its address and terms, and the terms every
+start, in plain text: the ROM, the author (`Attribution`; in a team project else the owner,
+whoever exports; else `Your name` from `Settings -> Projects`, or else the GitHub account of
+your signing certificate; "not named" without any of them), the contact, the contributors (a
+team project's other members, or whoever else changed frames, masks, backgrounds, sprites or
+palettes of a solo project, for example through a package), the license with its address and
+terms, and the terms every
 colorization has: the file must not be changed, a signature must not be removed, and changes
 are made together with the author in the Serum community. libserum writes the text to its log
 when it loads the file. Anyone who opens the file sees it first, tools and AI tools too.

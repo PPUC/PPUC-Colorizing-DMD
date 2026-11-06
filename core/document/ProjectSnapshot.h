@@ -87,6 +87,11 @@ struct ProjectSnapshot {
 
 [[nodiscard]] Size originalFrameSize(const ProjectSnapshot& snapshot);
 
+// Who worked on the project, by the change information of its frames, comparison masks,
+// backgrounds, sprites and palettes (ComponentMeta::author): each name once, in the order met,
+// without empty ones.
+[[nodiscard]] std::vector<std::string> componentAuthors(const ProjectSnapshot& snapshot);
+
 // Fills in the optional per-sprite dynamic data with its "no dynamic content" defaults.
 void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount);
 

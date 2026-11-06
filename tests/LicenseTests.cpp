@@ -209,6 +209,26 @@ void testTermsAndText()
     expect(contains(document::colorizationText("afm_113b", ProjectLicense{}),
                     "Author: not named\n"),
            "a text without an author says so");
+    expect(!contains(document::colorizationText("afm_113b", ProjectLicense{}), "Contributors") &&
+               contains(document::colorizationText("afm_113b", ppuc, {"A", "B"}),
+                        "Contact: kraken@example.org\nContributors: A, B\n"),
+           "the contributors after the contact, only when there are some");
+}
+
+// Who worked on a project, by the change information of its components.
+void testComponentAuthors()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    snapshot.frames[0].meta.author = "Markus";
+    snapshot.frames[1].meta.author = "Kraken";
+    snapshot.frames[2].meta.author = "Markus";
+    document::PaletteRecord palette;
+    palette.meta.author = "Pastor";
+    snapshot.palettes.push_back(palette);
+    expect(document::componentAuthors(snapshot) ==
+               std::vector<std::string>{"Markus", "Kraken", "Pastor"},
+           "each author once, in the order met");
 }
 
 // The project file keeps the new kinds and their choices.
@@ -242,4 +262,5 @@ void runLicenseTests()
     testFiles();
     testTermsAndText();
     testProjectFile();
+    testComponentAuthors();
 }

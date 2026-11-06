@@ -21,6 +21,7 @@
 #include "Autosave.h"
 #include "DmdOutput.h"
 #include "EditorPlugins.h"
+#include "dialogs/CromcHeaderDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "CanvasEditController.h"
 #include "EditHelpersController.h"
@@ -204,6 +205,8 @@ private:
     // Settings -> Projects, or else the GitHub account of the signing certificate; empty
     // without either.
     [[nodiscard]] QString exportAuthorName() const;
+    // Who the exported cROMc names (CromcHeaderDialog::credits()).
+    [[nodiscard]] CromcHeaderDialog::Credits exportCredits() const;
     // Edit -> Edit Signing Notice: goes to the signing notice, adding it first if needed.
     void editSigningNotice();
     // See FrameTesterDialog.

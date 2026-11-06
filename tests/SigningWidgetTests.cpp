@@ -177,6 +177,43 @@ void testCromcHeader()
     expect(dialog.shownText() == text, "the dialog shows it");
 }
 
+// A team project names its owner as the author, whoever exports, and its other members as
+// contributors; a solo project the one who exports and the other authors of its components.
+// The license's attribution comes first.
+void testCredits()
+{
+    document::TeamState team;
+    team.ownerLogin = "mkalkbrenner";
+    team.members = {"mkalkbrenner", "PastorL69", "Kraken74"};
+    using Credits = app::CromcHeaderDialog::Credits;
+    const Credits shared = app::CromcHeaderDialog::credits(
+        {}, team, {}, QStringLiteral("Kraken"), QStringLiteral("Kraken74 (github:9)"));
+    expect(shared.author == QStringLiteral("mkalkbrenner (GitHub)") &&
+               shared.contributors ==
+                   std::vector<std::string>{"PastorL69 (GitHub)", "Kraken74 (GitHub)"},
+           "a team project keeps its owner as the author");
+
+    const Credits solo = app::CromcHeaderDialog::credits(
+        {}, std::nullopt, {"Markus", "Kraken", "Markus"}, QStringLiteral(" Markus "),
+        QStringLiteral("Markus"));
+    expect(solo.author == QStringLiteral("Markus") &&
+               solo.contributors == std::vector<std::string>{"Kraken"},
+           "a solo project names the other authors of its components");
+
+    document::ProjectLicense license;
+    license.attribution = "Team Kraken";
+    expect(app::CromcHeaderDialog::credits(license, team, {}, {}, {}).author ==
+               QStringLiteral("Team Kraken"),
+           "the attribution comes first");
+
+    const QString text = app::CromcHeaderDialog::text("afm_113b", {}, shared.author,
+                                                      shared.contributors);
+    expect(text.contains(QStringLiteral("Author: mkalkbrenner (GitHub)\n")) &&
+               text.contains(
+                   QStringLiteral("Contributors: PastorL69 (GitHub), Kraken74 (GitHub)\n")),
+           "the header names them: " + text.toStdString());
+}
+
 }  // namespace
 
 void runSigningWidgetTests()
@@ -186,4 +223,5 @@ void runSigningWidgetTests()
     testRequestButton();
     testLicenseChoices();
     testCromcHeader();
+    testCredits();
 }

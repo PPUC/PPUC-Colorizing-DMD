@@ -119,6 +119,14 @@ void testRefusals()
     const auto import = edit::importPackage(document, package, edit::KnownFrames::Add);
     expect(import && !controller.refusal(*import, document), "an import is allowed");
 
+    // The settings, claimed by a partner: Project Settings says so instead of taking them.
+    expect(!controller.settingsRefusal(), "the settings are free");
+    claims.settings = team::WholeClaim{"enthusiast", 2000};
+    controller.setClaims(claims, QStringLiteral("kraken"));
+    const std::optional<QString> settings = controller.settingsRefusal();
+    expect(settings && settings->contains(QStringLiteral("enthusiast")),
+           "while a partner changes the settings, naming the partner");
+
     controller.setClaims({}, QStringLiteral("kraken"));
     expect(!controller.refusal(claimed, document), "without claims everything is allowed");
 }

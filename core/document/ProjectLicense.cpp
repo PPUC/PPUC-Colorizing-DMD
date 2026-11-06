@@ -141,7 +141,9 @@ std::vector<std::string> licenseTerms(const ProjectLicense& license)
     return terms;
 }
 
-std::string colorizationText(const std::string& romName, const ProjectLicense& license)
+std::string colorizationText(const std::string& romName,
+                             const ProjectLicense& license,
+                             const std::vector<std::string>& contributors)
 {
     std::string text = "Serum colorization\n";
     text += "ROM: " + romName + "\n";
@@ -150,6 +152,13 @@ std::string colorizationText(const std::string& romName, const ProjectLicense& l
             "\n";
     if (!license.contact.empty()) {
         text += "Contact: " + license.contact + "\n";
+    }
+    if (!contributors.empty()) {
+        std::string names;
+        for (const std::string& name : contributors) {
+            names += (names.empty() ? "" : ", ") + name;
+        }
+        text += "Contributors: " + names + "\n";
     }
     const std::string name = licenseShortName(license.kind);
     text += "License: " +

@@ -739,9 +739,10 @@ void MainWindow::createActions()
             statusBar()->showMessage(tr("No project loaded"), 2500);
             return;
         }
+        const CromcHeaderDialog::Credits credits = exportCredits();
         CromcHeaderDialog dialog(CromcHeaderDialog::text(m_document->romName(),
-                                                         m_document->license(),
-                                                         exportAuthorName()),
+                                                         m_document->license(), credits.author,
+                                                         credits.contributors),
                                  this);
         dialog.exec();
     });
@@ -3824,6 +3825,18 @@ void MainWindow::openFrameTester()
     }
 }
 
+CromcHeaderDialog::Credits MainWindow::exportCredits() const
+{
+    if (!m_document) {
+        return {};
+    }
+    const std::optional<document::TeamState>& team = m_document->team();
+    return CromcHeaderDialog::credits(
+        m_document->license(), team,
+        team ? std::vector<std::string>{} : document::componentAuthors(m_document->toSnapshot()),
+        loadAuthorName(), exportAuthorName());
+}
+
 QString MainWindow::exportAuthorName() const
 {
     const QString name = loadAuthorName().trimmed();
@@ -3915,13 +3928,15 @@ void MainWindow::exportCromc(bool modifiedForTesting)
 
     const QString work = QDir::temp().absoluteFilePath(
         QStringLiteral("colorizingdmd_cromc_%1").arg(QCoreApplication::applicationPid()));
+    CromcHeaderDialog::Credits credits;
     runtime::CromcExportResult result;
     {
         document::ProjectSnapshot snapshot = m_document->toSnapshot();
-        // The cROMc names the author (document::colorizationText()): the license's
-        // attribution, or else exportAuthorName(), as CromcHeaderDialog shows it.
+        // The cROMc names the author and the contributors (document::colorizationText()), as
+        // CromcHeaderDialog shows them.
+        credits = exportCredits();
         if (snapshot.license.attribution.empty()) {
-            snapshot.license.attribution = exportAuthorName().toStdString();
+            snapshot.license.attribution = credits.author.toStdString();
         }
         legacy::LegacyIoProgress progress;
         const std::optional<std::string> failure =
@@ -3932,7 +3947,8 @@ void MainWindow::exportCromc(bool modifiedForTesting)
                     platform::pathFromUtf8(projectDirectory.toStdString()),
                     platform::pathFromUtf8(target.toStdString()),
                     &progress,
-                    signing);
+                    signing,
+                    credits.contributors);
             });
         if (failure) {
             result = {};
@@ -12473,6 +12489,16 @@ void MainWindow::openProjectSettings()
     }
     ProjectSettingsDialog dialog(*m_document, this);
     if (dialog.exec() != QDialog::Accepted || !m_document) {
+        return;
+    }
+    // In a team project a partner may be changing the settings: nothing is taken then, and
+    // the dialog's choices would otherwise seem to be lost without a word.
+    if (const std::optional<QString> refusal = m_team ? m_team->settingsRefusal() : std::nullopt) {
+        QMessageBox::information(
+            this, tr("Project Settings"),
+            tr("The settings were not changed: %1. Merge the partners' changes first, or ask "
+               "them.")
+                .arg(*refusal));
         return;
     }
     document::ColorizationSettings settings =

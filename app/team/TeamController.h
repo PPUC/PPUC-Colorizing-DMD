@@ -89,6 +89,9 @@ public:
     // Takes the sync's answer as if the background sync had delivered it: for tests.
     void deliverSyncResultForTest(TeamSync::Result result);
 
+    // Why the project's settings cannot be changed now: a partner is changing them (their
+    // claim); nothing when they can, and in a solo project.
+    [[nodiscard]] std::optional<QString> settingsRefusal() const;
     // Signs in when signed out (the sign-in dialog); whether signed in afterwards. The client
     // then acts as the user, also outside team projects (the certificate request of
     // Settings -> Signing).

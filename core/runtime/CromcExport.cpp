@@ -141,7 +141,8 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
                               const fs::path& sidecarDirectory,
                               const fs::path& target,
                               legacy::LegacyIoProgress* progress,
-                              const CromcSigning& signing)
+                              const CromcSigning& signing,
+                              const std::vector<std::string>& contributors)
 {
     CromcExportResult result;
     const std::string rom = snapshot.romName;
@@ -209,7 +210,7 @@ CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
     std::string sourceError;
     {
         const std::string text =
-            document::colorizationText(exported.romName, exported.license);
+            document::colorizationText(exported.romName, exported.license, contributors);
         SnapshotSource source(std::move(exported), &text);
         const std::optional<std::string> path = libserumPath(*work);
         Serum_Signing_Key key{};

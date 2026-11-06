@@ -82,7 +82,10 @@ struct ProjectLicense {
 // are made together with the author in the Serum community. Plain text with "Key: value"
 // lines first, for people and for tools, AI tools among them: it states facts about the work
 // and gives tools no orders, which they take for injected instructions. Not translated.
+// contributors: the others who worked on it (team members, the authors of changed components),
+// named in a line of their own.
 [[nodiscard]] std::string colorizationText(const std::string& romName,
-                                           const ProjectLicense& license);
+                                           const ProjectLicense& license,
+                                           const std::vector<std::string>& contributors = {});
 
 }  // namespace colorizing::document

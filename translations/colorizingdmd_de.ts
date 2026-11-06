@@ -6426,6 +6426,10 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>The settings were not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
+        <translation>Die Einstellungen wurden nicht geändert: %1. Führen Sie zuerst die Änderungen der Partner zusammen, oder fragen Sie sie.</translation>
+    </message>
+    <message>
         <source>Changed the speaker lights&apos; defaults</source>
         <translation>Voreinstellungen der Lautsprecherlichter geändert</translation>
     </message>

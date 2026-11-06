@@ -65,13 +65,15 @@ struct CromcExportResult {
 // libserum holds one colorization per process: this loads and releases one, so whatever
 // RuntimePreview had loaded is gone (close it first; it loads again when asked). progress
 // covers writing the cROM; libserum's part cannot be cancelled. With a key and certificate in
-// signing the cROMc is signed.
+// signing the cROMc is signed. The cROMc's text (document::colorizationText()) names the
+// license's attribution as the author and the contributors.
 [[nodiscard]] CromcExportResult exportCromc(const document::ProjectSnapshot& snapshot,
                                             const std::filesystem::path& workDirectory,
                                             const std::filesystem::path& sidecarDirectory,
                                             const std::filesystem::path& target,
                                             legacy::LegacyIoProgress* progress = nullptr,
-                                            const CromcSigning& signing = {});
+                                            const CromcSigning& signing = {},
+                                            const std::vector<std::string>& contributors = {});
 
 // The public key of a signing key's secret (libserum's Serum_Signing_PublicKey()).
 [[nodiscard]] std::array<uint8_t, 32> signingPublicKey(const std::array<uint8_t, 32>& seed);

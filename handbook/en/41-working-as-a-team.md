@@ -96,7 +96,13 @@ partners see it read-only a few seconds later. An edit of a frame a partner clai
 once; the status bar says who works on it since when, and the frame's line below the canvas says
 `claimed`. In the frame list, a frame a partner works on (or reserved) shows the partner's
 GitHub picture in its upper left corner, a lock until the picture is loaded. Moving or deleting
-frames claims the frame order, changing the settings claims the settings.
+frames claims the frame order, changing the settings claims the settings. While a partner
+changes the settings, `File -> Project Settings...` says so when you press `OK` and changes
+nothing; merge the partner's changes first.
+
+The exported `.cROMc` of a team project names the one who started it (`Owner`) as the author,
+whoever exports it, and the other members as contributors (see "License"), unless the license's
+`Attribution` names the author.
 
 - The editor keeps the claims in step in the background, every 15 seconds and a moment after
   you edit something new, without making you wait; `Team -> Refresh Claims` does it now and says

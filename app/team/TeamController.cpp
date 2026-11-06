@@ -1110,6 +1110,16 @@ std::optional<QString> TeamController::refusalFor(const Touched& touched) const
     return std::nullopt;
 }
 
+std::optional<QString> TeamController::settingsRefusal() const
+{
+    if (!m_claims || !m_host.document() || !m_host.document()->team()) {
+        return std::nullopt;
+    }
+    Touched touched;
+    touched.settings = true;
+    return refusalFor(touched);
+}
+
 std::optional<QString> TeamController::refusal(const edit::EditCommand& command,
                                                document::ProjectDocument& document) const
 {
