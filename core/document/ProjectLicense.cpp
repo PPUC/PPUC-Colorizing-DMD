@@ -79,9 +79,10 @@ bool licenseAllowsChanges(LicenseKind kind)
 
 namespace {
 
-constexpr const char* kPpucDmd = "a PPUC DMD (https://ppuc.org)";
+// PPUC/DMD: the devices listed at ppuc.org.
+constexpr const char* kPpucDmd = "a PPUC/DMD, one of the devices listed at https://ppuc.org";
 constexpr const char* kOtherDisplays =
-    "any other display or DMD, for example PIN2DMD or PIN2DMD MMI";
+    "any device not listed there, for example PIN2DMD or PIN2DMD MMI";
 
 }  // namespace
 

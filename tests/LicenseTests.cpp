@@ -178,9 +178,10 @@ void testTermsAndText()
     for (const std::string& term : document::licenseTerms(cc)) {
         terms += term + "\n";
     }
-    expect(contains(terms, "Additional permission (CC+)") && contains(terms, "PPUC DMD") &&
-               contains(terms, "PIN2DMD"),
-           "and with the CC+ permission for a PPUC DMD");
+    expect(contains(terms, "Additional permission (CC+)") &&
+               contains(terms, "a PPUC/DMD, one of the devices listed at https://ppuc.org") &&
+               contains(terms, "any device not listed there, for example PIN2DMD or PIN2DMD MMI"),
+           "and with the CC+ permission for a PPUC/DMD, the devices listed at ppuc.org");
 
     ProjectLicense ppuc;
     ppuc.kind = LicenseKind::PpucColorization;
@@ -196,7 +197,7 @@ void testTermsAndText()
            "the text starts with its fields: " + text);
     expect(contains(text, "Commercial use is not allowed.") &&
                contains(text, "On a real pinball machine the colorization may be used only "
-                              "with a PPUC DMD") &&
+                              "with a PPUC/DMD") &&
                contains(text, "Link: https://example.org/colorization"),
            "the PPUC license's choices");
     expect(contains(text, "Do not change this file") &&

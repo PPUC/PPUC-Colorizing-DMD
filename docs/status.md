@@ -46,9 +46,9 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   again. The current version keeps the colorization's text (author, license, terms;
   `document::colorizationText()`) readable in its header.
 - **Licenses.** The editor offers no license that allows changes: Creative Commons BY-ND or
-  BY-NC-ND (with an optional CC+ permission for commercial use with a PPUC DMD) and the PPUC
-  Colorization License (commercial use only with a PPUC DMD, optionally real machines only
-  with a PPUC DMD). Its wording (`document::licenseTerms()`) is the editor's own and has not
+  BY-NC-ND (with an optional CC+ permission for commercial use with a PPUC/DMD) and the PPUC
+  Colorization License (commercial use only with a PPUC/DMD, optionally real machines only
+  with a PPUC/DMD; PPUC/DMD means the devices listed at ppuc.org). Its wording (`document::licenseTerms()`) is the editor's own and has not
   been checked by a lawyer.
 - **Signed colorizations.** The export signs the cROMc with the author's Ed25519 key
   (`app/Signing.h`, Settings -> Signing; on by default, `ColorizationSettings::signCromc` turns

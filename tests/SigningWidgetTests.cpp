@@ -132,7 +132,10 @@ void testLicenseChoices()
     expect(panel.license().kind == document::LicenseKind::CcByNcNd,
            "Creative Commons without commercial use is BY-NC-ND");
     panel.ppucCommercialCheckBox()->setChecked(true);
-    expect(panel.license().commercialWithPpucDmd, "with the CC+ permission for a PPUC DMD");
+    expect(panel.license().commercialWithPpucDmd &&
+               panel.licenseLabel()->text().contains(QStringLiteral("ppuc.org")) &&
+               panel.licenseLabel()->text().contains(QStringLiteral("PIN2DMD MMI")),
+           "with the CC+ permission for a PPUC/DMD, explained");
     panel.commercialCheckBox()->setChecked(true);
     expect(panel.license().kind == document::LicenseKind::CcByNd &&
                !panel.license().commercialWithPpucDmd &&

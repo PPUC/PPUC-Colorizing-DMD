@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QStringList>
+#include <QTimer>
 
 #include <algorithm>
 
@@ -45,19 +46,20 @@ ProjectSettingsPanel::ProjectSettingsPanel(QWidget* parent)
         tr("What others may do with the colorization: share it, use it commercially, on which "
            "displays. Nobody may change it. Saved with the project and written into the "
            ".cROMc."));
+    // Short texts, as a check box does not wrap; the label below says what they mean.
     m_commercialCheckBox = new QCheckBox(tr("Allow commercial use"), this);
     m_commercialCheckBox->setToolTip(tr("CC BY-ND instead of CC BY-NC-ND"));
-    m_ppucCommercialCheckBox =
-        new QCheckBox(tr("Allow commercial use on a real pinball machine with a PPUC DMD"), this);
+    m_ppucCommercialCheckBox = new QCheckBox(tr("Commercial use with a PPUC/DMD"), this);
     m_ppucCommercialCheckBox->setToolTip(
-        tr("Commercial use only with a PPUC DMD (ppuc.org), not with any other display such as "
+        tr("Commercial use on a real pinball machine only with a PPUC/DMD, one of the devices "
+           "listed at ppuc.org; not with devices that are not listed there, for example "
            "PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission "
            "(CC+)."));
-    m_ppucOnlyCheckBox = new QCheckBox(
-        tr("On real pinball machines, only with a PPUC DMD, also when not commercial"), this);
+    m_ppucOnlyCheckBox = new QCheckBox(tr("Real pinball machines: PPUC/DMD only"), this);
     m_ppucOnlyCheckBox->setToolTip(
-        tr("No other DMD on a real pinball machine, such as PIN2DMD or PIN2DMD MMI. Virtual "
-           "pinball is not affected."));
+        tr("On a real pinball machine only with a PPUC/DMD, also when not used commercially; "
+           "not with devices that are not listed at ppuc.org, for example PIN2DMD or PIN2DMD "
+           "MMI. Virtual pinball is not affected."));
     for (QCheckBox* box : {m_commercialCheckBox, m_ppucCommercialCheckBox, m_ppucOnlyCheckBox}) {
         connect(box, &QCheckBox::toggled, this, [this](bool) { updateLicenseLabel(); });
     }
@@ -272,7 +274,7 @@ void ProjectSettingsPanel::updateLicenseLabel()
         text = chosen.commercialWithPpucDmd
                    ? tr("CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, "
                         "naming you; commercial use is allowed on a real pinball machine with a "
-                        "PPUC DMD only. Nobody may change it.")
+                        "PPUC/DMD only. Nobody may change it.")
                    : tr("CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, "
                         "naming you. Nobody may change it.");
         break;
@@ -280,10 +282,10 @@ void ProjectSettingsPanel::updateLicenseLabel()
         text = tr("Anyone may use and share it unchanged, naming you. Nobody may change it.");
         text += QLatin1Char(' ') +
                 (chosen.commercialWithPpucDmd
-                     ? tr("Commercial use only on a real pinball machine with a PPUC DMD.")
+                     ? tr("Commercial use only on a real pinball machine with a PPUC/DMD.")
                      : tr("No commercial use."));
         if (chosen.realMachinesOnlyPpucDmd) {
-            text += QLatin1Char(' ') + tr("On real pinball machines only with a PPUC DMD.");
+            text += QLatin1Char(' ') + tr("On real pinball machines only with a PPUC/DMD.");
         }
         break;
     case document::LicenseKind::Cc0:
@@ -296,12 +298,25 @@ void ProjectSettingsPanel::updateLicenseLabel()
         break;
     }
     text = text.toHtmlEscaped();
-    if (!deed.isEmpty()) {
-        text += QStringLiteral(" <a href=\"%1\">%2</a>")
-                    .arg(deed, ppuc ? QStringLiteral("ppuc.org") : tr("The license"));
+    if (!deed.isEmpty() && !ppuc) {
+        text += QStringLiteral(" <a href=\"%1\">%2</a>").arg(deed, tr("The license"));
+    }
+    // What a PPUC/DMD is, wherever the terms name it.
+    if (chosen.commercialWithPpucDmd || chosen.realMachinesOnlyPpucDmd || ppuc) {
+        text += QStringLiteral("<br>") +
+                tr("PPUC/DMD: the devices listed at %1. Devices not listed there, for example "
+                   "PIN2DMD or PIN2DMD MMI, are not.")
+                    .toHtmlEscaped()
+                    .arg(QStringLiteral("<a href=\"https://ppuc.org\">ppuc.org</a>"));
     }
     m_licenseLabel->setText(text);
     m_licenseTextEdit->setVisible(kind == document::LicenseKind::Custom);
+    // The text and the boxes shown change the height the settings need: the window follows,
+    // or the text is cut off.
+    // Once the layout has taken in the change.
+    if (QWidget* top = window(); top != this && top->isVisible()) {
+        QTimer::singleShot(0, top, [top]() { top->adjustSize(); });
+    }
 }
 
 }  // namespace colorizing::app

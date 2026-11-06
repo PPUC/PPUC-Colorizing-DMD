@@ -106,13 +106,16 @@ with you in the Serum community.
 The choices below the box:
 
 - `Allow commercial use` (Creative Commons): CC BY-ND 4.0 instead of CC BY-NC-ND 4.0.
-- `Allow commercial use on a real pinball machine with a PPUC DMD` (CC BY-NC-ND and the PPUC
-  license): commercial use only with a PPUC DMD (see [ppuc.org](https://ppuc.org)), not with
-  any other display, for example PIN2DMD or PIN2DMD MMI. With Creative Commons it is an
-  additional permission ("CC+"): a Creative Commons license itself cannot forbid anything more.
-- `On real pinball machines, only with a PPUC DMD, also when not commercial` (PPUC license):
-  on a real pinball machine the colorization may be used with a PPUC DMD only. Virtual pinball
+- `Commercial use with a PPUC/DMD` (CC BY-NC-ND and the PPUC license): commercial use on a real
+  pinball machine only with a PPUC/DMD, one of the devices listed at
+  [ppuc.org](https://ppuc.org); not with a device that is not listed there, for example PIN2DMD
+  or PIN2DMD MMI. With Creative Commons it is an additional permission ("CC+"): a Creative
+  Commons license itself cannot forbid anything more.
+- `Real pinball machines: PPUC/DMD only` (PPUC license): on a real pinball machine the
+  colorization may be used with a PPUC/DMD only, also when not commercially. Virtual pinball
   is not affected. This is why the PPUC license exists: Creative Commons cannot say it.
+
+The text below the choices says what the license allows, and what a PPUC/DMD is.
 
 A project with one of the earlier Creative Commons licenses that allow changes (CC0, BY, BY-SA,
 BY-NC, BY-NC-SA) keeps it and shows it as no longer offered until another is chosen.

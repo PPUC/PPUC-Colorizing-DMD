@@ -22,7 +22,8 @@ ProjectSettingsDialog::ProjectSettingsDialog(const document::ProjectDocument& do
     layout->addWidget(m_panel);
     layout->addStretch(1);
     layout->addWidget(buttons);
-    setMinimumWidth(360);
+    // Wide enough for the license's explanation to wrap in a few lines.
+    setMinimumWidth(520);
 }
 
 uint8_t ProjectSettingsDialog::scalingAlgorithm() const

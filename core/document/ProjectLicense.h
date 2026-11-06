@@ -48,10 +48,11 @@ struct ProjectLicense {
     // empty. The cROMc names it (colorizationText()).
     std::string contact;
     // With CcByNcNd (as an additional permission, "CC+") and PpucColorization: commercial use
-    // is allowed on a real pinball machine with a PPUC DMD (ppuc.org), with no other display.
+    // is allowed on a real pinball machine with a PPUC/DMD (the devices listed at ppuc.org),
+    // with no other display.
     bool commercialWithPpucDmd = false;
     // With PpucColorization: on a real pinball machine the colorization may be used with a
-    // PPUC DMD only, also when not commercially.
+    // PPUC/DMD only, also when not commercially.
     bool realMachinesOnlyPpucDmd = false;
 
     // Whether anything is set: a project without it writes no license.

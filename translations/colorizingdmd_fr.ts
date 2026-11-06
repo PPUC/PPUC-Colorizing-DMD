@@ -7389,19 +7389,35 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Allow commercial use on a real pinball machine with a PPUC DMD</source>
-        <translation>Autoriser l’utilisation commerciale sur un vrai flipper avec un PPUC DMD</translation>
+        <translation type="vanished">Autoriser l’utilisation commerciale sur un vrai flipper avec un PPUC DMD</translation>
     </message>
     <message>
         <source>Commercial use only with a PPUC DMD (ppuc.org), not with any other display such as PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission (CC+).</source>
-        <translation>Utilisation commerciale uniquement avec un PPUC DMD (ppuc.org), pas avec un autre écran comme PIN2DMD ou PIN2DMD MMI. Avec Creative Commons, c’est une autorisation supplémentaire (CC+).</translation>
+        <translation type="vanished">Utilisation commerciale uniquement avec un PPUC DMD (ppuc.org), pas avec un autre écran comme PIN2DMD ou PIN2DMD MMI. Avec Creative Commons, c’est une autorisation supplémentaire (CC+).</translation>
     </message>
     <message>
         <source>On real pinball machines, only with a PPUC DMD, also when not commercial</source>
-        <translation>Sur les vrais flippers, uniquement avec un PPUC DMD, même sans usage commercial</translation>
+        <translation type="vanished">Sur les vrais flippers, uniquement avec un PPUC DMD, même sans usage commercial</translation>
     </message>
     <message>
         <source>No other DMD on a real pinball machine, such as PIN2DMD or PIN2DMD MMI. Virtual pinball is not affected.</source>
-        <translation>Aucun autre DMD sur un vrai flipper, comme PIN2DMD ou PIN2DMD MMI. Le flipper virtuel n’est pas concerné.</translation>
+        <translation type="vanished">Aucun autre DMD sur un vrai flipper, comme PIN2DMD ou PIN2DMD MMI. Le flipper virtuel n’est pas concerné.</translation>
+    </message>
+    <message>
+        <source>Commercial use with a PPUC/DMD</source>
+        <translation>Utilisation commerciale avec un PPUC/DMD</translation>
+    </message>
+    <message>
+        <source>Commercial use on a real pinball machine only with a PPUC/DMD, one of the devices listed at ppuc.org; not with devices that are not listed there, for example PIN2DMD or PIN2DMD MMI. With Creative Commons this is an additional permission (CC+).</source>
+        <translation>Utilisation commerciale sur un vrai flipper uniquement avec un PPUC/DMD, l’un des appareils listés sur ppuc.org ; pas avec des appareils qui n’y sont pas listés, par exemple PIN2DMD ou PIN2DMD MMI. Avec Creative Commons, c’est une autorisation supplémentaire (CC+).</translation>
+    </message>
+    <message>
+        <source>Real pinball machines: PPUC/DMD only</source>
+        <translation>Vrais flippers : PPUC/DMD uniquement</translation>
+    </message>
+    <message>
+        <source>On a real pinball machine only with a PPUC/DMD, also when not used commercially; not with devices that are not listed at ppuc.org, for example PIN2DMD or PIN2DMD MMI. Virtual pinball is not affected.</source>
+        <translation>Sur un vrai flipper uniquement avec un PPUC/DMD, même sans usage commercial ; pas avec des appareils qui ne sont pas listés sur ppuc.org, par exemple PIN2DMD ou PIN2DMD MMI. Le flipper virtuel n’est pas concerné.</translation>
     </message>
     <message>
         <source>For example an e-mail address or a Discord name</source>
@@ -7472,8 +7488,24 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>CC BY-ND 4.0 : chacun peut la partager sans modification, même commercialement, en vous citant. Personne ne peut la modifier.</translation>
     </message>
     <message>
+        <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you; commercial use is allowed on a real pinball machine with a PPUC/DMD only. Nobody may change it.</source>
+        <translation>CC BY-NC-ND 4.0 : chacun peut la partager sans modification, non commercialement, en vous citant ; l’utilisation commerciale n’est autorisée que sur un vrai flipper avec un PPUC/DMD. Personne ne peut la modifier.</translation>
+    </message>
+    <message>
+        <source>Commercial use only on a real pinball machine with a PPUC/DMD.</source>
+        <translation>Utilisation commerciale uniquement sur un vrai flipper avec un PPUC/DMD.</translation>
+    </message>
+    <message>
+        <source>On real pinball machines only with a PPUC/DMD.</source>
+        <translation>Sur les vrais flippers, uniquement avec un PPUC/DMD.</translation>
+    </message>
+    <message>
+        <source>PPUC/DMD: the devices listed at %1. Devices not listed there, for example PIN2DMD or PIN2DMD MMI, are not.</source>
+        <translation>PPUC/DMD : les appareils listés sur %1. Les appareils qui n’y sont pas listés, par exemple PIN2DMD ou PIN2DMD MMI, n’en font pas partie.</translation>
+    </message>
+    <message>
         <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you; commercial use is allowed on a real pinball machine with a PPUC DMD only. Nobody may change it.</source>
-        <translation>CC BY-NC-ND 4.0 : chacun peut la partager sans modification, non commercialement, en vous citant ; l’utilisation commerciale n’est autorisée que sur un vrai flipper avec un PPUC DMD. Personne ne peut la modifier.</translation>
+        <translation type="vanished">CC BY-NC-ND 4.0 : chacun peut la partager sans modification, non commercialement, en vous citant ; l’utilisation commerciale n’est autorisée que sur un vrai flipper avec un PPUC DMD. Personne ne peut la modifier.</translation>
     </message>
     <message>
         <source>CC BY-NC-ND 4.0: anyone may share it unchanged, not commercially, naming you. Nobody may change it.</source>
@@ -7485,7 +7517,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Commercial use only on a real pinball machine with a PPUC DMD.</source>
-        <translation>Utilisation commerciale uniquement sur un vrai flipper avec un PPUC DMD.</translation>
+        <translation type="vanished">Utilisation commerciale uniquement sur un vrai flipper avec un PPUC DMD.</translation>
     </message>
     <message>
         <source>No commercial use.</source>
@@ -7493,7 +7525,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>On real pinball machines only with a PPUC DMD.</source>
-        <translation>Sur les vrais flippers, uniquement avec un PPUC DMD.</translation>
+        <translation type="vanished">Sur les vrais flippers, uniquement avec un PPUC DMD.</translation>
     </message>
     <message>
         <source>This license lets others change the colorization, which the editor no longer offers: choose another one.</source>
