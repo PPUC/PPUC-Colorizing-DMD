@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.37
+
+- The Linux packages build again; 3.99.36 has none.
+
 ## 3.99.36
 
 - Editor API version 8 for plugins: plugins create HD for frames and sprites, delete frames
