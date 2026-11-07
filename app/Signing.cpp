@@ -36,7 +36,7 @@ QByteArray deriveKeys(const QString& passphrase, const QByteArray& salt, int ite
         qToBigEndian(block, index);
         mac.reset();
         mac.addData(salt);
-        mac.addData(QByteArrayView(index, 4));
+        mac.addData(index, 4);
         QByteArray u = mac.result();
         QByteArray t = u;
         for (int round = 1; round < iterations; ++round) {
