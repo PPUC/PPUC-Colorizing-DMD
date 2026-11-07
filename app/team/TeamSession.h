@@ -89,6 +89,10 @@ struct PackageName {
 };
 [[nodiscard]] std::optional<PackageName> parsePackageName(const QString& name);
 
+// A member as the author reads it: the login, or for another computer of a member
+// (team::memberComputer()) "kraken (laptop)".
+[[nodiscard]] QString memberDisplayName(const QString& member);
+
 // A package too large for the remote is shared as a file the author sends another way (a
 // cloud drive): the remote has only its notice, "<the package's name without .cdmdchanges>
 // .cdmdnotice", JSON with author, created, comment and size, so that the partners know of it

@@ -315,6 +315,17 @@ std::optional<team::ChangePackage> changePackageFrom(const QByteArray& bytes, QS
     return std::move(loaded.package);
 }
 
+QString memberDisplayName(const QString& member)
+{
+    const std::string text = member.toStdString();
+    const std::string computer = team::memberComputer(text);
+    if (computer.empty()) {
+        return member;
+    }
+    return QStringLiteral("%1 (%2)").arg(QString::fromStdString(team::memberLogin(text)),
+                                         QString::fromStdString(computer));
+}
+
 TeamSession::TeamSession(TeamRemote& remote, QString login)
     : m_remote(remote),
       m_login(std::move(login))

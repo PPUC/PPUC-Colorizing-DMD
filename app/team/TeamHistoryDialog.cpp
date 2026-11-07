@@ -90,7 +90,7 @@ QString headText(const HistoryItem& item)
 HistoryItem pendingHistoryItem(const team::ChangePackage& package)
 {
     HistoryItem item;
-    item.author = QString::fromStdString(package.author);
+    item.author = memberDisplayName(QString::fromStdString(package.author));
     item.createdMs = package.createdMs;
     item.comment = QString::fromStdString(package.comment);
     item.pending = true;
@@ -112,7 +112,7 @@ std::vector<HistoryItem> teamHistoryItems(const document::ProjectDocument& docum
         HistoryItem item;
         item.pending = true;
         if (const std::optional<PackageName> parsed = parsePackageName(*name)) {
-            item.author = parsed->login;
+            item.author = memberDisplayName(parsed->login);
             item.createdMs = parsed->createdMs;
         } else {
             item.author = *name;
@@ -139,7 +139,7 @@ std::vector<HistoryItem> teamHistoryItems(const document::ProjectDocument& docum
     for (const document::TeamHistoryEntry& entry : team.history) {
         recorded.insert(entry.packageId);
         HistoryItem item;
-        item.author = QString::fromStdString(entry.author);
+        item.author = memberDisplayName(QString::fromStdString(entry.author));
         item.createdMs = entry.createdMs;
         item.comment = QString::fromStdString(entry.comment);
         item.entry = entry;

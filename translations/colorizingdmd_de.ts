@@ -9763,6 +9763,50 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Sie (%1) gehören nicht zu den Mitgliedern dieses Teamprojekts</translation>
     </message>
     <message>
+        <source>This copy of the team project was last used on another computer: share and merge wait until you choose how to use it here (open the project again)</source>
+        <translation>Diese Kopie des Teamprojekts wurde zuletzt auf einem anderen Computer verwendet: Teilen und Zusammenführen warten, bis Sie wählen, wie sie hier verwendet wird (öffnen Sie das Projekt erneut)</translation>
+    </message>
+    <message>
+        <source>Another Computer</source>
+        <translation>Weiterer Computer</translation>
+    </message>
+    <message>
+        <source>Name the computer with letters or digits.</source>
+        <translation>Benennen Sie den Computer mit Buchstaben oder Ziffern.</translation>
+    </message>
+    <message>
+        <source>%1 already names another of your computers in this team project. Choose another name.</source>
+        <translation>%1 bezeichnet in diesem Teamprojekt bereits einen anderen Ihrer Computer. Wählen Sie einen anderen Namen.</translation>
+    </message>
+    <message>
+        <source>This copy is your computer %1 now: share and merge with your other copies as with partners</source>
+        <translation>Diese Kopie ist jetzt Ihr Computer %1: Teilen Sie Ihre Änderungen mit Ihren anderen Kopien und führen Sie deren Änderungen zusammen, wie bei Partnern</translation>
+    </message>
+    <message>
+        <source>This copy of the team project was last used on another computer. Is this another computer you work on, beside the first one?</source>
+        <translation>Diese Kopie des Teamprojekts wurde zuletzt auf einem anderen Computer verwendet. Ist dies ein weiterer Computer, auf dem Sie neben dem ersten arbeiten?</translation>
+    </message>
+    <message>
+        <source>Another computer becomes a member of the team of its own, under your account: what you share on one computer you merge on the other, as with partners. If you only moved the project to this computer and no longer use the other copy, choose Moved Here.</source>
+        <translation>Ein weiterer Computer wird ein eigenes Mitglied des Teams unter Ihrem Konto: Was Sie auf einem Computer teilen, führen Sie auf dem anderen zusammen, wie bei Partnern. Wenn Sie das Projekt nur auf diesen Computer verschoben haben und die andere Kopie nicht mehr verwenden, wählen Sie Hierher verschoben.</translation>
+    </message>
+    <message>
+        <source>Another Computer...</source>
+        <translation>Weiterer Computer...</translation>
+    </message>
+    <message>
+        <source>Moved Here</source>
+        <translation>Hierher verschoben</translation>
+    </message>
+    <message>
+        <source>Later</source>
+        <translation>Später</translation>
+    </message>
+    <message>
+        <source>A short name for this computer, for example laptop (letters, digits and hyphens):</source>
+        <translation>Ein kurzer Name für diesen Computer, zum Beispiel laptop (Buchstaben, Ziffern und Bindestriche):</translation>
+    </message>
+    <message>
         <source>Sign In To GitHub</source>
         <translation>Bei GitHub anmelden</translation>
     </message>
@@ -9781,6 +9825,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>The project is no team project.</source>
         <translation>Das Projekt ist kein Teamprojekt.</translation>
+    </message>
+    <message>
+        <source>This copy of the team project was last used on another computer. Open the project again and choose how to use it here.</source>
+        <translation>Diese Kopie des Teamprojekts wurde zuletzt auf einem anderen Computer verwendet. Öffnen Sie das Projekt erneut und wählen Sie, wie sie hier verwendet wird.</translation>
     </message>
     <message>
         <source>%1 broke the lock on %2 and goes on alone. Start again from their new snapshot of the project; to give them what you changed meanwhile, export it as a package (File -&gt; Export Selected Frames As Package).</source>

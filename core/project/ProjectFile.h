@@ -41,7 +41,8 @@ namespace colorizing::project {
 //   lights.json      the speaker lights' effects and defaults.
 //   team/state.json, team/common.bin
 //                    a team project's TeamState (document/TeamState.h): JSON for the
-//                    repository, members, snapshot, packages and the history of the
+//                    repository, members, this copy's member and computer (member,
+//                    computer; both optional), snapshot, packages and the history of the
 //                    shared changes (history: per package id, author, created, comment,
 //                    orderChanged, settingsChanged and per kind, frames, masks,
 //                    backgrounds, sprites, palettes, the UUIDs added, changed and

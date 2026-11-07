@@ -191,6 +191,85 @@ document::TeamState startTeam(const ProjectDocument& document,
     return team;
 }
 
+std::string memberLogin(std::string_view member)
+{
+    return std::string(member.substr(0, member.find('.')));
+}
+
+std::string memberComputer(std::string_view member)
+{
+    const std::size_t dot = member.find('.');
+    return dot == std::string_view::npos ? std::string() : std::string(member.substr(dot + 1));
+}
+
+std::string computerName(std::string_view text)
+{
+    std::string name;
+    for (const char c : text) {
+        if (name.size() >= 24) {
+            break;
+        }
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            name += c;
+        } else if (c >= 'A' && c <= 'Z') {
+            name += static_cast<char>(c - 'A' + 'a');
+        } else if (!name.empty() && name.back() != '-') {
+            name += '-';
+        }
+    }
+    while (!name.empty() && name.back() == '-') {
+        name.pop_back();
+    }
+    return name;
+}
+
+document::TeamState onAnotherComputer(const ProjectDocument& document,
+                                      const std::string& member,
+                                      const std::string& computerId)
+{
+    if (!document.team()) {
+        throw std::logic_error("the project is no team project");
+    }
+    // As a new team: everything has to have its revision.
+    const document::TeamState fresh = startTeam(document, "", "", {});
+    document::TeamState team = *document.team();
+    const auto merged = [&team](const ComponentId& id) {
+        if (std::find(team.mergedPackages.begin(), team.mergedPackages.end(), id) ==
+            team.mergedPackages.end()) {
+            team.mergedPackages.push_back(id);
+        }
+    };
+    for (const document::SentPackage& sent : team.sent) {
+        merged(sent.id);
+    }
+    for (const document::TeamHistoryEntry& entry : team.history) {
+        merged(entry.packageId);
+    }
+    team.sent.clear();
+    team.common = fresh.common;
+    team.commonOrder = fresh.commonOrder;
+    team.commonSettingsHash = fresh.commonSettingsHash;
+    team.member = member;
+    team.computerId = computerId;
+    if (std::find(team.members.begin(), team.members.end(), member) == team.members.end()) {
+        team.members.push_back(member);
+    }
+    return team;
+}
+
+void addComputers(document::TeamState& team, const std::vector<std::string>& computers)
+{
+    for (const std::string& computer : computers) {
+        if (memberComputer(computer).empty() ||
+            std::find(team.members.begin(), team.members.end(), computer) != team.members.end() ||
+            std::find(team.members.begin(), team.members.end(), memberLogin(computer)) ==
+                team.members.end()) {
+            continue;
+        }
+        team.members.push_back(computer);
+    }
+}
+
 ChangeSet changesSinceCommon(const ProjectDocument& document)
 {
     if (!document.team()) {

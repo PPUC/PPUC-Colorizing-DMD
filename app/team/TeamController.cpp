@@ -14,6 +14,8 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QSettings>
+#include <QSysInfo>
+#include <QUuid>
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
@@ -45,6 +47,7 @@ namespace {
 
 const QString kTokenKey = QStringLiteral("github/token");
 const QString kLoginKey = QStringLiteral("github/login");
+const QString kComputerIdKey = QStringLiteral("team/computerId");
 // How often the background sync writes and reads the claims and looks for shared changes.
 constexpr std::chrono::seconds kSyncInterval{15};
 constexpr int kInputDelayMs = 2000;
@@ -236,7 +239,160 @@ void TeamController::projectChanged()
         team.members.end()) {
         m_host.status(tr("You (%1) are not one of this team project's members").arg(m_login),
                       8000);
+        return;
     }
+    checkComputer();
+}
+
+QString TeamController::member() const
+{
+    const document::ProjectDocument* document = m_host.document();
+    if (document && document->team() && !document->team()->member.empty() &&
+        team::memberLogin(document->team()->member) == m_login.toStdString()) {
+        return QString::fromStdString(document->team()->member);
+    }
+    return m_login;
+}
+
+QString TeamController::thisComputerId()
+{
+    QSettings settings;
+    QString id = settings.value(kComputerIdKey).toString();
+    if (id.isEmpty()) {
+        id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        settings.setValue(kComputerIdKey, id);
+    }
+    return id;
+}
+
+QImage TeamController::avatar(const QString& member) const
+{
+    return m_avatars->avatar(QString::fromStdString(team::memberLogin(member.toStdString())));
+}
+
+void TeamController::checkComputer()
+{
+    document::ProjectDocument* document = m_host.document();
+    document::TeamState team = *document->team();
+    const std::string login = m_login.toStdString();
+    const std::string here = thisComputerId().toStdString();
+    const bool mine = !team.member.empty() && team::memberLogin(team.member) == login;
+    if (mine && team.computerId == here) {
+        return;
+    }
+    if (!mine || team.computerId.empty()) {
+        // A copy new to this author (a partner starting from the owner's snapshot) or one of
+        // an older editor: it is this computer's. The project is unsaved then, so that the file
+        // says so before it is copied to another computer.
+        if (!mine) {
+            team.member = login;
+        }
+        team.computerId = here;
+        document->setTeam(std::move(team));
+        return;
+    }
+    const QString suggested = QString::fromStdString(
+        team::computerName(QSysInfo::machineHostName().section(QLatin1Char('.'), 0, 0)
+                               .toStdString()));
+    for (;;) {
+        const OtherComputerAnswer answer =
+            askOtherComputer ? askOtherComputer(suggested) : askOtherComputerDialog(suggested);
+        switch (answer.choice) {
+            case OtherComputerChoice::Later:
+                m_host.status(tr("This copy of the team project was last used on another "
+                                 "computer: share and merge wait until you choose how to use "
+                                 "it here (open the project again)"),
+                              10000);
+                return;
+            case OtherComputerChoice::MovedHere: {
+                document::TeamState moved = *document->team();
+                moved.computerId = here;
+                document->setTeam(std::move(moved));
+                (void)m_host.save();
+                return;
+            }
+            case OtherComputerChoice::AnotherComputer:
+                if (useOnAnotherComputer(answer.name)) {
+                    return;
+                }
+                if (askOtherComputer) {
+                    // A test answers once.
+                    return;
+                }
+                break;
+        }
+    }
+}
+
+bool TeamController::useOnAnotherComputer(const QString& name)
+{
+    document::ProjectDocument* document = m_host.document();
+    const std::string computer = team::computerName(name.toStdString());
+    const std::string newMember = team::memberLogin(member().toStdString()) + "." + computer;
+    const document::TeamState& team = *document->team();
+    const bool taken =
+        std::find(team.members.begin(), team.members.end(), newMember) != team.members.end() ||
+        (m_claims && std::find(m_claims->computers.begin(), m_claims->computers.end(),
+                               newMember) != m_claims->computers.end());
+    if (computer.empty() || taken) {
+        QMessageBox::warning(
+            m_window, tr("Another Computer"),
+            computer.empty()
+                ? tr("Name the computer with letters or digits.")
+                : tr("%1 already names another of your computers in this team project. Choose "
+                     "another name.")
+                      .arg(QString::fromStdString(computer)));
+        return false;
+    }
+    try {
+        document->setTeam(team::onAnotherComputer(*document, newMember,
+                                                  thisComputerId().toStdString()));
+    } catch (const std::exception& ex) {
+        QMessageBox::warning(m_window, tr("Another Computer"), QString::fromUtf8(ex.what()));
+        return false;
+    }
+    (void)m_host.save();
+    updateActions();
+    notifyTeamChanged();
+    updateSync();
+    m_host.status(tr("This copy is your computer %1 now: share and merge with your other "
+                     "copies as with partners")
+                      .arg(QString::fromStdString(computer)),
+                  10000);
+    return true;
+}
+
+TeamController::OtherComputerAnswer TeamController::askOtherComputerDialog(
+    const QString& suggestedName)
+{
+    QMessageBox box(QMessageBox::Question, tr("Another Computer"),
+                    tr("This copy of the team project was last used on another computer. Is "
+                       "this another computer you work on, beside the first one?"),
+                    QMessageBox::NoButton, m_window);
+    box.setInformativeText(
+        tr("Another computer becomes a member of the team of its own, under your account: "
+           "what you share on one computer you merge on the other, as with partners. If you "
+           "only moved the project to this computer and no longer use the other copy, choose "
+           "Moved Here."));
+    QPushButton* another = box.addButton(tr("Another Computer..."), QMessageBox::AcceptRole);
+    QPushButton* moved = box.addButton(tr("Moved Here"), QMessageBox::ActionRole);
+    box.addButton(tr("Later"), QMessageBox::RejectRole);
+    box.setDefaultButton(another);
+    box.exec();
+    OtherComputerAnswer answer;
+    if (box.clickedButton() == moved) {
+        answer.choice = OtherComputerChoice::MovedHere;
+    } else if (box.clickedButton() == another) {
+        bool accepted = false;
+        answer.name = QInputDialog::getText(
+            m_window, tr("Another Computer"),
+            tr("A short name for this computer, for example laptop (letters, digits and "
+               "hyphens):"),
+            QLineEdit::Normal, suggestedName, &accepted);
+        answer.choice =
+            accepted ? OtherComputerChoice::AnotherComputer : OtherComputerChoice::Later;
+    }
+    return answer;
 }
 
 bool TeamController::ensureSignedIn()
@@ -316,18 +472,33 @@ std::unique_ptr<TeamRemote> TeamController::remote() const
         QString::fromStdString(m_host.document()->team()->repository));
 }
 
+bool TeamController::usedOnAnotherComputer() const
+{
+    const document::ProjectDocument* document = m_host.document();
+    if (!document || !document->team() || m_login.isEmpty()) {
+        return false;
+    }
+    const document::TeamState& team = *document->team();
+    return !team.member.empty() && team::memberLogin(team.member) == m_login.toStdString() &&
+           !team.computerId.empty() && team.computerId != thisComputerId().toStdString();
+}
+
 QString TeamController::teamProblem() const
 {
     if (!isTeamProject()) {
         return tr("The project is no team project.");
     }
+    if (usedOnAnotherComputer()) {
+        return tr("This copy of the team project was last used on another computer. Open the "
+                  "project again and choose how to use it here.");
+    }
     if (m_claims && m_claims->lockBreak &&
         m_claims->lockBreak->snapshotId != m_host.document()->team()->snapshotId &&
-        m_claims->lockBreak->login != m_login.toStdString()) {
+        m_claims->lockBreak->login != member().toStdString()) {
         return tr("%1 broke the lock on %2 and goes on alone. Start again from their new "
                   "snapshot of the project; to give them what you changed meanwhile, export "
                   "it as a package (File -> Export Selected Frames As Package).")
-            .arg(QString::fromStdString(m_claims->lockBreak->login),
+            .arg(memberDisplayName(QString::fromStdString(m_claims->lockBreak->login)),
                  QLocale().toString(QDateTime::fromMSecsSinceEpoch(m_claims->lockBreak->sinceMs),
                                     QLocale::ShortFormat));
     }
@@ -383,8 +554,11 @@ void TeamController::startTeam()
         members.push_back(partner.toStdString());
     }
     try {
-        document->setTeam(team::startTeam(*document, repository.toStdString(),
-                                          m_login.toStdString(), members));
+        document::TeamState started = team::startTeam(*document, repository.toStdString(),
+                                                      m_login.toStdString(), members);
+        started.member = m_login.toStdString();
+        started.computerId = thisComputerId().toStdString();
+        document->setTeam(std::move(started));
     } catch (const std::exception& ex) {
         QMessageBox::warning(m_window, tr("Start Team Project"), QString::fromUtf8(ex.what()));
         return;
@@ -437,7 +611,7 @@ void TeamController::share()
         return;
     }
     const std::unique_ptr<TeamRemote> teamRemote = remote();
-    TeamSession session(*teamRemote, m_login);
+    TeamSession session(*teamRemote, member());
     QApplication::setOverrideCursor(Qt::WaitCursor);
     const TeamSession::PreparedShare prepared = session.prepareShare(
         *document, nowMs(), comment,
@@ -548,7 +722,7 @@ void TeamController::merge()
         return;
     }
     const std::unique_ptr<TeamRemote> teamRemote = remote();
-    TeamSession session(*teamRemote, m_login);
+    TeamSession session(*teamRemote, member());
     std::vector<QString> pending;
     QString error;
     runModal(tr("Looking for the partners' changes…"), [&](std::function<void()> finished) {
@@ -585,7 +759,7 @@ void TeamController::merge()
             waitingFor =
                 tr("The shared change of %1 from %2 comes as a file. Add it with Add File in the "
                    "Team section; the changes after it wait until then.")
-                    .arg(parsed ? parsed->login : name,
+                    .arg(parsed ? memberDisplayName(parsed->login) : name,
                          parsed ? QLocale().toString(
                                       QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
                                       QLocale::ShortFormat)
@@ -644,8 +818,9 @@ void TeamController::merge()
             choices = dialog.choices();
         }
         try {
-            auto command =
-                team::mergeChangePackage(*document, *package, choices, m_login.toStdString());
+            auto command = team::mergeChangePackage(
+                *document, *package, choices, member().toStdString(),
+                m_claims ? m_claims->computers : std::vector<std::string>{});
             const team::TeamMergeCommand::Counts counts = command->counts();
             total.taken += counts.taken;
             total.added += counts.added;
@@ -770,13 +945,19 @@ void TeamController::breakLock()
     try {
         renewed = team::startTeam(*document, repository.toStdString(), m_login.toStdString(),
                                   members);
+        renewed.member = member().toStdString();
+        renewed.computerId = thisComputerId().toStdString();
+        if (std::find(renewed.members.begin(), renewed.members.end(), renewed.member) ==
+            renewed.members.end()) {
+            renewed.members.push_back(renewed.member);
+        }
     } catch (const std::exception& ex) {
         QMessageBox::warning(m_window, tr("Break The Lock"), QString::fromUtf8(ex.what()));
         return;
     }
     // The claims start anew, with the break for those who still look at them.
     team::Claims claims;
-    claims.lockBreak = team::LockBreak{m_login.toStdString(), nowMs(), renewed.snapshotId};
+    claims.lockBreak = team::LockBreak{member().toStdString(), nowMs(), renewed.snapshotId};
     GitHubRemote target(m_client, repository);
     runModal(tr("Writing the claims…"), [&](std::function<void()> finished) {
         target.readClaims([&, finished](std::optional<QByteArray>, QString version,
@@ -827,13 +1008,14 @@ void TeamController::updateSync(bool report)
     m_inputDelay.stop();
     TeamSync::Input input;
     const document::ProjectDocument* document = m_host.document();
+    // A copy of another computer would claim as that computer: not before it is this one's.
     input.active = document && document->team() && !m_login.isEmpty() &&
-                   !m_client.clientId().isEmpty();
+                   !m_client.clientId().isEmpty() && !usedOnAnotherComputer();
     if (input.active) {
         const document::TeamState& team = *document->team();
         input.clientId = m_client.clientId();
         input.token = m_client.token();
-        input.login = m_login;
+        input.login = member();
         input.repository = QString::fromStdString(team.repository);
         try {
             input.claimed = team::changesSinceCommon(*document);
@@ -933,7 +1115,7 @@ void TeamController::addPackageFile(const QString& path)
     }
     const std::optional<PackageName> parsed = parsePackageName(name);
     m_host.status(tr("Added the shared change of %1; merge it in the Team section")
-                      .arg(parsed ? parsed->login : name),
+                      .arg(parsed ? memberDisplayName(parsed->login) : name),
                   6000);
     // The list shows it as there at once; the sync confirms it.
     for (auto& [pending, note] : m_notes) {
@@ -1006,13 +1188,13 @@ TeamPanel::State TeamController::panelState() const
     if (!isTeamProject()) {
         return state;
     }
-    state.login = m_login;
+    state.login = memberDisplayName(member());
     state.repository = QString::fromStdString(m_host.document()->team()->repository);
     state.pendingPackages = m_pending;
     state.notes = m_notes;
     for (const QString& name : m_pending) {
         if (const std::optional<PackageName> parsed = parsePackageName(name)) {
-            const QImage avatar = m_avatars->avatar(parsed->login);
+            const QImage avatar = this->avatar(parsed->login);
             if (!avatar.isNull()) {
                 state.avatars[parsed->login] = avatar;
             }
@@ -1041,7 +1223,7 @@ void TeamController::projectSaved()
 QString TeamController::claimText(const team::Claim& claim) const
 {
     return tr("%1 works on it since %2")
-        .arg(QString::fromStdString(claim.login),
+        .arg(memberDisplayName(QString::fromStdString(claim.login)),
              QLocale().toString(QDateTime::fromMSecsSinceEpoch(claim.sinceMs),
                                 QLocale::ShortFormat));
 }
@@ -1055,7 +1237,7 @@ const team::Claim* TeamController::blockingClaim(document::ComponentKind kind,
     }
     const document::RevisionMap& common = document->team()->common[document::kindIndex(kind)];
     const auto found = common.find(id);
-    return team::blockingClaim(*m_claims, kind, id, m_login.toStdString(),
+    return team::blockingClaim(*m_claims, kind, id, member().toStdString(),
                                found != common.end() ? found->second : document::ComponentId{});
 }
 
@@ -1164,7 +1346,7 @@ std::optional<QString> TeamController::refusalFor(const Touched& touched) const
     if (!m_claims) {
         return std::nullopt;
     }
-    const std::string me = m_login.toStdString();
+    const std::string me = member().toStdString();
     for (const auto& [kind, id] : touched.components) {
         if (const team::Claim* claim = blockingClaim(kind, id)) {
             return claimText(*claim);
@@ -1174,12 +1356,12 @@ std::optional<QString> TeamController::refusalFor(const Touched& touched) const
     if (touched.order &&
         team::wholeClaimBlocks(m_claims->order, me, team::orderHash(team.commonOrder))) {
         return tr("%1 is moving or deleting frames").arg(
-            QString::fromStdString(m_claims->order->login));
+            memberDisplayName(QString::fromStdString(m_claims->order->login)));
     }
     if (touched.settings &&
         team::wholeClaimBlocks(m_claims->settings, me, team.commonSettingsHash)) {
         return tr("%1 is changing the project's settings").arg(
-            QString::fromStdString(m_claims->settings->login));
+            memberDisplayName(QString::fromStdString(m_claims->settings->login)));
     }
     return std::nullopt;
 }

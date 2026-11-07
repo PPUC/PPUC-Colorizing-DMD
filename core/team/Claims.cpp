@@ -94,6 +94,13 @@ std::string writeClaims(const Claims& claims)
         list.push(std::move(item));
     }
     root.set("claims", std::move(list));
+    if (!claims.computers.empty()) {
+        JsonValue computers = JsonValue::array();
+        for (const std::string& computer : claims.computers) {
+            computers.push(computer);
+        }
+        root.set("computers", std::move(computers));
+    }
     if (claims.order) {
         root.set("order", wholeJson(*claims.order));
     }
@@ -141,6 +148,13 @@ std::optional<Claims> parseClaims(std::string_view text, std::string& errorMessa
                 claim.revision = parseId(revision);
             }
             claims.claims.push_back(std::move(claim));
+        }
+        for (const JsonValue& item : root.optionalArray("computers")) {
+            const std::string* computer = item.stringValue();
+            if (!computer) {
+                throw project::JsonFormatError("the claims have a damaged list of computers");
+            }
+            claims.computers.push_back(*computer);
         }
         if (root.has("order")) {
             claims.order = readWhole(root.object("order"));
@@ -208,6 +222,11 @@ Claims withMyClaims(const Claims& current,
                                        }),
                         result.claims.end());
     result.claims.insert(result.claims.end(), mine.begin(), mine.end());
+    if (!memberComputer(login).empty() &&
+        std::find(result.computers.begin(), result.computers.end(), login) ==
+            result.computers.end()) {
+        result.computers.push_back(login);
+    }
     const auto whole = [&](const std::optional<WholeClaim>& claim, bool changed, uint64_t hash) {
         if (claim && claim->login != login) {
             return claim;

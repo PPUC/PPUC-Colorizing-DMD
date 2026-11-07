@@ -129,6 +129,15 @@ behaviour reference; what changed when, and why, is in the git history (commit m
     the claimer's saved revision (the frame order and the settings a hash), and blocks only a
     copy whose common revision differs (`blockingClaim()`): a merged change no longer blocks
     before its acknowledgement. An edit not saved yet claims without a revision.
+    An author's further computers are members of their own, "<login>.<computer>"
+    (`team::memberLogin()`; GitHub logins have no dots): `TeamState::member` and `computerId`
+    say which member a copy is and on which computer (an ID in QSettings team/computerId). A
+    copy of the author's opened on another computer asks (`TeamController::checkComputer()`):
+    another computer (`team::onAnotherComputer()`: all it has is common, the packages its
+    origin shared and merged count as merged), moved here, or later (no share, merge or
+    claims). The computer lists itself in claims.json (`Claims::computers`); merges add the
+    computers of members to `TeamState::members`, so a change is common only once they merged
+    it. Nothing removes a computer no longer used: its merges are awaited for ever.
     App side (`app/team/`): `GitHubClient` (REST and device flow over an `HttpTransport`;
     `NetworkTransport` is Qt Network, which the widgets library now links) and `TeamSession`
     (share, pending packages, fetch, claims sync with retry on a changed claims.json) over a

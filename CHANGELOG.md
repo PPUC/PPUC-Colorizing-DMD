@@ -9,6 +9,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   and add, rename and delete sections.
 - Settings -> Signing exports your signing key and certificate to a file protected by a
   passphrase and imports it on another computer, so that both sign as the same author.
+- Team projects work on several computers of one author: a project file copied to another
+  computer becomes a member of the team of its own, so that the computers share and merge their
+  changes with each other as partners do.
 
 ## 3.99.35
 

@@ -4,6 +4,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "document/ProjectDocument.h"
@@ -33,6 +34,26 @@ namespace colorizing::team {
                                             std::string repository,
                                             std::string ownerLogin,
                                             std::vector<std::string> members);
+
+// An author who works on several computers: the copy on each further computer is a member of
+// its own, "<login>.<computer>" (GitHub logins have no dots), so that the copies share and
+// merge with each other as partners do. The login of a member, and the computer's name (empty
+// for the login itself).
+[[nodiscard]] std::string memberLogin(std::string_view member);
+[[nodiscard]] std::string memberComputer(std::string_view member);
+// A computer's name for a member: lower case letters, digits and hyphens of the text, at most
+// 24 of them; empty when the text has none.
+[[nodiscard]] std::string computerName(std::string_view text);
+// The copy's team state on another computer of its author: this copy as the member given,
+// on that computer. It has everything that the copy it was taken from had, so all it has is
+// common to it, and the packages that copy shared and merged count as merged here; the member
+// joins the members. Throws std::logic_error for a solo project or unsaved changes.
+[[nodiscard]] document::TeamState onAnotherComputer(const document::ProjectDocument& document,
+                                                    const std::string& member,
+                                                    const std::string& computerId);
+// Adds the computers that are another computer of a member (Claims::computers, a package's
+// author) to the members, as they have to merge a change before it is common.
+void addComputers(document::TeamState& team, const std::vector<std::string>& computers);
 
 // What this copy changed since the common state.
 struct ChangeSet {

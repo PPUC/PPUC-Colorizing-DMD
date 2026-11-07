@@ -17,6 +17,8 @@
 #include <QStyleFactory>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <QWidget>
 
 #include "FrameListWidget.h"
@@ -418,6 +420,109 @@ void testHistoryWindow()
     dialog->close();
 }
 
+// The author's project file copied to another computer: opened there, it becomes the member
+// "kraken.laptop", which the desktop's claims keep off its frames as a partner's would. A
+// partner opening the owner's file just takes it as their copy; the author may also say the
+// copy only moved, or decide later (it then neither shares nor claims).
+void testAnotherComputer()
+{
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    const QString organization = QCoreApplication::organizationName();
+    QCoreApplication::setOrganizationName(QStringLiteral("TeamControllerWidgetTests"));
+    const QString here = app::TeamController::thisComputerId();
+    expect(!here.isEmpty() && app::TeamController::thisComputerId() == here,
+           "this computer has an ID, the same every time");
+
+    const auto copiedFrom = [](const std::string& member, const std::string& computer) {
+        document::ProjectDocument document = teamProject();
+        document::TeamState team = *document.team();
+        team.member = member;
+        team.computerId = computer;
+        document.setTeam(team);
+        document.markClean();
+        return document;
+    };
+    document::ProjectDocument document = copiedFrom("kraken", "desktop-id");
+    int saves = 0;
+    QWidget window;
+    app::TeamController::Host host;
+    host.document = [&document]() { return &document; };
+    host.projectPath = []() { return QStringLiteral("laptop.cdmd"); };
+    host.save = [&]() {
+        document.markClean();
+        ++saves;
+        return true;
+    };
+    host.record = [](std::unique_ptr<edit::EditCommand>) {};
+    host.status = [](const QString&, int) {};
+    host.selectedFrames = []() { return std::vector<std::size_t>{}; };
+    app::TeamController controller(&window, host);
+    QString suggested;
+    int asked = 0;
+    using Choice = app::TeamController::OtherComputerChoice;
+    Choice choice = Choice::AnotherComputer;
+    controller.askOtherComputer = [&](const QString& name) {
+        suggested = name;
+        ++asked;
+        return app::TeamController::OtherComputerAnswer{choice, QStringLiteral("Laptop")};
+    };
+
+    controller.setClaims({}, QStringLiteral("kraken"));
+    controller.projectChanged();
+    expect(asked == 1 && saves == 1, "the copy of another computer asks, and is saved");
+    expect(controller.member() == QStringLiteral("kraken.laptop") &&
+               document.team()->member == "kraken.laptop" &&
+               document.team()->computerId == here.toStdString() &&
+               team::changesSinceCommon(document).empty(),
+           "it is the member kraken.laptop on this computer: " + controller.member().toStdString());
+    expect(controller.panelState().login == QStringLiteral("kraken (laptop)") &&
+               controller.panelState().problem.isEmpty(),
+           "the Team section names it");
+    controller.projectChanged();
+    expect(asked == 1, "it asks once");
+
+    team::Claims claims;
+    claims.claims.push_back(
+        {document::ComponentKind::Frame, document.frameMeta(2).id, "kraken", 1000, false});
+    controller.setClaims(claims, QStringLiteral("kraken"));
+    const edit::FrameAttributeEditCommand desktops(2, edit::FrameAttribute::DurationMs, 0, 50);
+    const std::optional<QString> refused = controller.refusal(desktops, document);
+    expect(refused && refused->contains(QStringLiteral("kraken works on it")),
+           "the desktop's frame waits for its merge, as a partner's does");
+
+    // Later: nothing is shared or claimed until the author decides.
+    document = copiedFrom("kraken", "desktop-id");
+    choice = Choice::Later;
+    controller.setClaims({}, QStringLiteral("kraken"));
+    controller.projectChanged();
+    expect(asked == 2 && controller.member() == QStringLiteral("kraken") &&
+               controller.panelState().problem.contains(QStringLiteral("another computer")),
+           "a copy left for later says why it does not share");
+
+    // Moved here: the same member, now on this computer.
+    choice = Choice::MovedHere;
+    controller.projectChanged();
+    expect(asked == 3 && controller.member() == QStringLiteral("kraken") &&
+               document.team()->computerId == here.toStdString() &&
+               controller.panelState().problem.isEmpty(),
+           "a moved copy stays the same member");
+
+    // A partner starts from the owner's file: theirs, without asking; the next save keeps it.
+    document = copiedFrom("kraken", "desktop-id");
+    controller.setClaims({}, QStringLiteral("enthusiast"));
+    controller.projectChanged();
+    expect(asked == 3 && controller.member() == QStringLiteral("enthusiast") &&
+               document.team()->member == "enthusiast" &&
+               document.team()->computerId == here.toStdString() && document.isDirty(),
+           "a partner's copy is theirs");
+
+    QSettings().clear();
+    QCoreApplication::setOrganizationName(organization);
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 void runTeamControllerWidgetTests()
 {
     testRefusals();
@@ -426,4 +531,5 @@ void runTeamControllerWidgetTests()
     testAvatars();
     testClaimedFrames();
     testStartTeamDialog();
+    testAnotherComputer();
 }

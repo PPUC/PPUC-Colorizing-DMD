@@ -91,12 +91,15 @@ private:
 // Merges the package into the project as the plan says, with the author's choices for the
 // conflicts, and moves the common state on: what both have now is common, the package counts
 // as merged, and this copy's own packages that every member has merged become common.
-// myLogin is this copy's member. Returns the command, already applied. Throws
-// std::invalid_argument with the plan's problem, the document left as it was.
+// myLogin is this copy's member. computers: the members' other computers known from the claims
+// (Claims::computers); they and the package's author, when it is one, join the members
+// (addComputers()). Returns the command, already applied. Throws std::invalid_argument with
+// the plan's problem, the document left as it was.
 [[nodiscard]] std::unique_ptr<TeamMergeCommand> mergeChangePackage(
     document::ProjectDocument& document,
     const ChangePackage& package,
     const MergeChoices& choices,
-    const std::string& myLogin);
+    const std::string& myLogin,
+    const std::vector<std::string>& computers = {});
 
 }  // namespace colorizing::team

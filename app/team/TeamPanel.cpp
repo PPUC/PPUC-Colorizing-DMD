@@ -121,7 +121,7 @@ void TeamPanel::setState(const State& state)
         const std::optional<PackageName> parsed = parsePackageName(name);
         QString text =
             parsed ? tr("From %1, %2")
-                         .arg(parsed->login,
+                         .arg(memberDisplayName(parsed->login),
                               locale.toString(QDateTime::fromMSecsSinceEpoch(parsed->createdMs),
                                               QLocale::ShortFormat))
                    : name;

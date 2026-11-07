@@ -57,9 +57,15 @@ struct TeamHistoryEntry {
 struct TeamState {
     // The GitHub repository the claims and packages go through, "owner/name".
     std::string repository;
-    // GitHub logins; the owner breaks the lock in the repository, the others by a fork.
+    // GitHub logins; the owner breaks the lock in the repository, the others by a fork. A
+    // member's other computers are members too, "<login>.<computer>" (team::memberLogin()).
     std::string ownerLogin;
     std::vector<std::string> members;
+    // The member this copy is, and the computer it is on (a random ID the editor keeps in its
+    // settings): a copy taken to another computer of the same author becomes a member of its
+    // own there (team::onAnotherComputer()). Empty in files of editors before 3.99.36.
+    std::string member;
+    std::string computerId;
     // The snapshot every member started from; a new snapshot starts the team anew.
     ComponentId snapshotId;
     // What every member has, as far as this copy knows: the components and their revisions

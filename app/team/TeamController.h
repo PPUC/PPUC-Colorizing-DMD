@@ -74,6 +74,24 @@ public:
 
     // The GitHub login, empty when signed out.
     [[nodiscard]] const QString& login() const { return m_login; }
+    // The member this copy of the team project is: the login, or on another computer of the
+    // author "<login>.<computer>" (team::memberLogin()); the login outside team projects.
+    [[nodiscard]] QString member() const;
+    // The random ID of this computer, made once and kept in the settings.
+    [[nodiscard]] static QString thisComputerId();
+
+    // A team project of the signed-in author that was last used on another computer: the
+    // project file was copied here. This copy becomes another computer of the author, a
+    // member of its own named after the computer (the desktop and the laptop then share and
+    // merge with each other as partners do), or it is the same copy moved here.
+    enum class OtherComputerChoice { AnotherComputer, MovedHere, Later };
+    struct OtherComputerAnswer {
+        OtherComputerChoice choice = OtherComputerChoice::Later;
+        // For AnotherComputer: the computer's name.
+        QString name;
+    };
+    // Asks the author; a dialog unless a test replaces it.
+    std::function<OtherComputerAnswer(const QString& suggestedName)> askOtherComputer;
     [[nodiscard]] bool isTeamProject() const;
     // Why the applied edit must not be kept: a partner works on what it changes (the claim's
     // owner and since when); nothing when it may. For a deletion it looks at the records by
@@ -121,13 +139,21 @@ public:
     }
     // The frames a partner works on (blocking claims), with the partner's login.
     [[nodiscard]] std::vector<std::pair<std::size_t, QString>> claimedFrames() const;
-    // A member's avatar; a null image until it is loaded (teamChanged() follows then).
-    [[nodiscard]] QImage avatar(const QString& login) const { return m_avatars->avatar(login); }
+    // A member's avatar (its login's, for another computer); a null image until it is loaded
+    // (teamChanged() follows then).
+    [[nodiscard]] QImage avatar(const QString& member) const;
     // "enthusiast works on it since 14:02" for a frame a partner works on; empty otherwise.
     [[nodiscard]] QString frameClaimText(std::size_t frameIndex) const;
 
 private:
     void signOut();
+    // projectChanged(): the copy on this computer (askOtherComputer).
+    void checkComputer();
+    // The author's copy was last used on another computer, and the author has not said yet how
+    // to use it here: it neither shares, merges nor claims.
+    [[nodiscard]] bool usedOnAnotherComputer() const;
+    bool useOnAnotherComputer(const QString& name);
+    [[nodiscard]] OtherComputerAnswer askOtherComputerDialog(const QString& suggestedName);
     void startTeam();
     // Large shared changes: the file to save them as; empty to send them through GitHub after
     // all, nothing when the author cancelled.

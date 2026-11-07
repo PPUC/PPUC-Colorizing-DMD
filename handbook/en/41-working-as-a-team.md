@@ -144,6 +144,32 @@ whoever exports it, and the other members as contributors (see "License"), unles
 - Assigning a mask, background or sprite a partner claimed is allowed: it changes the frame,
   not the mask. The mask may still change until the next merge.
 
+## Working on two computers
+
+You can share a project with yourself, for example the day's work on a desktop and the evening's
+on a laptop. Make it a team project (`Team -> Start Team Project...`, partners may stay empty),
+then:
+
+1. On the first computer, share your changes (`Team -> Share My Changes`), save the project,
+   and copy the project file to the second computer.
+2. Open it there, signed in to GitHub with the same account. The editor sees that the copy was
+   last used on another computer and asks:
+   - `Another Computer...`: this is a further computer you work on. Give it a short name (for
+     example `laptop`). The copy becomes a member of the team of its own, shown as `kraken
+     (laptop)`, under your account.
+   - `Moved Here`: you moved the project to this computer and no longer use the old copy; it
+     stays the same member.
+   - `Later`: nothing is shared, merged or claimed from this copy until you open it again and
+     choose.
+3. From then on each computer shares what it changed, and the other merges it, as with a
+   partner: merge at the start of a session, share at its end. Your frames that the other
+   computer changed and has not shared yet are read-only, as a partner's are, and say `kraken
+   (laptop) works on it`.
+
+Partners see your second computer as one more member, and a change counts as merged by everyone
+only once all your computers merged it too. Copy the project file only once per computer; later
+the changes go through GitHub. Copy the signing key over as well, see "Signing".
+
 ## Breaking the lock
 
 When a partner cannot be reached, anyone can go on alone with `Team -> Break The Lock...`:

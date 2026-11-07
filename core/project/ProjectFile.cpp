@@ -875,6 +875,12 @@ JsonValue teamStateJson(const document::TeamState& team)
     root.set("repository", team.repository);
     root.set("owner", team.ownerLogin);
     root.set("members", stringsJson(team.members));
+    if (!team.member.empty()) {
+        root.set("member", team.member);
+    }
+    if (!team.computerId.empty()) {
+        root.set("computer", team.computerId);
+    }
     root.set("snapshotId", team.snapshotId.toString());
     root.set("commonSettingsHash", hexOf(team.commonSettingsHash, 16));
     JsonValue sent = JsonValue::array();
@@ -1791,6 +1797,8 @@ document::TeamState readTeamState(const JsonValue& value, std::string_view commo
     team.repository = state.string("repository", "");
     team.ownerLogin = state.string("owner", "");
     team.members = readStrings(state, "members");
+    team.member = state.string("member", "");
+    team.computerId = state.string("computer", "");
     team.snapshotId = parseId(state.string("snapshotId"), "team state");
     if (state.has("commonSettingsHash")) {
         team.commonSettingsHash = parseHex(state.string("commonSettingsHash"), "team state");

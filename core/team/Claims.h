@@ -53,6 +53,10 @@ struct LockBreak {
 
 struct Claims {
     std::vector<Claim> claims;
+    // The members' other computers that work on the team project ("<login>.<computer>",
+    // memberLogin()): every copy waits for their merges too before a change is common. Each
+    // adds itself (withMyClaims()).
+    std::vector<std::string> computers;
     std::optional<WholeClaim> order;
     std::optional<WholeClaim> settings;
     std::optional<LockBreak> lockBreak;
@@ -70,6 +74,7 @@ using Reservation = std::pair<document::ComponentKind, document::ComponentId>;
 // The claims with this member's made what the copy's changes and reservations are now: one per
 // changed, added or deleted component and reservation, the frame order and the settings when
 // they changed. A claim that was there keeps its time. The others' claims stay as they are.
+// A member that is another computer of a login is listed in computers.
 [[nodiscard]] Claims withMyClaims(const Claims& current,
                                   const std::string& login,
                                   const ChangeSet& changes,

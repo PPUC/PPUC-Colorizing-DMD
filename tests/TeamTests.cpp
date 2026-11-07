@@ -515,6 +515,97 @@ void testHistory()
            "undoing the merge takes it out of the history");
 }
 
+// One author on two computers: the copy taken to the laptop becomes the member
+// "kraken.laptop"; the desktop and the laptop share and merge as partners do, and a change is
+// common only once the laptop merged it too.
+void testTwoComputers()
+{
+    expect(team::memberLogin("kraken.laptop") == "kraken" &&
+               team::memberComputer("kraken.laptop") == "laptop" &&
+               team::memberLogin("kraken") == "kraken" && team::memberComputer("kraken").empty(),
+           "a member is a login, or one of its computers");
+    expect(team::computerName("Kraken's iMac.local") == "kraken-s-imac-local" &&
+               team::computerName("  ..  ").empty() &&
+               team::computerName(std::string(40, 'a')).size() == 24,
+           "a computer's name is made of letters, digits and hyphens");
+
+    Team team = startTeam();
+    team.owner.setFrameDurationMs(2, 222);
+    const team::ChangePackage day = share(team.owner, team.ownerPath, "kraken", 2000, "d1");
+
+    // In the evening the project file goes to the laptop.
+    const std::string laptopPath = tempPath("kraken-laptop.cdmd");
+    std::filesystem::copy_file(platform::pathFromUtf8(team.ownerPath),
+                               platform::pathFromUtf8(laptopPath),
+                               std::filesystem::copy_options::overwrite_existing);
+    ProjectDocument laptop = load(laptopPath);
+    expect(!team::changesSinceCommon(laptop).empty(), "the copy has the desktop's changes");
+    laptop.setTeam(team::onAnotherComputer(laptop, "kraken.laptop", "laptop-id"));
+    save(laptop, laptopPath, "kraken", 2500);
+    laptop = load(laptopPath);
+    const document::TeamState& onLaptop = *laptop.team();
+    expect(onLaptop.member == "kraken.laptop" && onLaptop.computerId == "laptop-id" &&
+               onLaptop.members ==
+                   std::vector<std::string>{"kraken", "enthusiast", "kraken.laptop"} &&
+               onLaptop.sent.empty() &&
+               std::find(onLaptop.mergedPackages.begin(), onLaptop.mergedPackages.end(),
+                         day.packageId) != onLaptop.mergedPackages.end(),
+           "the laptop is a member of its own and has the desktop's package: " +
+               onLaptop.member);
+    expect(team::changesSinceCommon(laptop).empty(),
+           "nothing on the laptop is a change of its own: it claims nothing");
+
+    // The laptop names itself in the claims, so that the others wait for it.
+    const team::Claims claims =
+        team::withMyClaims({}, "kraken.laptop", team::changesSinceCommon(laptop), {}, 2600);
+    expect(claims.computers == std::vector<std::string>{"kraken.laptop"},
+           "the laptop is listed in the claims");
+    std::string error;
+    expect(team::parseClaims(team::writeClaims(claims), error) == claims,
+           "and that goes through claims.json");
+    expect(team::withMyClaims(claims, "enthusiast", {}, {}, 2700).computers == claims.computers,
+           "the others keep it");
+
+    // The partner merges the desktop's package. The desktop knows of the laptop from the
+    // claims: the change is not common before the laptop merged it too.
+    (void)team::mergeChangePackage(team.partner, day, {}, "enthusiast");
+    team.partner.setFrameDurationMs(6, 66);
+    const team::ChangePackage reply =
+        share(team.partner, team.partnerPath, "enthusiast", 3000, "e1");
+    (void)team::mergeChangePackage(team.owner, reply, {}, "kraken", claims.computers);
+    expect(team.owner.team()->sent.size() == 1 &&
+               std::find(team.owner.team()->members.begin(), team.owner.team()->members.end(),
+                         "kraken.laptop") != team.owner.team()->members.end(),
+           "the desktop waits for the laptop");
+
+    // The laptop's evening work goes to the desktop; it names the desktop's package as merged.
+    laptop.setFrameDurationMs(3, 333);
+    const team::ChangePackage evening = share(laptop, laptopPath, "kraken.laptop", 4000, "l1");
+    expect(evening.author == "kraken.laptop" &&
+               std::find(evening.merged.begin(), evening.merged.end(), day.packageId) !=
+                   evening.merged.end(),
+           "the laptop's package says it has the desktop's");
+    const team::MergePlan plan = team::planMerge(team.owner, evening);
+    expect(plan.problem.empty() && plan.conflictCount() == 0, "no conflict: " + plan.problem);
+    (void)team::mergeChangePackage(team.owner, evening, {}, "kraken");
+    expect(team.owner.frameDurationMs(3) == 333 && team.owner.team()->sent.empty() &&
+               team::changesSinceCommon(team.owner).changed[0].empty(),
+           "the desktop takes it, and its own change is common now");
+    (void)team::mergeChangePackage(laptop, reply, {}, "kraken.laptop");
+    expect(laptop.frameDurationMs(6) == 66, "the laptop merges the partner's too");
+    (void)team::mergeChangePackage(team.partner, evening, {}, "enthusiast");
+    expect(team.partner.frameDurationMs(3) == 333 &&
+               std::find(team.partner.team()->members.begin(),
+                         team.partner.team()->members.end(),
+                         "kraken.laptop") != team.partner.team()->members.end(),
+           "and the partner the laptop's, which it counts as a member then");
+    document::TeamState state = *team.partner.team();
+    const std::vector<std::string> members = state.members;
+    team::addComputers(state, {"stranger.pc", "kraken", "kraken.laptop"});
+    expect(state.members == members, "only another computer of a member joins, once");
+    std::filesystem::remove(platform::pathFromUtf8(laptopPath));
+}
+
 void runTeamTests()
 {
     testStart();
@@ -526,4 +617,5 @@ void runTeamTests()
     testMergedClaimsRelease();
     testAuthorTimes();
     testHistory();
+    testTwoComputers();
 }

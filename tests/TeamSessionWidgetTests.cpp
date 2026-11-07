@@ -160,6 +160,80 @@ void testShareAndMerge()
            "the owner's claim is released once the change is common");
 }
 
+// One author on two computers through the remote: the laptop's copy, the member
+// "kraken.laptop", does not take the desktop's package as new, sees nothing of its own as
+// pending, and its package and claims reach the desktop like a partner's.
+void testTwoComputers()
+{
+    QTemporaryDir folder;
+    const QString remotePath = QDir(folder.path()).filePath(QStringLiteral("remote"));
+    const QString desktopPath = QDir(folder.path()).filePath(QStringLiteral("desktop.cdmd"));
+    const QString laptopPath = QDir(folder.path()).filePath(QStringLiteral("laptop.cdmd"));
+    app::FolderRemote remote(remotePath);
+
+    ProjectDocument desktop = ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    save(desktop, desktopPath, "kraken", 1000);
+    desktop.setTeam(team::startTeam(desktop, "folder", "kraken", {}));
+    save(desktop, desktopPath, "kraken", 1000);
+    app::TeamSession desktopSession(remote, QStringLiteral("kraken"));
+    desktop.setFrameDurationMs(2, 222);
+    save(desktop, desktopPath, "kraken", 2000);
+    QString error = QStringLiteral("unset");
+    desktopSession.share(desktop, 2000, QStringLiteral("Day"),
+                         [&](QString message, bool) { error = message; });
+    expect(error.isEmpty(), "the desktop shares: " + error.toStdString());
+    save(desktop, desktopPath, "kraken", 2000);
+
+    std::filesystem::copy_file(desktopPath.toStdString(), laptopPath.toStdString());
+    ProjectDocument laptop =
+        std::move(*project::loadProjectDocument(laptopPath.toStdString()).document);
+    laptop.setTeam(team::onAnotherComputer(laptop, "kraken.laptop", "laptop-id"));
+    save(laptop, laptopPath, "kraken", 2500);
+    app::TeamSession laptopSession(remote, QStringLiteral("kraken.laptop"));
+    std::vector<QString> pending{QStringLiteral("unset")};
+    laptopSession.pendingPackages(laptop, [&](std::vector<QString> names, QString) {
+        pending = names;
+    });
+    expect(pending.empty(), "the laptop has the desktop's package already");
+
+    laptop.setFrameDurationMs(3, 333);
+    save(laptop, laptopPath, "kraken", 3000);
+    laptopSession.share(laptop, 3000, QStringLiteral("Evening"),
+                        [&](QString message, bool) { error = message; });
+    expect(error.isEmpty(), "the laptop shares: " + error.toStdString());
+    laptopSession.pendingPackages(laptop, [&](std::vector<QString> names, QString) {
+        pending = names;
+    });
+    expect(pending.empty(), "its own package is not pending for the laptop");
+    desktopSession.pendingPackages(desktop, [&](std::vector<QString> names, QString) {
+        pending = names;
+    });
+    const std::optional<app::PackageName> parsed =
+        pending.size() == 1 ? app::parsePackageName(pending[0]) : std::nullopt;
+    expect(parsed && parsed->login == QStringLiteral("kraken.laptop") &&
+               app::memberDisplayName(parsed->login) == QStringLiteral("kraken (laptop)"),
+           "the desktop has the laptop's package to merge");
+
+    std::optional<team::Claims> claims;
+    desktopSession.readClaims([&](std::optional<team::Claims> answer, QString) {
+        claims = answer;
+    });
+    expect(claims && claims->computers == std::vector<std::string>{"kraken.laptop"} &&
+               team::blockingClaim(*claims, document::ComponentKind::Frame,
+                                   desktop.frameMeta(3).id, "kraken",
+                                   desktop.team()->common[0].at(desktop.frameMeta(3).id)),
+           "the laptop is in the claims, and its frame is claimed for the desktop");
+
+    std::optional<team::ChangePackage> package;
+    desktopSession.fetchPackage(pending[0], [&](std::optional<team::ChangePackage> answer,
+                                                QString) { package = std::move(answer); });
+    expect(package.has_value(), "the desktop fetches it");
+    (void)team::mergeChangePackage(desktop, *package, {}, "kraken", claims->computers);
+    expect(desktop.frameDurationMs(3) == 333 && desktop.team()->sent.empty(),
+           "and merges it; its own package is common, as the laptop had it");
+}
+
 // The background sync: claims written and read in its thread, an unsaved edit claimed early,
 // the partner's package downloaded into the cache.
 void testBackgroundSync()
@@ -464,6 +538,7 @@ void runTeamSessionWidgetTests()
 {
     testPackageNames();
     testShareAndMerge();
+    testTwoComputers();
     testBackgroundSync();
     testShareAsFile();
     testHistory();

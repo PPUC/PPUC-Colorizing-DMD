@@ -256,7 +256,8 @@ TeamMergeCommand::TeamMergeCommand(ProjectDocument before,
 std::unique_ptr<TeamMergeCommand> mergeChangePackage(ProjectDocument& document,
                                                      const ChangePackage& package,
                                                      const MergeChoices& choices,
-                                                     const std::string& myLogin)
+                                                     const std::string& myLogin,
+                                                     const std::vector<std::string>& computers)
 {
     const MergePlan plan = planMerge(document, package);
     if (!plan.problem.empty()) {
@@ -649,6 +650,8 @@ std::unique_ptr<TeamMergeCommand> mergeChangePackage(ProjectDocument& document,
     }
     team.mergedPackages.push_back(package.packageId);
     recordInHistory(team, package);
+    addComputers(team, computers);
+    addComputers(team, {package.author});
     for (auto sent = team.sent.begin(); sent != team.sent.end();) {
         if (std::find(package.merged.begin(), package.merged.end(), sent->id) !=
                 package.merged.end() &&
