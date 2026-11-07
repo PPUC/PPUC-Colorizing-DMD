@@ -48,7 +48,7 @@ version when you report a problem.
   sprite and palette that changed, with the time (see "Saving"). Empty until it is set; a save
   then writes no name.
 - `Signing`: your signing key and its certificate, with which the editor signs the `.cROMc` it
-  exports, see "Signing".
+  exports, and `Export...` and `Import...` to take them to another computer, see "Signing".
 
 Without a dialog the editor keeps more for the next start: the size and place of its window
 (maximized or not) and of the Handbook, the Frame Tester, the PuP Tester, the plugin log, the

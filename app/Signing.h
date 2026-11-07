@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QString>
 
 #include <array>
@@ -44,6 +45,42 @@ struct CertificateCheck {
 
 // Whether the key can sign: a secret key and a trusted certificate for it.
 [[nodiscard]] bool canSign(const AuthorSigningKey& key);
+
+// A signing identity file (.cdmdsigning): the key and its certificate, to sign as the same
+// author on another computer (Settings -> Signing -> Export/Import). JSON with the public key
+// and the certificate in the clear and the secret key encrypted with the author's passphrase:
+// PBKDF2-HMAC-SHA256 of the passphrase and a random salt gives 64 bytes, the first 32 are
+// XORed with the secret key (a key stream used once, as every file has its own salt), the
+// others key an HMAC-SHA256 over everything else (encrypt, then authenticate). A wrong
+// passphrase and a changed file fail the same check, so neither tells anything of the key.
+inline constexpr int kSigningIdentityIterations = 600000;
+// More rounds than any file of ours has: refused, so that a file cannot keep the editor busy.
+inline constexpr int kSigningIdentityMaxIterations = 10000000;
+inline constexpr int kSigningIdentityMinPassphrase = 8;
+
+// The file; nothing without a secret key. iterations: for tests only.
+[[nodiscard]] std::optional<QByteArray> signingIdentityFile(
+    const AuthorSigningKey& key,
+    const QString& passphrase,
+    int iterations = kSigningIdentityIterations);
+
+enum class SigningIdentityError {
+    None,
+    // Not a signing identity file, or one that lacks what it needs.
+    NotAnIdentity,
+    // Written by a newer editor.
+    NewerFormat,
+    // The passphrase is wrong, or the file was changed or damaged.
+    WrongPassphraseOrChanged,
+    // It checks out, but its key is not the one it names (a file made to deceive).
+    KeyMismatch,
+};
+struct SigningIdentityRead {
+    std::optional<AuthorSigningKey> key;
+    SigningIdentityError error = SigningIdentityError::None;
+};
+[[nodiscard]] SigningIdentityRead readSigningIdentityFile(const QByteArray& file,
+                                                          const QString& passphrase);
 
 // The certificate request sent and not answered yet (team/CertificateRequest.h): its issue and
 // the public key it asks for. Kept until the certificate is taken, the request is refused or a

@@ -36,6 +36,24 @@ after an export. `Make a New Key...` replaces the key; you need a new certificat
 a request for the old key is no longer awaited. Files
 you signed with the old key stay signed.
 
+## Your key on another computer
+
+To sign as the same author on a second computer (a desktop by day and a laptop in the evening),
+take the key there instead of making another one:
+
+1. On the computer with the key, `Settings -> Signing -> Export...` asks for a passphrase twice
+   (at least 8 characters) and saves the key and its certificate in a `.cdmdsigning` file. The
+   key in the file is encrypted with the passphrase; nobody can recover a forgotten one.
+2. Take the file to the other computer, for example on a USB stick.
+3. There, `Settings -> Signing -> Import...` asks for the file and the passphrase; it replaces
+   a key the computer had (after asking). `OK` keeps it, as for every setting.
+4. Delete the file, or keep it somewhere safe as a backup. With the file and the passphrase
+   anyone signs as you.
+
+The import refuses a wrong passphrase, a file that was changed or damaged after the export (it
+cannot tell these apart), and a file of a newer editor. Both computers then sign with the same
+key; a certificate request one of them made is not carried over.
+
 ## Signing a project's export
 
 Every project is signed by default. `File -> Project Settings...` -> `Sign the exported .cROMc`

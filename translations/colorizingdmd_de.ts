@@ -9044,10 +9044,61 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
 </context>
 <context>
+    <name>SigningPassphraseDialog</name>
+    <message>
+        <source>Export Signing Key</source>
+        <translation>Signaturschlüssel exportieren</translation>
+    </message>
+    <message>
+        <source>Import Signing Key</source>
+        <translation>Signaturschlüssel importieren</translation>
+    </message>
+    <message>
+        <source>The file holds your signing key, protected by a passphrase you choose now. You need the passphrase to import it on your other computer; nobody can recover it. Keep the file to yourself: with it and the passphrase anyone signs as you.</source>
+        <translation>Die Datei enthält Ihren Signaturschlüssel, geschützt durch eine Passphrase, die Sie jetzt wählen. Sie brauchen die Passphrase, um ihn auf Ihrem anderen Computer zu importieren; niemand kann sie wiederherstellen. Behalten Sie die Datei für sich: Mit ihr und der Passphrase signiert jeder als Sie.</translation>
+    </message>
+    <message>
+        <source>The passphrase chosen when the file was exported.</source>
+        <translation>Die Passphrase, die beim Export der Datei gewählt wurde.</translation>
+    </message>
+    <message>
+        <source>Passphrase</source>
+        <translation>Passphrase</translation>
+    </message>
+    <message>
+        <source>Repeat it</source>
+        <translation>Wiederholen</translation>
+    </message>
+    <message>
+        <source>At least %1 characters.</source>
+        <translation>Mindestens %1 Zeichen.</translation>
+    </message>
+    <message>
+        <source>The two passphrases differ.</source>
+        <translation>Die beiden Passphrasen unterscheiden sich.</translation>
+    </message>
+</context>
+<context>
     <name>SigningSettingsPage</name>
     <message>
         <source>The editor signs every .cROMc it exports with your signing key. libserum then tells players who made the colorization, and shows a notice on the DMD when someone changed the file after you signed it. A project can turn signing off in its settings.</source>
         <translation>Der Editor signiert jede .cROMc, die er exportiert, mit Ihrem Signaturschlüssel. libserum sagt Spielern dann, wer die Kolorierung gemacht hat, und zeigt einen Hinweis auf dem DMD, wenn jemand die Datei nach Ihrem Signieren geändert hat. Ein Projekt kann das Signieren in seinen Einstellungen abschalten.</translation>
+    </message>
+    <message>
+        <source>Export...</source>
+        <translation>Exportieren...</translation>
+    </message>
+    <message>
+        <source>Saves your key and certificate in a file protected by a passphrase, to sign as the same author on another computer</source>
+        <translation>Speichert Ihren Schlüssel und Ihr Zertifikat in einer durch eine Passphrase geschützten Datei, um auf einem anderen Computer als derselbe Autor zu signieren</translation>
+    </message>
+    <message>
+        <source>Import...</source>
+        <translation>Importieren...</translation>
+    </message>
+    <message>
+        <source>Takes the key and certificate exported on another computer</source>
+        <translation>Übernimmt den auf einem anderen Computer exportierten Schlüssel samt Zertifikat</translation>
     </message>
     <message>
         <source>Copy</source>
@@ -9072,6 +9123,54 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Certificate</source>
         <translation>Zertifikat</translation>
+    </message>
+    <message>
+        <source>There is no signing key to export.</source>
+        <translation>Es gibt keinen Signaturschlüssel zum Exportieren.</translation>
+    </message>
+    <message>
+        <source>%1 could not be written: %2</source>
+        <translation>%1 konnte nicht geschrieben werden: %2</translation>
+    </message>
+    <message>
+        <source>%1 could not be read: %2</source>
+        <translation>%1 konnte nicht gelesen werden: %2</translation>
+    </message>
+    <message>
+        <source>The file is no signing key exported by the editor, or it is damaged.</source>
+        <translation>Die Datei ist kein vom Editor exportierter Signaturschlüssel, oder sie ist beschädigt.</translation>
+    </message>
+    <message>
+        <source>The file was exported by a newer editor. Update the editor first.</source>
+        <translation>Die Datei wurde von einem neueren Editor exportiert. Aktualisieren Sie zuerst den Editor.</translation>
+    </message>
+    <message>
+        <source>The passphrase is wrong, or the file was changed after the export.</source>
+        <translation>Die Passphrase ist falsch, oder die Datei wurde nach dem Export verändert.</translation>
+    </message>
+    <message>
+        <source>The file was changed after the export: its key is not the one it names.</source>
+        <translation>Die Datei wurde nach dem Export verändert: Ihr Schlüssel ist nicht der, den sie nennt.</translation>
+    </message>
+    <message>
+        <source>Export Signing Key</source>
+        <translation>Signaturschlüssel exportieren</translation>
+    </message>
+    <message>
+        <source>Signing keys (*.cdmdsigning)</source>
+        <translation>Signaturschlüssel (*.cdmdsigning)</translation>
+    </message>
+    <message>
+        <source>The key is in %1. On the other computer, use Import... on this page with the passphrase, then delete the file or keep it somewhere safe.</source>
+        <translation>Der Schlüssel ist in %1. Verwenden Sie auf dem anderen Computer Importieren... auf dieser Seite mit der Passphrase, und löschen Sie die Datei danach oder bewahren Sie sie sicher auf.</translation>
+    </message>
+    <message>
+        <source>Import Signing Key</source>
+        <translation>Signaturschlüssel importieren</translation>
+    </message>
+    <message>
+        <source>The imported key replaces the key of this computer. Files you signed with it stay signed. Import the key?</source>
+        <translation>Der importierte Schlüssel ersetzt den Schlüssel dieses Computers. Damit signierte Dateien bleiben signiert. Schlüssel importieren?</translation>
     </message>
     <message>
         <source>New Signing Key</source>

@@ -61,6 +61,9 @@ behaviour reference; what changed when, and why, is in the git history (commit m
   member's approval in the `signing` environment (secret `ISSUER_KEY`) and posts the
   certificate for `github:<account ID>`. Without GitHub a trusted member certifies with
   libserum's `tools/serum-signing`.
+  Settings -> Signing exports the key and certificate as a `.cdmdsigning` file for the
+  author's other computers (JSON; the seed XORed with PBKDF2-HMAC-SHA256 of the passphrase,
+  600000 rounds, an HMAC-SHA256 over every field, `app/Signing.h`).
 
 ## Repositories and branches
 

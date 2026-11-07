@@ -1,15 +1,19 @@
 // Settings -> Signing and the project's choice to sign.
 
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <string>
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QTemporaryDir>
 
 #include "RuntimeFixtures.h"
 #include "dialogs/CromcHeaderDialog.h"
@@ -110,6 +114,152 @@ void testRequestButton()
     page.takeCertificate(QStringLiteral("SERUM-CERTIFICATE-1:AAAA"));
     expect(page.key().certificate == QStringLiteral("SERUM-CERTIFICATE-1:AAAA"),
            "the answer's certificate goes into the box");
+}
+
+// A signing identity file brings the key and its certificate back with the passphrase, and
+// refuses a wrong passphrase, a changed file and what is no such file.
+void testSigningIdentityFile()
+{
+    app::AuthorSigningKey key;
+    std::array<uint8_t, 32> seed{};
+    for (std::size_t i = 0; i < seed.size(); ++i) {
+        seed[i] = static_cast<uint8_t>(i * 7 + 3);
+    }
+    key.seed = seed;
+    key.certificate = QStringLiteral("SERUM-CERTIFICATE-1:AAAA");
+    const QString passphrase = QStringLiteral("day and night");
+    const std::optional<QByteArray> file = app::signingIdentityFile(key, passphrase, 1000);
+    expect(file.has_value(), "a key is exported");
+    expect(!file->contains(QByteArray(reinterpret_cast<const char*>(seed.data()), 32).toHex()) &&
+               !file->contains(
+                   QByteArray(reinterpret_cast<const char*>(seed.data()), 32).toBase64()),
+           "the secret key is not in the file in the clear");
+    expect(app::signingIdentityFile(key, passphrase, 1000) != file,
+           "every export has its own salt");
+    expect(!app::signingIdentityFile(app::AuthorSigningKey{}, passphrase, 1000),
+           "without a key there is nothing to export");
+
+    const app::SigningIdentityRead read = app::readSigningIdentityFile(*file, passphrase);
+    expect(read.error == app::SigningIdentityError::None && read.key && *read.key == key,
+           "the passphrase brings the key and the certificate back");
+    expect(app::readSigningIdentityFile(*file, QStringLiteral("day and nighT")).error ==
+               app::SigningIdentityError::WrongPassphraseOrChanged,
+           "a wrong passphrase is refused");
+
+    const QJsonObject root = QJsonDocument::fromJson(*file).object();
+    const auto changed = [&](const std::function<void(QJsonObject&)>& change) {
+        QJsonObject copy = root;
+        change(copy);
+        return app::readSigningIdentityFile(QJsonDocument(copy).toJson(), passphrase).error;
+    };
+    expect(changed([](QJsonObject& o) {
+               o.insert(QStringLiteral("certificate"), QStringLiteral("SERUM-CERTIFICATE-1:BBBB"));
+           }) == app::SigningIdentityError::WrongPassphraseOrChanged,
+           "a changed certificate is refused");
+    expect(changed([](QJsonObject& o) {
+               QByteArray bytes = QByteArray::fromBase64(
+                   o.value(QStringLiteral("encryptedKey")).toString().toLatin1());
+               bytes[5] = static_cast<char>(bytes[5] ^ 1);
+               o.insert(QStringLiteral("encryptedKey"), QString::fromLatin1(bytes.toBase64()));
+           }) == app::SigningIdentityError::WrongPassphraseOrChanged,
+           "a changed key is refused");
+    expect(changed([&](QJsonObject& o) {
+               std::array<uint8_t, 32> other = seed;
+               other[0] ^= 1;
+               o.insert(QStringLiteral("publicKey"), app::publicKeyText(other));
+           }) == app::SigningIdentityError::WrongPassphraseOrChanged,
+           "a changed public key is refused");
+    expect(changed([](QJsonObject& o) {
+               QJsonObject kdf = o.value(QStringLiteral("kdf")).toObject();
+               kdf.insert(QStringLiteral("iterations"), 999);
+               o.insert(QStringLiteral("kdf"), kdf);
+           }) == app::SigningIdentityError::WrongPassphraseOrChanged,
+           "fewer rounds are refused");
+    expect(changed([](QJsonObject& o) {
+               QJsonObject kdf = o.value(QStringLiteral("kdf")).toObject();
+               kdf.insert(QStringLiteral("iterations"), app::kSigningIdentityMaxIterations + 1);
+               o.insert(QStringLiteral("kdf"), kdf);
+           }) == app::SigningIdentityError::NotAnIdentity,
+           "too many rounds are not even tried");
+    expect(changed([](QJsonObject& o) { o.remove(QStringLiteral("mac")); }) ==
+               app::SigningIdentityError::NotAnIdentity,
+           "a file without its check is none");
+    expect(changed([](QJsonObject& o) { o.insert(QStringLiteral("version"), 2); }) ==
+               app::SigningIdentityError::NewerFormat,
+           "a newer format is named");
+    expect(app::readSigningIdentityFile(file->left(file->size() / 2), passphrase).error ==
+               app::SigningIdentityError::NotAnIdentity,
+           "a cut file is refused");
+    expect(app::readSigningIdentityFile(QByteArray("{}"), passphrase).error ==
+               app::SigningIdentityError::NotAnIdentity,
+           "other JSON is refused");
+}
+
+// Settings -> Signing exports the key to a file and imports it on another computer; the
+// passphrase is asked twice for an export.
+void testSigningIdentityPage()
+{
+    QTemporaryDir folder;
+    expect(folder.isValid(), "a temporary folder");
+    const QString path = folder.filePath(QStringLiteral("key.cdmdsigning"));
+
+    app::SigningSettingsPage day;
+    std::array<uint8_t, 32> seed{};
+    seed.fill(0x01);
+    app::AuthorSigningKey key;
+    key.seed = seed;
+    key.certificate = QStringLiteral("SERUM-CERTIFICATE-1:AAAA");
+    day.setKey(key);
+    QPushButton* exportButton = nullptr;
+    QPushButton* importButton = nullptr;
+    for (QPushButton* candidate : day.findChildren<QPushButton*>()) {
+        if (candidate->text() == QStringLiteral("Export...")) {
+            exportButton = candidate;
+        } else if (candidate->text() == QStringLiteral("Import...")) {
+            importButton = candidate;
+        }
+    }
+    expect(exportButton && exportButton->isEnabled() && importButton &&
+               importButton->isEnabled(),
+           "a key can be exported, and another imported");
+    expect(day.exportIdentity(path, QStringLiteral("evening key"), 1000).isEmpty(),
+           "the key is exported");
+
+    app::SigningSettingsPage evening;
+    evening.setKey({});
+    QPushButton* eveningExport = nullptr;
+    for (QPushButton* candidate : evening.findChildren<QPushButton*>()) {
+        if (candidate->text() == QStringLiteral("Export...")) {
+            eveningExport = candidate;
+        }
+    }
+    expect(eveningExport && !eveningExport->isEnabled(), "without a key nothing is exported");
+    expect(evening.importIdentity(path, QStringLiteral("evening kez")).contains(
+               QStringLiteral("passphrase is wrong")),
+           "a wrong passphrase says so");
+    expect(!evening.key().seed, "and takes nothing");
+    expect(evening.importIdentity(path, QStringLiteral("evening key")).isEmpty() &&
+               evening.key() == key,
+           "the other computer signs with the same key and certificate");
+    expect(evening.importIdentity(folder.filePath(QStringLiteral("none")),
+                                  QStringLiteral("evening key"))
+               .contains(QStringLiteral("could not be read")),
+           "a missing file is named");
+
+    app::SigningPassphraseDialog ask(app::SigningPassphraseDialog::Purpose::Export);
+    ask.setPassphrase(QStringLiteral("short"), QStringLiteral("short"));
+    expect(!ask.canAccept() && ask.problemText().contains(QStringLiteral("At least 8")),
+           "an export's passphrase is long enough");
+    ask.setPassphrase(QStringLiteral("long enough"), QStringLiteral("long enougj"));
+    expect(!ask.canAccept() && ask.problemText().contains(QStringLiteral("differ")),
+           "and typed twice the same");
+    ask.setPassphrase(QStringLiteral("long enough"), QStringLiteral("long enough"));
+    expect(ask.canAccept() && ask.passphrase() == QStringLiteral("long enough"),
+           "then it is taken");
+    app::SigningPassphraseDialog askImport(app::SigningPassphraseDialog::Purpose::Import);
+    expect(!askImport.canAccept(), "an import needs a passphrase");
+    askImport.setPassphrase(QStringLiteral("x"));
+    expect(askImport.canAccept(), "of any length, once");
 }
 
 // The license box offers Creative Commons without changes, its building blocks deciding the
@@ -224,6 +374,8 @@ void runSigningWidgetTests()
     testSigningPage();
     testProjectChoice();
     testRequestButton();
+    testSigningIdentityFile();
+    testSigningIdentityPage();
     testLicenseChoices();
     testCromcHeader();
     testCredits();

@@ -9044,10 +9044,61 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
 </context>
 <context>
+    <name>SigningPassphraseDialog</name>
+    <message>
+        <source>Export Signing Key</source>
+        <translation>Exporter la clé de signature</translation>
+    </message>
+    <message>
+        <source>Import Signing Key</source>
+        <translation>Importer la clé de signature</translation>
+    </message>
+    <message>
+        <source>The file holds your signing key, protected by a passphrase you choose now. You need the passphrase to import it on your other computer; nobody can recover it. Keep the file to yourself: with it and the passphrase anyone signs as you.</source>
+        <translation>Le fichier contient votre clé de signature, protégée par une phrase secrète que vous choisissez maintenant. Il vous faut cette phrase secrète pour l&apos;importer sur votre autre ordinateur ; personne ne peut la récupérer. Gardez le fichier pour vous : avec lui et la phrase secrète, n&apos;importe qui signe en votre nom.</translation>
+    </message>
+    <message>
+        <source>The passphrase chosen when the file was exported.</source>
+        <translation>La phrase secrète choisie lors de l&apos;export du fichier.</translation>
+    </message>
+    <message>
+        <source>Passphrase</source>
+        <translation>Phrase secrète</translation>
+    </message>
+    <message>
+        <source>Repeat it</source>
+        <translation>La répéter</translation>
+    </message>
+    <message>
+        <source>At least %1 characters.</source>
+        <translation>Au moins %1 caractères.</translation>
+    </message>
+    <message>
+        <source>The two passphrases differ.</source>
+        <translation>Les deux phrases secrètes diffèrent.</translation>
+    </message>
+</context>
+<context>
     <name>SigningSettingsPage</name>
     <message>
         <source>The editor signs every .cROMc it exports with your signing key. libserum then tells players who made the colorization, and shows a notice on the DMD when someone changed the file after you signed it. A project can turn signing off in its settings.</source>
         <translation>L&apos;éditeur signe chaque .cROMc qu&apos;il exporte avec votre clé de signature. libserum indique alors aux joueurs qui a fait la colorisation, et affiche un avis sur le DMD quand quelqu&apos;un a modifié le fichier après votre signature. Un projet peut désactiver la signature dans ses paramètres.</translation>
+    </message>
+    <message>
+        <source>Export...</source>
+        <translation>Exporter...</translation>
+    </message>
+    <message>
+        <source>Saves your key and certificate in a file protected by a passphrase, to sign as the same author on another computer</source>
+        <translation>Enregistre votre clé et votre certificat dans un fichier protégé par une phrase secrète, pour signer comme le même auteur sur un autre ordinateur</translation>
+    </message>
+    <message>
+        <source>Import...</source>
+        <translation>Importer...</translation>
+    </message>
+    <message>
+        <source>Takes the key and certificate exported on another computer</source>
+        <translation>Reprend la clé et le certificat exportés sur un autre ordinateur</translation>
     </message>
     <message>
         <source>Copy</source>
@@ -9072,6 +9123,54 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Certificate</source>
         <translation>Certificat</translation>
+    </message>
+    <message>
+        <source>There is no signing key to export.</source>
+        <translation>Il n&apos;y a pas de clé de signature à exporter.</translation>
+    </message>
+    <message>
+        <source>%1 could not be written: %2</source>
+        <translation>Impossible d&apos;écrire %1 : %2</translation>
+    </message>
+    <message>
+        <source>%1 could not be read: %2</source>
+        <translation>Impossible de lire %1 : %2</translation>
+    </message>
+    <message>
+        <source>The file is no signing key exported by the editor, or it is damaged.</source>
+        <translation>Le fichier n&apos;est pas une clé de signature exportée par l&apos;éditeur, ou il est endommagé.</translation>
+    </message>
+    <message>
+        <source>The file was exported by a newer editor. Update the editor first.</source>
+        <translation>Le fichier a été exporté par un éditeur plus récent. Mettez d&apos;abord l&apos;éditeur à jour.</translation>
+    </message>
+    <message>
+        <source>The passphrase is wrong, or the file was changed after the export.</source>
+        <translation>La phrase secrète est fausse, ou le fichier a été modifié après l&apos;export.</translation>
+    </message>
+    <message>
+        <source>The file was changed after the export: its key is not the one it names.</source>
+        <translation>Le fichier a été modifié après l&apos;export : sa clé n&apos;est pas celle qu&apos;il indique.</translation>
+    </message>
+    <message>
+        <source>Export Signing Key</source>
+        <translation>Exporter la clé de signature</translation>
+    </message>
+    <message>
+        <source>Signing keys (*.cdmdsigning)</source>
+        <translation>Clés de signature (*.cdmdsigning)</translation>
+    </message>
+    <message>
+        <source>The key is in %1. On the other computer, use Import... on this page with the passphrase, then delete the file or keep it somewhere safe.</source>
+        <translation>La clé est dans %1. Sur l&apos;autre ordinateur, utilisez Importer... sur cette page avec la phrase secrète, puis supprimez le fichier ou gardez-le en lieu sûr.</translation>
+    </message>
+    <message>
+        <source>Import Signing Key</source>
+        <translation>Importer la clé de signature</translation>
+    </message>
+    <message>
+        <source>The imported key replaces the key of this computer. Files you signed with it stay signed. Import the key?</source>
+        <translation>La clé importée remplace la clé de cet ordinateur. Les fichiers signés avec elle restent signés. Importer la clé ?</translation>
     </message>
     <message>
         <source>New Signing Key</source>
