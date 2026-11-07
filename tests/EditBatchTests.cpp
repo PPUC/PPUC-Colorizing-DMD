@@ -290,6 +290,48 @@ void testAddFrameLike()
            "one undo takes both frames back");
 }
 
+// Create HD for frames without HD; frame 1 of the fixture has HD already.
+void testCreateFramesHd()
+{
+    ProjectDocument document =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    expect(document.hasHdFrame(1) && !document.hasHdFrame(2) && !document.hasHdFrame(4),
+           "the fixture: frame 1 has HD, frames 2 and 4 none");
+    const document::Rgb565Frame frame1 = document.colorizedFrame(1, Resolution::Hd);
+    edit::EditBatch batch("HD");
+    batch.add(edit::createFramesHd(document, {1, 2, 4}, document::UpscaleFilter::Scale2x, true,
+                                   true));
+    expect(document.hasHdFrame(2) && document.hasHdFrame(4) &&
+               samePixels(document.colorizedFrame(1, Resolution::Hd), frame1),
+           "frames 2 and 4 get HD, frame 1 keeps its own");
+    expect(!edit::createFramesHd(document, {1, 2}, document::UpscaleFilter::Nearest, false,
+                                 false),
+           "nothing when every frame has HD");
+    bool thrown = false;
+    try {
+        (void)edit::createFramesHd(document, {999}, document::UpscaleFilter::Nearest, false,
+                                   false);
+    } catch (const std::out_of_range&) {
+        thrown = true;
+    }
+    expect(thrown, "a frame that does not exist");
+    edit::UndoHistories histories;
+    histories.push(edit::structureHistoryKey(), batch.finish());
+    expect(histories.undo(edit::structureHistoryKey(), document) && !document.hasHdFrame(2) &&
+               !document.hasHdFrame(4) && document.hasHdFrame(1),
+           "one undo takes the HD back");
+
+    ProjectDocument hdOnly =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::NativeExtra));
+    thrown = false;
+    try {
+        (void)edit::createFramesHd(hdOnly, {2}, document::UpscaleFilter::Nearest, false, false);
+    } catch (const std::logic_error&) {
+        thrown = true;
+    }
+    expect(thrown, "a project of one plane is refused");
+}
+
 // A picture of the plane's size: the color of each pixel from its position.
 std::vector<uint16_t> patternPicture(render::Size size)
 {
@@ -429,5 +471,6 @@ void runEditBatchTests()
     testCancel();
     testIdentificationSteps();
     testAddFrameLike();
+    testCreateFramesHd();
     testPictures();
 }

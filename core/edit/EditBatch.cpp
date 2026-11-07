@@ -1,5 +1,6 @@
 #include "edit/EditBatch.h"
 
+#include <set>
 #include <stdexcept>
 #include <utility>
 
@@ -468,6 +469,43 @@ std::unique_ptr<EditCommand> setDynamicColors(ProjectDocument& document,
     return applied(std::make_unique<DynamicColorsEditCommand>(frameIndex, plane, setIndex,
                                                               std::move(changes)),
                    document);
+}
+
+std::unique_ptr<EditCommand> createFramesHd(ProjectDocument& document,
+                                            const std::vector<std::size_t>& frames,
+                                            document::UpscaleFilter filter,
+                                            bool backgroundMask,
+                                            bool backgroundImage)
+{
+    if (document.rendersHdPlaneOnly() || document.editsOriginalPlaneOnly()) {
+        throw std::logic_error("Create HD needs a project with SD and HD planes");
+    }
+    for (const std::size_t frame : frames) {
+        checkFrame(document, frame);
+    }
+    EditBatch batch("Create HD");
+    try {
+        // A background several of the frames use is upscaled once, by the first of them.
+        std::set<uint16_t> upscaledBackgrounds;
+        for (const std::size_t frame : frames) {
+            if (document.hasHdFrame(frame)) {
+                continue;
+            }
+            const std::optional<document::FrameBackgroundData>& background =
+                document.backgroundData(frame);
+            document::FrameHdParts parts;
+            parts.filter = filter;
+            parts.backgroundMask = backgroundMask && background.has_value();
+            parts.backgroundImage = backgroundImage && background &&
+                                    background->backgroundId < document.backgroundCount() &&
+                                    upscaledBackgrounds.insert(background->backgroundId).second;
+            batch.add(createFrameHd(document, frame, parts));
+        }
+    } catch (...) {
+        batch.cancel(document);
+        throw;
+    }
+    return batch.finish();
 }
 
 std::unique_ptr<EditCommand> addFrameLike(ProjectDocument& document,

@@ -1225,9 +1225,13 @@ into `m_refusedCommands`); before v6 a refused batch looked recorded.
 v7 (2026-11-07): CopyFrameSettings is `edit::copyFrameSettings` with CDMDPI_SETTINGS_* bits in
 the order of the API (not `kFrameSettingsParts`' order); the plugin API had no other way to
 set dynamic shadows.
+v8: CreateFrameHd is `edit::createFramesHd` (the Create HD dialog's loop: frames with HD are
+skipped, each background upscaled once; refused in the native layouts), CreateSpriteHd
+`edit::createSpriteHd`, DeleteFrames `edit::deleteFrames`, SetSection
+`edit::addOrRenameSection`, DeleteSection `edit::deleteSection`.
 The AI assistant plugin that uses it lives in its own repository
-(`../ColorizingDMD-AI-Assist`, local, not on GitHub yet) for a closed tester group; never ship
-it in the editor's packages.
+(`../ColorizingDMD-AI-Assist`, PPUC/PPUC-Colorizing-DMD-AI-Assist-Plugin) for a closed tester
+group; never ship it in the editor's packages.
 
 ## Translations (2026-10-15)
 

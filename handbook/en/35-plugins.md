@@ -76,4 +76,7 @@ tells the plugin when the editor did not record its batch: in a team project, an
 partner works on is taken back, and the status bar says why.
 Version 7 copies frame settings in an edit batch (`CopyFrameSettings`), the parts
 `Edit -> Copy Frame Settings...` offers, such as dynamic zones, their colors and shadows.
+Version 8 creates HD for frames and sprites with the filters of Create HD (`CreateFrameHd`,
+`CreateSpriteHd`), deletes frames (`DeleteFrames`), and names, adds and deletes sections
+(`SetSection`, `DeleteSection`), all in edit batches.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

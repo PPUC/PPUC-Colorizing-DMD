@@ -6,7 +6,10 @@
 #include <cstring>
 #include <exception>
 #include <iterator>
+#include <optional>
 #include <set>
+#include <string>
+#include <vector>
 
 #include "ColorizingDMDPlugin.h"
 #include "document/ProjectDocument.h"
@@ -961,8 +964,92 @@ int MSGPIAPI copyFrameSettings(uint32_t endpointId, uint32_t source, const uint3
     });
 }
 
+// ---- HD, frames and sections (version 8) ----------------------------------------------------
+
+std::optional<document::UpscaleFilter> upscaleFilterOf(uint32_t filter)
+{
+    switch (filter) {
+        case CDMDPI_UPSCALE_NEAREST:
+            return document::UpscaleFilter::Nearest;
+        case CDMDPI_UPSCALE_BILINEAR:
+            return document::UpscaleFilter::Bilinear;
+        case CDMDPI_UPSCALE_BICUBIC:
+            return document::UpscaleFilter::Bicubic;
+        case CDMDPI_UPSCALE_LANCZOS4:
+            return document::UpscaleFilter::Lanczos4;
+        case CDMDPI_UPSCALE_SCALE2X:
+            return document::UpscaleFilter::Scale2x;
+        default:
+            return std::nullopt;
+    }
+}
+
+std::vector<std::size_t> framesOf(const uint32_t* frames, uint32_t count)
+{
+    return std::vector<std::size_t>(frames, frames + count);
+}
+
+int MSGPIAPI createFrameHd(uint32_t endpointId, const uint32_t* frames, uint32_t count,
+                           uint32_t filter, uint32_t flags)
+{
+    const std::optional<document::UpscaleFilter> upscale = upscaleFilterOf(filter);
+    if (!frames || !count || !upscale ||
+        (flags & ~uint32_t{CDMDPI_HD_BACKGROUND_MASK | CDMDPI_HD_BACKGROUND_IMAGE})) {
+        return 0;
+    }
+    const std::vector<std::size_t> indices = framesOf(frames, count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::createFramesHd(document, indices, *upscale,
+                                    (flags & CDMDPI_HD_BACKGROUND_MASK) != 0,
+                                    (flags & CDMDPI_HD_BACKGROUND_IMAGE) != 0);
+    });
+}
+
+int MSGPIAPI createSpriteHd(uint32_t endpointId, uint32_t sprite, uint32_t filter)
+{
+    const std::optional<document::UpscaleFilter> upscale = upscaleFilterOf(filter);
+    if (!upscale) {
+        return 0;
+    }
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        if (sprite >= document.spriteCount()) {
+            throw std::out_of_range("sprite index out of range");
+        }
+        return edit::createSpriteHd(document, sprite, *upscale);
+    });
+}
+
+int MSGPIAPI deleteFrames(uint32_t endpointId, const uint32_t* frames, uint32_t count)
+{
+    if (!frames || !count) {
+        return 0;
+    }
+    const std::vector<std::size_t> indices = framesOf(frames, count);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return std::unique_ptr<edit::EditCommand>(edit::deleteFrames(document, indices));
+    });
+}
+
+int MSGPIAPI setSection(uint32_t endpointId, uint32_t frame, const char* name)
+{
+    if (!name) {
+        return 0;
+    }
+    const std::string text(name);
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::addOrRenameSection(document, frame, text);
+    });
+}
+
+int MSGPIAPI deleteSection(uint32_t endpointId, uint32_t section)
+{
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        return edit::deleteSection(document, section);
+    });
+}
+
 const ColorizingDMDEditorAPI kApi{
-    7,
+    8,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -1009,6 +1096,11 @@ const ColorizingDMDEditorAPI kApi{
     &addFrame,
     &moveFrames,
     &copyFrameSettings,
+    &createFrameHd,
+    &createSpriteHd,
+    &deleteFrames,
+    &setSection,
+    &deleteSection,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

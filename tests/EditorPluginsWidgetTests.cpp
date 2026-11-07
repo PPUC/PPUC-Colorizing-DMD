@@ -248,6 +248,53 @@ void testIdentification()
     expect(api->CopyFrameSettings(plugin, 2, targets, 1, CDMDPI_SETTINGS_DYNAMIC_SHADOWS) == 1,
            "copying what is equal already is no refusal");
     expect(api->EndEdit(plugin, 1) == 1 && recorded.back() == "Shadows", "one step");
+
+    // Version 8: Create HD, deleting frames, sections.
+    const uint32_t hdFrames[] = {2, 4};
+    expect(api->BeginEdit(plugin, "Tidy") == 1 &&
+               api->CreateFrameHd(plugin, hdFrames, 2, 9, 0) == 0 &&
+               api->CreateFrameHd(plugin, hdFrames, 2, CDMDPI_UPSCALE_SCALE2X, 4) == 0 &&
+               !document.hasHdFrame(2),
+           "an unknown filter or flag is refused");
+    expect(api->CreateFrameHd(plugin, hdFrames, 2, CDMDPI_UPSCALE_SCALE2X,
+                              CDMDPI_HD_BACKGROUND_MASK | CDMDPI_HD_BACKGROUND_IMAGE) == 1 &&
+               document.hasHdFrame(2) && document.hasHdFrame(4),
+           "frames 2 and 4 get HD");
+    expect(api->CreateSpriteHd(plugin, 999, CDMDPI_UPSCALE_NEAREST) == 0 &&
+               api->CreateSpriteHd(plugin, 0, CDMDPI_UPSCALE_NEAREST) == 1 &&
+               document.hasHdSprite(0),
+           "a sprite gets HD; one that does not exist is refused");
+    const std::size_t framesBefore = document.frameCount();
+    const document::IndexedFrame third = document.originalFrame(3);
+    const uint32_t doomed[] = {1, 2};
+    expect(api->DeleteFrames(plugin, doomed, 2) == 1 &&
+               document.frameCount() == framesBefore - 2 &&
+               document.originalFrame(1).pixels.toVector() == third.pixels.toVector(),
+           "frames 1 and 2 are deleted, the frames behind move down");
+    ColorizingDMDProjectInfo info{};
+    api->GetProjectInfo(&info);
+    const uint32_t sectionsBefore = info.sectionCount;
+    expect(api->SetSection(plugin, 2, "") == 0 && api->SetSection(plugin, 2, "Finals") == 1,
+           "an empty name is refused; a section starts at frame 2");
+    api->GetProjectInfo(&info);
+    char name[64] = {};
+    uint32_t sectionStart = CDMDPI_NONE;
+    expect(info.sectionCount == sectionsBefore + 1 &&
+               api->GetSection(info.sectionCount - 1, name, sizeof name, &sectionStart) == 1 &&
+               std::string(name) == "Finals" && sectionStart == 2,
+           "the new section is the last in the list");
+    expect(api->SetSection(plugin, 2, "Final scores") == 1 &&
+               api->GetSection(info.sectionCount - 1, name, sizeof name, &sectionStart) == 1 &&
+               std::string(name) == "Final scores",
+           "renamed");
+    expect(api->DeleteSection(plugin, info.sectionCount - 1) == 1 &&
+               api->DeleteSection(plugin, 999) == 0,
+           "deleted; one that does not exist is refused");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded.back() == "Tidy", "one step");
+    expect(histories.undo(edit::structureHistoryKey(), document) &&
+               document.frameCount() == framesBefore && !document.hasHdFrame(2) &&
+               !document.hasHdSprite(0),
+           "one undo takes it all back");
 }
 
 // Version 3: pictures, the review window and the settings form, on a project with
@@ -520,7 +567,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 7, "the API table is version 7");
+    expect(api && api->version == 8, "the API table is version 8");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&

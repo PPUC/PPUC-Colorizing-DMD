@@ -1,7 +1,8 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 7 (version 6 without CopyFrameSettings, version
-// 5 without AddFrame, MoveFrames and EndEdit's refusal either, version 4 without identification
+// ColorizingDMD editor API for plugins, version 8 (version 7 without Create HD, deleting frames
+// and sections, version 6 without CopyFrameSettings either, version 5 without AddFrame,
+// MoveFrames and EndEdit's refusal either, version 4 without identification
 // and the runtime either, version 3 without ShowForm and the file, note and consent fields
 // either, version 2 without the pictures and the author's windows either, version 1 without the
 // editing part either).
@@ -167,9 +168,21 @@ typedef struct ColorizingDMDRuntimeResult
 #define CDMDPI_SETTINGS_DURATION 0x400
 #define CDMDPI_SETTINGS_DOF_EVENTS 0x800
 
+// How Create HD makes a picture twice the size (version 8), as the editor's filter box: the
+// interpolating ones make colors the picture did not have; Scale2x keeps the colors and smooths
+// diagonal edges, as libserum does when it upscales at run time.
+#define CDMDPI_UPSCALE_NEAREST 0
+#define CDMDPI_UPSCALE_BILINEAR 1
+#define CDMDPI_UPSCALE_BICUBIC 2
+#define CDMDPI_UPSCALE_LANCZOS4 3
+#define CDMDPI_UPSCALE_SCALE2X 4
+// What CreateFrameHd upscales besides the frames' pictures; or them together.
+#define CDMDPI_HD_BACKGROUND_MASK 0x1  // the frames' background masks, doubled
+#define CDMDPI_HD_BACKGROUND_IMAGE 0x2 // the assigned backgrounds' pictures, each once
+
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 7
+   int version; // 8
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -384,5 +397,24 @@ typedef struct ColorizingDMDEditorAPI
    // an unknown part or a frame that does not exist; nothing changed is no refusal.
    int(MSGPIAPI* CopyFrameSettings)(uint32_t endpointId, uint32_t source, const uint32_t* frames,
                                     uint32_t count, uint32_t parts);
+
+   // ---- HD, frames and sections (version 8) -----------------------------------------------
+   // Changes of an edit batch, as those of version 2.
+   // Frame -> Create HD for the frames given that have no HD yet (the others are left alone):
+   // the pictures upscaled with the filter (CDMDPI_UPSCALE_*), and what flags asks for
+   // (CDMDPI_HD_*). Refused in a project without both an SD and an HD plane.
+   int(MSGPIAPI* CreateFrameHd)(uint32_t endpointId, const uint32_t* frames, uint32_t count,
+                                uint32_t filter, uint32_t flags);
+   // Create HD of a sprite; nothing changes for a sprite that has HD.
+   int(MSGPIAPI* CreateSpriteHd)(uint32_t endpointId, uint32_t sprite, uint32_t filter);
+   // Deletes the frames (any order) as the frame list does: sections start at their first
+   // remaining frame, the frames behind move down. Refused when no frame would remain.
+   int(MSGPIAPI* DeleteFrames)(uint32_t endpointId, const uint32_t* frames, uint32_t count);
+   // Names the section that starts at the frame, or adds one there (behind the others in the
+   // list); name: 1 to 31 bytes, not another section's. Sections are editor data: the runtime
+   // does not use them.
+   int(MSGPIAPI* SetSection)(uint32_t endpointId, uint32_t frame, const char* name);
+   // Deletes the section (its index, see GetSection); its frames belong to the one before.
+   int(MSGPIAPI* DeleteSection)(uint32_t endpointId, uint32_t section);
 
 } ColorizingDMDEditorAPI;

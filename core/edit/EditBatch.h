@@ -112,6 +112,16 @@ private:
 // shows that the project lacks, such as a score with more digits. It is appended as addFrames()
 // appends; *added (unless null) gets its index. Throws std::invalid_argument for an original
 // of another size or with a shade the project has no color for.
+// Frame -> Create HD for the frames that have no HD yet (the others are left alone), in a
+// project with SD and HD planes: their pictures upscaled with the filter, with backgroundMask
+// their background masks doubled, with backgroundImage their assigned backgrounds' pictures
+// upscaled too, each background once. nullptr when every frame has HD. Throws std::logic_error
+// in a project of one plane, std::out_of_range for a frame that does not exist.
+[[nodiscard]] std::unique_ptr<EditCommand> createFramesHd(document::ProjectDocument& document,
+                                                          const std::vector<std::size_t>& frames,
+                                                          document::UpscaleFilter filter,
+                                                          bool backgroundMask,
+                                                          bool backgroundImage);
 [[nodiscard]] std::unique_ptr<EditCommand> addFrameLike(document::ProjectDocument& document,
                                                         const std::vector<uint8_t>& original,
                                                         std::size_t like,

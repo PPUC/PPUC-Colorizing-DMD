@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Editor API version 8 for plugins: plugins create HD for frames and sprites, delete frames
+  and add, rename and delete sections.
+
 ## 3.99.35
 
 - Editor API version 7 for plugins: plugins copy frame settings as `Edit -> Copy Frame
