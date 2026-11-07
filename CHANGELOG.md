@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.36
+
 - Editor API version 8 for plugins: plugins create HD for frames and sprites, delete frames
   and add, rename and delete sections.
 - Settings -> Signing exports your signing key and certificate to a file protected by a
