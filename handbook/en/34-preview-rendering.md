@@ -43,7 +43,11 @@ Known differences, all on the HD plane of an ordinary project. libserum upscales
 at 128x32 once (Scale2x) before putting it on top. The editor doubles pixels instead.
 
 - **Edges of dynamic zones.** Scale2x rounds corners: a pixel at the edge of a glyph gets the
-  color of a neighboring 128x32 pixel, or is left to the HD frame below. This is all that is left
+  color of a neighboring 128x32 pixel, or is left to the HD frame below. In front of a
+  background, the background image or a background scene, the zones are upscaled as if they
+  stood on black and then put on the background, whether it has an HD image or not: a rounded
+  corner shows the background, and the inner corners of a diagonal take the glyph's color over
+  the background. The texture of the background does not change the shape. This is all that is left
   of the dynamic differences: in `trn_174h` 113940 pixels in 4222 of 5211 frames, 27 per frame,
   every one of them such an edge pixel (before the editor used the SD zones: 151384). Shadows
   follow the rounded shape in libserum and the doubled one in the editor.

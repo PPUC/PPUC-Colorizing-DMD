@@ -298,6 +298,10 @@ void testHdPlaneOfOrdinaryProject()
 // along every row. Scale2x replaces a pixel only if its left and right neighbors differ,
 // which never happens here, so every 128x32 pixel becomes a plain 2x2 block and the whole
 // plane can be compared. The 256x64 frame and background are not upscaled and vary freely.
+// Only at the frame's edges: libserum upscales the zones in front of the background as on
+// black, and outside the frame is black too. Row 18 is the first lit row under the background
+// (rows 16 and 17), so its two outer top corners are rounded and show the 256x64 background,
+// see expectHdPlaneEqualsRuntime().
 ProjectSnapshot makeRowProject()
 {
     ProjectSnapshot snapshot = makeProject(PlaneLayout::Ordinary, 1);
@@ -344,6 +348,29 @@ ProjectSnapshot makeRowProject()
     return snapshot;
 }
 
+// The two corners of the row project that libserum rounds (see makeRowProject()), as indices
+// on the 256x64 plane.
+std::array<std::size_t, 2> roundedRowCorners(const ProjectSnapshot& snapshot)
+{
+    const Size hd = snapshot.geometry.planeSize(Resolution::Hd);
+    const std::size_t row = static_cast<std::size_t>(36) * hd.width;
+    return {row, row + static_cast<std::size_t>(hd.width - 1)};
+}
+
+// The editor's picture of the row project with libserum's pixels at those corners, where the
+// editor doubles pixels and libserum shows the 256x64 background.
+Rgb565Frame withRoundedRowCorners(const ProjectSnapshot& snapshot,
+                                  Rgb565Frame editor,
+                                  const RuntimePlane& runtime)
+{
+    if (editor.size == runtime.image.size) {
+        for (const std::size_t index : roundedRowCorners(snapshot)) {
+            editor.pixels[index] = runtime.image.pixels[index];
+        }
+    }
+    return editor;
+}
+
 Rgb565Frame expectHdPlaneEqualsRuntime(const ProjectSnapshot& snapshot, const std::string& text)
 {
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
@@ -352,7 +379,14 @@ Rgb565Frame expectHdPlaneEqualsRuntime(const ProjectSnapshot& snapshot, const st
     expect(runtime.ok() && runtime.identified && runtime.rows64,
            text + ": libserum renders the 64-row plane");
     Rgb565Frame editor = composeResolvedFrame(document, 0, Resolution::Hd, true);
-    const std::size_t differing = differingPixels(editor, *runtime.rows64);
+    const RuntimePlane& plane = *runtime.rows64;
+    for (const std::size_t index : roundedRowCorners(snapshot)) {
+        expect(plane.image.pixels[index] ==
+                   snapshot.backgrounds[0].colorizedHd->pixels[index],
+               text + ": libserum rounds the zone's outer corner to the 256x64 background");
+    }
+    const std::size_t differing =
+        differingPixels(withRoundedRowCorners(snapshot, editor, plane), plane);
     expect(differing == 0, text + ": " + std::to_string(differing) +
                                " pixels of the 256x64 plane differ between the editor and "
                                "libserum");
@@ -564,13 +598,18 @@ struct RotationStepCounts {
 };
 
 // Plays the frame through libserum, steps its rotations and expects the editor's preview of
-// the same number of steps to show the same pixels.
+// the same number of steps to show the same pixels. For the row project (rowProject) the
+// corners libserum rounds are left out.
 RotationStepCounts expectRotationStepsEqualRuntime(const ProjectDocument& document,
                                                    std::size_t frame,
                                                    Resolution plane,
                                                    PlaneRequest rows,
-                                                   const std::string& text)
+                                                   const std::string& text,
+                                                   const ProjectSnapshot* rowProject = nullptr)
 {
+    const auto compared = [&](const Rgb565Frame& editor, const RuntimePlane& runtime) {
+        return rowProject ? withRoundedRowCorners(*rowProject, editor, runtime) : editor;
+    };
     RotationStepCounts counts;
     RuntimePreview& preview = RuntimePreview::instance();
     std::string error;
@@ -585,7 +624,8 @@ RotationStepCounts expectRotationStepsEqualRuntime(const ProjectDocument& docume
     std::vector<uint8_t> notRotating;
     const Rgb565Frame editorStill = composeResolvedFrame(document, frame, plane, true,
                                                          &notRotating);
-    expect(differingPixels(editorStill, *still) == 0, text + ": the still pictures are the same");
+    expect(differingPixels(compared(editorStill, *still), *still) == 0,
+           text + ": the still pictures are the same");
     expect(still->rotates() && shown.nextRotationMs > 0, text + ": libserum rotates the frame");
     const auto& table = document.colorRotations(frame, plane);
     for (std::size_t i = 0; i < editorStill.pixels.size(); ++i) {
@@ -603,7 +643,7 @@ RotationStepCounts expectRotationStepsEqualRuntime(const ProjectDocument& docume
         Rgb565Frame editor = composeResolvedFrame(document, frame, plane, true, &notRotating);
         applyColorRotations(document, frame, plane, step * kRotationDelayMs, editor,
                             &notRotating);
-        const std::size_t differing = differingPixels(editor, *runtime);
+        const std::size_t differing = differingPixels(compared(editor, *runtime), *runtime);
         expect(differing == 0, stepText + ": " + std::to_string(differing) +
                                    " pixels differ between the editor's rotation preview and "
                                    "libserum");
@@ -752,7 +792,8 @@ void testHdPlaneRotationSteps()
     }
     const ProjectDocument document = ProjectDocument::fromSnapshot(snapshot);
     const RotationStepCounts counts = expectRotationStepsEqualRuntime(
-        document, 0, Resolution::Hd, PlaneRequest::Rows64, "256x64 plane of a 128x32 project");
+        document, 0, Resolution::Hd, PlaneRequest::Rows64, "256x64 plane of a 128x32 project",
+        &snapshot);
     expect(counts.moved > 0 && counts.standing > 0,
            "the 256x64 rotation moves pixels and leaves dynamic content alone");
 }

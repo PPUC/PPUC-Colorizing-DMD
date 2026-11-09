@@ -5,6 +5,11 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Built with libserum 2.99.17: on the 64-row plane, dynamic content in front of a background is
+  upscaled as if it stood on black and then put on the background, with an HD background as
+  without one. Its corners are rounded and its diagonals smoothed again, instead of nearly
+  doubled pixels wherever the background has texture.
+
 ## 3.99.37
 
 - The Linux packages build again; 3.99.36 has none.
