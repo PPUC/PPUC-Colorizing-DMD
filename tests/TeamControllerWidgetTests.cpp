@@ -28,6 +28,7 @@
 #include "edit/EditCommand.h"
 #include "edit/FrameMove.h"
 #include "edit/PackageImport.h"
+#include "edit/SpeakerLightEdits.h"
 #include "edit/StructureCommand.h"
 #include "project/ProjectFile.h"
 #include "team/Avatars.h"
@@ -130,6 +131,19 @@ void testRefusals()
     const std::optional<QString> settings = controller.settingsRefusal();
     expect(settings && settings->contains(QStringLiteral("enthusiast")),
            "while a partner changes the settings, naming the partner");
+    // A new light effect is a change of the settings: refused too, so the window says why
+    // instead of seeming to add it.
+    document::SpeakerLightSettings lights = document.speakerLights();
+    document::LightEffect effect;
+    effect.id = lights.nextEffectId();
+    effect.name = "New";
+    lights.effects.push_back(effect);
+    const auto newEffect = edit::setSpeakerLights(document, std::move(lights));
+    const std::optional<QString> lightsRefusal =
+        newEffect ? controller.refusal(*newEffect, document) : std::nullopt;
+    expect(lightsRefusal && lightsRefusal->contains(QStringLiteral("enthusiast")),
+           "a new light effect while a partner changes the settings is refused");
+    newEffect->revert(document);
 
     controller.setClaims({}, QStringLiteral("kraken"));
     expect(!controller.refusal(claimed, document), "without claims everything is allowed");

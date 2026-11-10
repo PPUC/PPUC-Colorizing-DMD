@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- In a team project, adding, deleting or applying a light effect while a partner changes the
+  settings says so, instead of seeming to add the effect and doing nothing.
+
 ## 3.99.38
 
 - Built with libserum 2.99.17: on the 64-row plane, dynamic content in front of a background is

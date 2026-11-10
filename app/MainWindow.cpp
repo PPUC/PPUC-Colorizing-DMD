@@ -12217,24 +12217,44 @@ void MainWindow::refreshAfterLightsChanged(const std::vector<std::size_t>& frame
     updateFrameListItems(frameIndices);
 }
 
-void MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
+bool MainWindow::recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                          const QString& status)
 {
     if (!m_document || !command) {
-        return;
+        return false;
     }
     const std::vector<std::size_t> frames = command->target().frameIndices;
+    // A refused command waits in m_refusedCommands, reverted, and the status bar says why; the
+    // message of success would replace that.
+    const std::size_t refusedBefore = m_refusedCommands.size();
     m_droppedStructureSteps = pushToHistory(edit::structureHistoryKey(), std::move(command));
+    if (m_refusedCommands.size() > refusedBefore) {
+        return false;
+    }
     refreshSpeakerLights();
     refreshAfterLightsChanged(frames);
     updateUndoRedoActions();
     updateProjectHeaderStatus();
     showStructureEditStatus(status, 3000);
+    return true;
+}
+
+bool MainWindow::refuseLightEffectEdit(const QString& title)
+{
+    const std::optional<QString> refusal = m_team ? m_team->settingsRefusal() : std::nullopt;
+    if (!refusal) {
+        return false;
+    }
+    QMessageBox::information(this, title,
+                             tr("The light effects were not changed: %1. Merge the partners' "
+                                "changes first, or ask them.")
+                                 .arg(*refusal));
+    return true;
 }
 
 void MainWindow::addLightEffect()
 {
-    if (!m_document) {
+    if (!m_document || refuseLightEffectEdit(tr("New Light Effect"))) {
         return;
     }
     document::SpeakerLightSettings settings = m_document->speakerLights();
@@ -12242,8 +12262,11 @@ void MainWindow::addLightEffect()
     effect.id = settings.nextEffectId();
     effect.name = tr("Effect %1").arg(effect.id).toStdString();
     settings.effects.push_back(effect);
-    recordSpeakerLightsEdit(edit::setSpeakerLights(*m_document, std::move(settings)),
-                            tr("Added light effect %1").arg(QString::fromStdString(effect.name)));
+    if (!recordSpeakerLightsEdit(
+            edit::setSpeakerLights(*m_document, std::move(settings)),
+            tr("Added light effect %1").arg(QString::fromStdString(effect.name)))) {
+        return;
+    }
     if (m_lightEffectsPanel) {
         m_lightEffectsPanel->selectEffect(effect.id);
         m_leftBrowserTabs->markCurrent(m_lightEffectsPanel);
@@ -12257,6 +12280,9 @@ void MainWindow::deleteLightEffect(uint16_t effectId)
     }
     const document::LightEffect* effect = m_document->speakerLights().effect(effectId);
     if (!effect) {
+        return;
+    }
+    if (refuseLightEffectEdit(tr("Delete Light Effect"))) {
         return;
     }
     const QString name = QString::fromStdString(effect->name);
@@ -12279,7 +12305,8 @@ void MainWindow::deleteLightEffect(uint16_t effectId)
 
 void MainWindow::applyLightEffect(const document::LightEffect& effect)
 {
-    if (!m_document) {
+    // Refused, the section keeps the author's fields to apply later.
+    if (!m_document || refuseLightEffectEdit(tr("Light Effect"))) {
         return;
     }
     document::SpeakerLightSettings settings = m_document->speakerLights();

@@ -6356,6 +6356,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Utiliser plus de sprites</translation>
     </message>
     <message>
+        <source>The light effects were not changed: %1. Merge the partners&apos; changes first, or ask them.</source>
+        <translation>Les effets lumineux n’ont pas été modifiés : %1. Fusionnez d’abord les modifications des partenaires, ou demandez-leur.</translation>
+    </message>
+    <message>
+        <source>New Light Effect</source>
+        <translation>Nouvel effet lumineux</translation>
+    </message>
+    <message>
         <source>Effect %1</source>
         <translation>Effet %1</translation>
     </message>

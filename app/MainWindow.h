@@ -1036,8 +1036,13 @@ private:
     // (Settings -> Appearance has their shape, LEDs and channels).
     QAction* m_speakerPreviewAction = nullptr;
     void setSpeakerLightPreviewShown(bool shown);
-    void recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
+    // False when nothing changed, or a team partner's claim refused the edit (the status bar
+    // then keeps saying why).
+    bool recordSpeakerLightsEdit(std::unique_ptr<edit::SpeakerLightsCommand> command,
                                  const QString& status);
+    // In a team project a partner may be changing the settings, which hold the light effects:
+    // says so in a message box and returns true; the edit is not to be made then.
+    bool refuseLightEffectEdit(const QString& title);
     // A plugin's edit batch (editor API BeginEdit .. EndEdit): already applied.
     // False when the team project refused the edit and took it back.
     bool recordPluginEdit(std::unique_ptr<edit::EditCommand> command);

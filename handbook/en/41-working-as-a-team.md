@@ -122,7 +122,8 @@ once; the status bar says who works on it since when, and the frame's line below
 GitHub picture in its upper left corner, a lock until the picture is loaded. Moving or deleting
 frames claims the frame order, changing the settings claims the settings. While a partner
 changes the settings, `File -> Project Settings...` says so when you press `OK` and changes
-nothing; merge the partner's changes first.
+nothing; merge the partner's changes first. The speaker light effects belong to the settings:
+`New`, `Delete` and `Apply` of a light effect say so the same way.
 
 The exported `.cROMc` of a team project names the one who started it (`Owner`) as the author,
 whoever exports it, and the other members as contributors (see "License"), unless the license's
