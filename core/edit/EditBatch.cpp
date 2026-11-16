@@ -604,8 +604,20 @@ std::unique_ptr<EditCommand> duplicateFrame(ProjectDocument& document,
          }))) {
         throw std::invalid_argument("the selection does not fit the plane or selects nothing");
     }
-    document::FrameRecord record = document.makeUncolorizedFrame(
-        document.originalFrame(source), document.frameDurationMs(source));
+    // With a selection the copy holds the selected pixels only: its original is black (shade
+    // 0) everywhere else, so the plain look there is black too.
+    document::IndexedFrame original = document.originalFrame(source);
+    if (!selection.empty()) {
+        const std::vector<uint8_t> inside =
+            selectionOnPlane(selection, selectionSize, original.size);
+        for (std::size_t pixel = 0; pixel < inside.size(); ++pixel) {
+            if (inside[pixel] == 0) {
+                original.pixels[pixel] = 0;
+            }
+        }
+    }
+    document::FrameRecord record =
+        document.makeUncolorizedFrame(std::move(original), document.frameDurationMs(source));
     record.tags = document.frameTags(source);
     std::vector<document::FrameRecord> records;
     records.push_back(std::move(record));

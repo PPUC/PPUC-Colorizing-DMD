@@ -61,11 +61,11 @@ or to keep its state while you work on it.
   events. Check what the copy takes. At first all are checked but the trigger and the DOF
   events, which would make the copy fire as well; your choice is kept for the next time. A
   frame that uses none of them is copied without asking.
-- With a selection on the frame canvas, only the selected pixels take the frame's picture and
-  dynamic zones; elsewhere the copy looks like a frame fresh from a dump (the original's plain
-  colors, no dynamic zones). Its original is always the whole frame's.
-- The copy has the frame's original, so libserum finds the frame before it: the copy is
-  identified only once it has another comparison mask or shape mode.
+- With a selection on the frame canvas, the copy holds only the selected pixels: there it takes
+  the frame's original, picture and dynamic zones. Everything else is black, in the original
+  (shade 0) and in the picture, with no dynamic zones.
+- Without a selection the copy has the frame's original, so libserum finds the frame before it:
+  the copy is identified only once it has another comparison mask or shape mode.
 - Frames of a scene and the signing notice cannot be duplicated (a scene gets more frames in its
   settings).
 - It is one step of `Undo`.

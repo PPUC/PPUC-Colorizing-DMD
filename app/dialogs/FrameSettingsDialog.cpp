@@ -122,9 +122,9 @@ FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& docume
     auto* layout = new QVBoxLayout(this);
     auto* intro = new QLabel(
         (duplicate.selection
-             ? tr("Frame %1 is copied right behind it, with its original, duration and tags; "
-                  "only the selected pixels take its picture and dynamic zones. Which of its "
-                  "settings does the copy take?")
+             ? tr("The selected pixels of frame %1 are copied right behind it, with its "
+                  "duration and tags: their original, picture and dynamic zones. Everything "
+                  "else is black. Which of its settings does the copy take?")
              : tr("Frame %1 is copied right behind it, with its original, picture, duration "
                   "and tags. Which of its settings does the copy take?"))
             .arg(static_cast<qulonglong>(duplicate.source)),

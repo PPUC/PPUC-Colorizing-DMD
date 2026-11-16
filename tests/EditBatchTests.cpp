@@ -537,8 +537,13 @@ void testDuplicateFrame()
     }
     std::unique_ptr<edit::EditCommand> part =
         edit::duplicateFrame(document, 2, parts, Resolution::Sd, selection, &copy);
-    const document::FrameRecord fresh =
-        document.makeUncolorizedFrame(document.originalFrame(2), 33);
+    document::IndexedFrame cleared = document.originalFrame(2);
+    for (std::size_t pixel = 0; pixel < cleared.pixels.size(); ++pixel) {
+        if (selection[pixel] == 0) {
+            cleared.pixels[pixel] = 0;
+        }
+    }
+    const document::FrameRecord fresh = document.makeUncolorizedFrame(cleared, 33);
     const Resolution dynamicPlane = document.dynamicPlane();
     const int dynamicScale = dynamicPlane == Resolution::Hd ? 2 : 1;
     const auto zone = [&](std::size_t frame, int x, int y) {
@@ -552,6 +557,9 @@ void testDuplicateFrame()
                document.colorizedPixel(3, Resolution::Sd, 5, 2) ==
                    fresh.colorizedSd.pixels[2 * static_cast<std::size_t>(sd.width) + 5],
            "with a selection, the picture inside it; outside, the plain look of a fresh frame");
+    expect(document.originalFrame(3).pixels.toVector() == cleared.pixels.toVector() &&
+               document.originalFrame(2).pixels.toVector() != cleared.pixels.toVector(),
+           "and the original inside it only, shade 0 outside");
     expect(zone(2, 25, 7) == 4 && zone(3, 25, 7) == 255 && zone(3, 32, 9) == 4,
            "and the dynamic zones only inside it");
     part->revert(document);

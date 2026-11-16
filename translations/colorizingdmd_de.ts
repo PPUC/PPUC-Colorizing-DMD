@@ -2013,7 +2013,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Frame %1 is copied right behind it, with its original, duration and tags; only the selected pixels take its picture and dynamic zones. Which of its settings does the copy take?</source>
-        <translation>Frame %1 wird direkt dahinter kopiert, mit seinem Original, seiner Dauer und seinen Tags; nur die ausgewählten Pixel übernehmen sein Bild und seine dynamischen Zonen. Welche seiner Einstellungen übernimmt die Kopie?</translation>
+        <translation type="vanished">Frame %1 wird direkt dahinter kopiert, mit seinem Original, seiner Dauer und seinen Tags; nur die ausgewählten Pixel übernehmen sein Bild und seine dynamischen Zonen. Welche seiner Einstellungen übernimmt die Kopie?</translation>
     </message>
     <message>
         <source>Frame %1 is copied right behind it, with its original, picture, duration and tags. Which of its settings does the copy take?</source>
@@ -2045,6 +2045,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Copy</source>
         <translation>Kopieren</translation>
+    </message>
+    <message>
+        <source>The selected pixels of frame %1 are copied right behind it, with its duration and tags: their original, picture and dynamic zones. Everything else is black. Which of its settings does the copy take?</source>
+        <translation>Die ausgewählten Pixel von Frame %1 werden direkt dahinter kopiert, mit seiner Dauer und seinen Tags: ihr Original, ihr Bild und ihre dynamischen Zonen. Alles andere ist schwarz. Welche seiner Einstellungen übernimmt die Kopie?</translation>
     </message>
     <message>
         <source>The copy has the frame&apos;s original: libserum finds the frame before it, until the copy gets another comparison mask or shape mode.</source>

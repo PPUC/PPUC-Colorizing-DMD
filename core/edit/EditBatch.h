@@ -133,9 +133,10 @@ private:
 // Edit -> Duplicate Frame: a copy of the frame right behind it, in its section, with the same
 // original, duration and tags, its colorized pictures, and the parts of its settings given
 // (Copy Frame Settings' parts, see usedFrameSettingsParts()). With a selection (selection:
-// the selectionPlane's size, not 0 where selected; empty for none) only the selected pixels
-// take the pictures and the dynamic zones; elsewhere the copy is as a frame fresh from a dump
-// (the original's plain colors, no dynamic zones). *added (unless null) gets its index. Throws
+// the selectionPlane's size, not 0 where selected; empty for none) the copy holds only the
+// selected pixels: there it takes the original, the pictures and the dynamic zones;
+// elsewhere its original is shade 0 and it is as a frame fresh from a dump (black, no dynamic
+// zones). *added (unless null) gets its index. Throws
 // std::invalid_argument for a frame of a scene or the signing notice, a selection of the wrong
 // size or with nothing selected, std::out_of_range for a frame that does not exist.
 [[nodiscard]] std::unique_ptr<EditCommand> duplicateFrame(
