@@ -62,6 +62,7 @@ class FrameListWidget;
 class HandbookWindow;
 class PluginLogWindow;
 class VideoClip;
+class ImageImportDialog;
 class PupTesterWindow;
 class FramePanel;
 class SectionBar;
@@ -105,6 +106,8 @@ class MainWindow final : public QMainWindow {
 
 public:
     explicit MainWindow(QWidget* parent = nullptr);
+    // Closes the Images window first; defined where VideoClip is complete (m_importClip).
+    ~MainWindow() override;
     // At start: offers the newest autosave of a project that was never saved, if there is one.
     void offerUntitledAutosave();
 
@@ -253,8 +256,13 @@ private:
     // The Images window (ImageImportDialog) for a still picture or a clip, and its result
     // written into the selection of the selected frames or into the selected background, on
     // the chosen planes (HD created where it is missing).
-    void importPicture(const QImage& still, const QString& name, VideoClip* clip,
+    // The window stays open beside the editor (issue #66); Import writes into what is selected
+    // then (importTarget()).
+    void importPicture(const QImage& still, const QString& name, std::unique_ptr<VideoClip> clip,
                        bool toBackground);
+    struct ImportTarget;
+    [[nodiscard]] std::optional<ImportTarget> importTarget(bool toBackground) const;
+    void runImport(const ImageImportDialog& dialog, const ImportTarget& target);
     // Opens a project file, offering its autosave when that is newer (see Autosave.h).
     void loadProject(const QString& projectPath);
     // Reads the project file at readPath (the project file, or an autosave): it is then the
@@ -753,6 +761,10 @@ private:
     QAction* m_deleteFramesAction = nullptr;
     QAction* m_sourceFrameAction = nullptr;
     QAction* m_duplicateFrameAction = nullptr;
+    // The Images window while it is open, and the picture or clip it imports from.
+    QPointer<ImageImportDialog> m_importDialog;
+    std::unique_ptr<VideoClip> m_importClip;
+    QImage m_importStill;
     QAction* m_copyFrameSettingsAction = nullptr;
     QAction* m_editSigningNoticeAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.

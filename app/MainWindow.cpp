@@ -649,6 +649,13 @@ MainWindow::MainWindow(QWidget* parent)
         });
 }
 
+MainWindow::~MainWindow()
+{
+    // Before the clip it reads and the members its callbacks use go: as a child it would be
+    // deleted only after them.
+    delete m_importDialog.data();
+}
+
 void MainWindow::createActions()
 {
     QMenu* fileMenu = menuBar()->addMenu(tr("&File"));
@@ -3335,6 +3342,10 @@ void MainWindow::newProjectFromDump()
     const QString summary = dumpCountsText(dump, false);
     try {
         setPlaybackRunning(false);
+        // The Images window writes into the project it was opened for.
+        if (m_importDialog) {
+            m_importDialog->close();
+        }
         m_document = document::ProjectDocument::fromSnapshot(
             importing::makeProjectSnapshot(dialog.romName().toStdString(), std::move(dump)));
         // A new project keeps its scenes and scaling settings itself.
@@ -4273,25 +4284,32 @@ void MainWindow::importMovieIntoSelectedFrames()
         return;
     }
     RecentFolders::remember(RecentFolders::kMovieClips, path);
-    VideoClip clip;
+    auto clip = std::make_unique<VideoClip>();
     QString error;
-    if (!clip.open(path, &error)) {
+    if (!clip->open(path, &error)) {
         QMessageBox::critical(this, tr("Import Failed"), error);
         return;
     }
-    importPicture(QImage(), QFileInfo(path).fileName(), &clip, false);
+    importPicture(QImage(), QFileInfo(path).fileName(), std::move(clip), false);
 }
 
-void MainWindow::importPicture(const QImage& still,
-                               const QString& name,
-                               VideoClip* clip,
-                               bool toBackground)
+// What an import goes into: what is selected in the editor when it runs.
+struct MainWindow::ImportTarget {
+    std::vector<std::size_t> frameIndices;
+    std::optional<std::size_t> backgroundIndex;
+    std::vector<render::Resolution> planes;
+    render::Resolution selectionPlane = render::Resolution::Sd;
+    render::Size selectionPlaneSize;
+    PlaneArea area;
+    ImageImportSetup setup;
+};
+
+std::optional<MainWindow::ImportTarget> MainWindow::importTarget(bool toBackground) const
 {
     const std::vector<std::size_t> frameIndices = selectedFrameIndices();
     const std::optional<std::size_t> backgroundIndex = selectedBackgroundIndex();
     if (!m_document || (frameIndices.empty() && !backgroundIndex)) {
-        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
-        return;
+        return std::nullopt;
     }
     const render::ProjectGeometry& geometry = m_document->geometry();
     // The planes: the SD and the HD plane of an ordinary project, the one plane of the others.
@@ -4302,7 +4320,7 @@ void MainWindow::importPicture(const QImage& still,
         }
     }
     if (planes.empty()) {
-        return;
+        return std::nullopt;
     }
     // The selection, on the plane it was made on; without one, the whole plane.
     const edit::PlaneSelection* selection = m_canvasEdit.selection();
@@ -4349,24 +4367,83 @@ void MainWindow::importPicture(const QImage& still,
     }
     setup.savedZones = m_document->imageZones();
 
-    std::optional<ImageImportDialog> dialog;
-    if (clip) {
-        dialog.emplace(*clip, name, setup, this);
-    } else {
-        dialog.emplace(still, name, setup, this);
+    ImportTarget target;
+    target.frameIndices = frameIndices;
+    target.backgroundIndex = backgroundIndex;
+    target.planes = planes;
+    target.selectionPlane = selectionPlane;
+    target.selectionPlaneSize = selectionPlaneSize;
+    target.area = std::move(area);
+    target.setup = std::move(setup);
+    return target;
+}
+
+void MainWindow::importPicture(const QImage& still,
+                               const QString& name,
+                               std::unique_ptr<VideoClip> clip,
+                               bool toBackground)
+{
+    std::optional<ImportTarget> target = importTarget(toBackground);
+    if (!target) {
+        statusBar()->showMessage(tr("Select at least one frame first"), 2500);
+        return;
     }
-    const bool accepted = dialog->exec() == QDialog::Accepted;
+    // One Images window at a time: it stays open beside the editor, so that a try can be undone,
+    // looked at and imported again without finding the place in the clip anew (issue #66).
+    // At once, so that its clip goes before the next one comes.
+    delete m_importDialog.data();
+    m_importStill = still;
+    m_importClip = std::move(clip);
+    ImageImportDialog* dialog =
+        m_importClip ? new ImageImportDialog(*m_importClip, name, target->setup, this)
+                     : new ImageImportDialog(m_importStill, name, target->setup, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(false);
+    m_importDialog = dialog;
+    dialog->onImport = [this, dialog]() {
+        const std::optional<ImportTarget> now = importTarget(dialog->toBackground());
+        if (!now) {
+            statusBar()->showMessage(tr("Select at least one frame first"), 2500);
+            return;
+        }
+        dialog->setTarget(now->setup);
+        runImport(*dialog, *now);
+    };
+    dialog->onActivated = [this, dialog]() {
+        if (const std::optional<ImportTarget> now = importTarget(dialog->toBackground())) {
+            dialog->setTarget(now->setup);
+        }
+    };
+    // Zones saved or deleted are the project's, also when nothing is imported.
+    dialog->onSavedZonesChanged = [this, dialog]() {
+        if (m_document) {
+            m_document->setImageZones(dialog->savedZones());
+            updateProjectHeaderStatus();
+        }
+    };
+    connect(dialog, &QObject::destroyed, this, [this]() {
+        // Only when no other window has come meanwhile (the pointer clears as it goes).
+        if (!m_importDialog) {
+            m_importClip.reset();
+            m_importStill = QImage();
+        }
+    });
+    dialog->show();
+}
+
+void MainWindow::runImport(const ImageImportDialog& dialogRef, const ImportTarget& target)
+{
     if (!m_document) {
         return;
     }
-    // Zones saved or deleted are the project's, also when nothing is imported.
-    if (dialog->savedZonesChanged()) {
-        m_document->setImageZones(dialog->savedZones());
-        updateProjectHeaderStatus();
-    }
-    if (!accepted) {
-        return;
-    }
+    const ImageImportDialog* dialog = &dialogRef;
+    VideoClip* clip = m_importClip.get();
+    const std::vector<std::size_t>& frameIndices = target.frameIndices;
+    const std::optional<std::size_t>& backgroundIndex = target.backgroundIndex;
+    const std::vector<render::Resolution>& planes = target.planes;
+    const render::Size selectionPlaneSize = target.selectionPlaneSize;
+    const PlaneArea& area = target.area;
+    const render::ProjectGeometry& geometry = m_document->geometry();
     std::vector<render::Resolution> targets;
     if (dialog->toFirstPlane()) {
         targets.push_back(planes.front());
@@ -4633,6 +4710,10 @@ bool MainWindow::takeLoadedProject(legacy::LegacyDocumentLoadResult result,
 
     QString sidecarNote;
     try {
+        // The Images window writes into the project it was opened for.
+        if (m_importDialog) {
+            m_importDialog->close();
+        }
         m_document = std::move(*result.document);
         result.document.reset();
         m_projectPath = projectPath;

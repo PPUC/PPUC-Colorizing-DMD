@@ -102,7 +102,7 @@ selection's bounds, the part that is scaled into the selection:
   is replaced), choose a name in the list to take them again, `Delete Zone` removes the chosen
   one. A saved zone is kept as a part of the picture, so it fits a picture of another size, and
   it keeps the proportions of the selection at hand. Saved zones are part of the project as soon
-  as they are saved, also when the window is then cancelled; they are not undo
+  as they are saved, also when the window is then closed without importing; they are not undo
   steps. The crop zone saves of the Win32 editor were kept in screen pixels of its window and
   cannot be carried over: they stay in the project as they were, unused.
 
@@ -115,6 +115,14 @@ picture every 5 to 3000 ms, or this picture, all of them.
 the clip's end are left as they are; the status bar says how many, and how many HD frames were
 created. A long import shows its progress and can be cancelled; the frames done so far keep
 their pictures.
+
+The window stays open after `Import`, with the picture, the clip's time, the zones and the
+settings as they were, until `Close`. It does not block the editor: undo a try, look at the
+frames, select other frames or another part of the canvas, and import again. Each `Import` goes
+into what is selected in the editor at that moment (frames, canvas selection, background); when
+the window becomes the active one again, `Into` and `The selection gets` show it, and the zone
+keeps its place and width and takes the proportions of the new selection. Opening another
+project closes the window.
 
 ## Save behavior
 

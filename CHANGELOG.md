@@ -21,6 +21,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   edit color, and a double click shows it in the color picker.
 - Edit -> Duplicate Frame (Ctrl/Cmd+J) copies the current frame right behind it, or only its
   selected pixels, with the settings it uses that you check.
+- The Import Image and Import Movie Clip window stays open after Import, with its picture, clip
+  time, zones and settings, and does not block the editor: undo, select other frames and import
+  again; Close ends it.
 
 ## 3.99.38
 

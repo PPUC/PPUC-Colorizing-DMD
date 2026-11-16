@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <QApplication>
+#include <QEvent>
 #include <QImage>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -225,6 +226,60 @@ void testDialog()
     expect(dialog.toBackground() && dialog.toSecondPlane(), "the background and both planes");
 }
 
+// Issue #66: Import keeps the window open, and what it goes into follows the editor's
+// selection while it is open.
+void testWindowStaysOpen()
+{
+    QImage picture(400, 200, QImage::Format_RGB32);
+    picture.fill(qRgb(0, 0, 255));
+    app::ImageImportSetup setup;
+    setup.selectionSize = render::Size{32, 8};
+    setup.firstPlaneName = QStringLiteral("128x32");
+    setup.secondPlaneName = QStringLiteral("256x64");
+    setup.durationsMs = {50, 50, 50};
+    app::ImageImportDialog dialog(picture, QStringLiteral("picture.png"), setup);
+    int imports = 0;
+    int activations = 0;
+    int zoneChanges = 0;
+    dialog.onImport = [&imports]() { ++imports; };
+    dialog.onActivated = [&activations]() { ++activations; };
+    dialog.onSavedZonesChanged = [&zoneChanges]() { ++zoneChanges; };
+    dialog.show();
+    QApplication::processEvents();
+    dialog.setZone(QRect(100, 50, 200, 50));
+    dialog.setPlanes(true, true);
+
+    dialog.importNow();
+    dialog.importNow();
+    expect(imports == 2 && dialog.isVisible() && dialog.result() != QDialog::Accepted,
+           "Import runs the import and the window stays open, with its zone");
+    expect(dialog.zone() == QRect(100, 50, 200, 50), "the zone stays for the next try");
+
+    // The editor selected one frame and a square selection meanwhile.
+    app::ImageImportSetup now = setup;
+    now.selectionSize = render::Size{16, 16};
+    now.durationsMs = {40};
+    now.backgroundName = QStringLiteral("2");
+    dialog.setTarget(now);
+    const QRect square = dialog.zone();
+    expect(square.width() == 200 && square.height() == 200 &&
+               std::abs(square.center().x() - 199) <= 1 && dialog.toSecondPlane() &&
+               dialog.resultPicture().size() == QSize(16, 16),
+           "a new target: the zone keeps its width and centre, takes the selection's proportions; "
+           "the planes chosen stay");
+
+    const int before = activations;
+    QEvent activate(QEvent::WindowActivate);
+    QApplication::sendEvent(&dialog, &activate);
+    expect(activations == before + 1, "the window tells when it is the active one again");
+
+    expect(dialog.saveZone(QStringLiteral("Try")) && zoneChanges == 1, "a saved zone is told");
+    dialog.deleteSavedZone(0);
+    expect(zoneChanges == 2, "and a deleted one");
+    dialog.reject();
+    expect(!dialog.isVisible(), "Close ends it");
+}
+
 }  // namespace
 
 void runImageImportWidgetTests()
@@ -233,4 +288,5 @@ void runImageImportWidgetTests()
     testZones();
     testPixels();
     testDialog();
+    testWindowStaysOpen();
 }

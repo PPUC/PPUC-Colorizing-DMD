@@ -20,6 +20,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QRadioButton;
 class QSlider;
 class QSpinBox;
@@ -91,7 +92,9 @@ private:
 
 // Import Image / Import Movie Clip: the Win32 editor's Images window. The caller writes the
 // result: for each selected frame (or the background) the picture at frameTimes(), adjusted,
-// the zone of zoneFor() scaled to the selection with filter().
+// the zone of zoneFor() scaled to the selection with filter(). With onImport set, Import runs
+// it and the window stays open (issue #66): it does not block the editor, the frames and the
+// selection can change meanwhile (setTarget()), and Close ends it.
 class ImageImportDialog final : public QDialog {
     Q_DECLARE_TR_FUNCTIONS(ImageImportDialog)
 
@@ -108,6 +111,19 @@ public:
                       QWidget* parent = nullptr);
 
     [[nodiscard]] bool isMovie() const { return m_clip != nullptr; }
+    // What the import goes into now: the frames, the selection, the planes and the background
+    // selected in the editor. The zone keeps its place and width and takes the selection's
+    // proportions; the choices made in the window stay.
+    void setTarget(ImageImportSetup target);
+
+    // Import with the window staying open; without it, Import accepts the window.
+    std::function<void()> onImport;
+    // The window became the active one again (the editor's selection may have changed).
+    std::function<void()> onActivated;
+    // A zone was saved or deleted (the project keeps them).
+    std::function<void()> onSavedZonesChanged;
+    // For tests: Import, as its button does.
+    void importNow();
     // In the picture's pixels.
     [[nodiscard]] QRect zone() const { return m_zone; }
     void setZone(const QRect& zone);
@@ -158,8 +174,12 @@ public:
     // For tests: the view.
     [[nodiscard]] ImageZoneView* view() const { return m_view; }
 
+protected:
+    bool event(QEvent* event) override;
+
 private:
     void build(const QString& name);
+    void updateTargetTexts();
     void sourceChanged();
     void adjustmentsChanged();
     void updateView();
@@ -197,6 +217,7 @@ private:
     QLabel* m_contrastLabel = nullptr;
     QLabel* m_blurLabel = nullptr;
     QComboBox* m_filterComboBox = nullptr;
+    QPushButton* m_importButton = nullptr;
     QRadioButton* m_framesRadio = nullptr;
     QRadioButton* m_backgroundRadio = nullptr;
     QCheckBox* m_firstPlaneCheckBox = nullptr;

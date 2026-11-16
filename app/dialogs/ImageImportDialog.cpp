@@ -304,25 +304,15 @@ void ImageImportDialog::build(const QString&)
 
     // Where it goes.
     auto* targetGroup = new QGroupBox(tr("Into"), this);
-    m_framesRadio = new QRadioButton(
-        m_setup.durationsMs.size() > 1
-            ? tr("The selection of the %n selected frames", "",
-                 static_cast<int>(m_setup.durationsMs.size()))
-            : tr("The selection of the frame"),
-        targetGroup);
-    m_backgroundRadio = new QRadioButton(
-        m_setup.backgroundName ? tr("Background %1").arg(*m_setup.backgroundName)
-                               : tr("A background (none is selected)"),
-        targetGroup);
-    m_backgroundRadio->setEnabled(m_setup.backgroundName.has_value());
+    m_framesRadio = new QRadioButton(targetGroup);
+    m_backgroundRadio = new QRadioButton(targetGroup);
     (m_setup.toBackground && m_setup.backgroundName ? m_backgroundRadio : m_framesRadio)
         ->setChecked(true);
-    m_firstPlaneCheckBox = new QCheckBox(m_setup.firstPlaneName, targetGroup);
+    m_firstPlaneCheckBox = new QCheckBox(targetGroup);
     m_firstPlaneCheckBox->setChecked(m_setup.firstPlaneChecked);
-    m_secondPlaneCheckBox = new QCheckBox(
-        tr("%1 (created where it is missing)").arg(m_setup.secondPlaneName), targetGroup);
+    m_secondPlaneCheckBox = new QCheckBox(targetGroup);
     m_secondPlaneCheckBox->setChecked(m_setup.secondPlaneChecked);
-    m_secondPlaneCheckBox->setVisible(!m_setup.secondPlaneName.isEmpty());
+    updateTargetTexts();
     auto* targetLayout = new QVBoxLayout(targetGroup);
     targetLayout->addWidget(m_framesRadio);
     targetLayout->addWidget(m_backgroundRadio);
@@ -347,16 +337,11 @@ void ImageImportDialog::build(const QString&)
     m_summaryLabel = new QLabel(this);
     m_summaryLabel->setWordWrap(true);
 
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(tr("Import"));
-    connect(buttons, &QDialogButtonBox::accepted, this, [this]() {
-        QSettings stored;
-        stored.setValue(QStringLiteral("imageImport/brightness"), m_brightnessSlider->value());
-        stored.setValue(QStringLiteral("imageImport/contrast"), m_contrastSlider->value());
-        stored.setValue(QStringLiteral("imageImport/blur"), m_blurSlider->value());
-        stored.setValue(QStringLiteral("imageImport/filter"), m_filterComboBox->currentData());
-        accept();
-    });
+    // Import keeps the window open; Close ends it (issue #66).
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    m_importButton = buttons->addButton(tr("Import"), QDialogButtonBox::ActionRole);
+    m_importButton->setDefault(true);
+    connect(m_importButton, &QPushButton::clicked, this, [this]() { importNow(); });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto* layout = new QVBoxLayout(this);
@@ -451,6 +436,67 @@ void ImageImportDialog::build(const QString&)
     resize(860, 720);
     keepWindowGeometry(this, QStringLiteral("images"));
     adjustmentsChanged();
+}
+
+void ImageImportDialog::importNow()
+{
+    QSettings stored;
+    stored.setValue(QStringLiteral("imageImport/brightness"), m_brightnessSlider->value());
+    stored.setValue(QStringLiteral("imageImport/contrast"), m_contrastSlider->value());
+    stored.setValue(QStringLiteral("imageImport/blur"), m_blurSlider->value());
+    stored.setValue(QStringLiteral("imageImport/filter"), m_filterComboBox->currentData());
+    if (onImport) {
+        onImport();
+    } else {
+        accept();
+    }
+}
+
+bool ImageImportDialog::event(QEvent* event)
+{
+    if (event->type() == QEvent::WindowActivate && onActivated) {
+        onActivated();
+    }
+    return QDialog::event(event);
+}
+
+void ImageImportDialog::updateTargetTexts()
+{
+    m_framesRadio->setText(m_setup.durationsMs.size() > 1
+                               ? tr("The selection of the %n selected frames", "",
+                                    static_cast<int>(m_setup.durationsMs.size()))
+                               : tr("The selection of the frame"));
+    m_backgroundRadio->setText(m_setup.backgroundName
+                                   ? tr("Background %1").arg(*m_setup.backgroundName)
+                                   : tr("A background (none is selected)"));
+    m_backgroundRadio->setEnabled(m_setup.backgroundName.has_value());
+    if (!m_setup.backgroundName && m_backgroundRadio->isChecked()) {
+        m_framesRadio->setChecked(true);
+    }
+    m_firstPlaneCheckBox->setText(m_setup.firstPlaneName);
+    m_secondPlaneCheckBox->setText(
+        tr("%1 (created where it is missing)").arg(m_setup.secondPlaneName));
+    m_secondPlaneCheckBox->setVisible(!m_setup.secondPlaneName.isEmpty());
+}
+
+void ImageImportDialog::setTarget(ImageImportSetup target)
+{
+    const double before = proportions();
+    target.savedZones = m_setup.savedZones;
+    m_setup = std::move(target);
+    updateTargetTexts();
+    if (std::abs(proportions() - before) > 1e-9) {
+        // The zone keeps its centre and width and takes the new proportions.
+        m_zone = zoneAt(pictureSize(), proportions(), m_zone.width(), m_zone.center());
+        m_floatingWidth = m_zone.width();
+        if (m_endZone) {
+            m_endZone = zoneAt(pictureSize(), proportions(), m_endZone->width(),
+                               m_endZone->center());
+        }
+        m_floating.reset();
+    }
+    updateView();
+    updateResult();
 }
 
 double ImageImportDialog::proportions() const
@@ -781,6 +827,9 @@ bool ImageImportDialog::saveZone(const QString& name)
     m_savedZonesChanged = true;
     fillSavedZoneList();
     m_savedZoneComboBox->setCurrentText(QString::fromStdString(key));
+    if (onSavedZonesChanged) {
+        onSavedZonesChanged();
+    }
     m_summaryLabel->setText(tr("Saved the zone %1.").arg(QString::fromStdString(key)));
     return true;
 }
@@ -805,6 +854,9 @@ void ImageImportDialog::deleteSavedZone(std::size_t index)
     m_savedZones.erase(m_savedZones.begin() + static_cast<std::ptrdiff_t>(index));
     m_savedZonesChanged = true;
     fillSavedZoneList();
+    if (onSavedZonesChanged) {
+        onSavedZonesChanged();
+    }
 }
 
 void ImageImportDialog::hover(QPoint at)
