@@ -56,6 +56,8 @@ struct SpriteMatch {
                                                   render::Resolution resolution);
 
 [[nodiscard]] QColor rgb565ToColor(uint16_t value);
+// A color's value as the color picker's fields show it: "0xf800 (RGB888 FF0000)".
+[[nodiscard]] QString colorValueText(uint16_t rgb565);
 // The color the editor shows a shade of an original frame in: shade 0, an off pixel, in the
 // color of the setting (setOffPixelColor()), the others on an amber ramp over the 4 or 16 shades
 // of the project (colorCount, ProjectDocument::colorCount()).

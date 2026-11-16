@@ -58,6 +58,8 @@ public:
     std::function<void(std::size_t colorIndex)> onColorDoubleClicked;
     // A color dragged onto another one of the palette: the two swap (issue #45).
     std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
+    // A color dropped on a color of the palette from elsewhere.
+    std::function<void(std::size_t colorIndex, uint16_t rgb565)> onColorDropped;
     std::function<void()> onApplyGradientRequested;
     std::function<void()> onFillSelectionRequested;
     std::function<void()> onSelectionDirectionClicked;

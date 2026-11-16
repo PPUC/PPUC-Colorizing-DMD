@@ -567,8 +567,18 @@ void testKeyHeldForCanvas()
            "not while typing, with a modal window open or without a canvas");
 }
 
+// The value of a picked color as the status bar names it (issue #68): the picker's fields.
+void testColorValueText()
+{
+    expect(app::colorValueText(0xf800) == QStringLiteral("0xf800 (RGB888 FF0000)") &&
+               app::colorValueText(0x0000) == QStringLiteral("0x0000 (RGB888 000000)") &&
+               app::colorValueText(0x041f) == QStringLiteral("0x041f (RGB888 0081FF)"),
+           "RGB565 and RGB888 as the color picker shows them");
+}
+
 void runAppHelpersWidgetTests()
 {
+    testColorValueText();
     testKeyHeldForCanvas();
     testAboutDialog();
     testAboutDialogThirdPartyNotices();

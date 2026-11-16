@@ -60,6 +60,19 @@ private:
     QPoint m_dragStartPosition;
 };
 
+// The toolbar's active draw color (issue #68): it drags the color onto a palette color, a
+// favorite, an edit color or a dynamic color, takes a color dropped on it, and a double click
+// opens the color picker with it.
+class DrawColorButton final : public ColorSlotButton {
+public:
+    explicit DrawColorButton(QWidget* parent = nullptr);
+
+    std::function<void()> onDoubleClicked;
+
+protected:
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+};
+
 // A favorite draw color of the toolbar: it takes a color dropped on it, and a double click
 // edits it, as the context menu's Edit Color does.
 class FavoriteColorButton final : public QToolButton {

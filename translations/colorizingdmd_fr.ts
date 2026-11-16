@@ -4346,6 +4346,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Avec un signet</translation>
     </message>
     <message>
+        <source>Draw Color</source>
+        <translation>Couleur de dessin</translation>
+    </message>
+    <message>
         <source>Fixed Duration</source>
         <translation>Durée fixe</translation>
     </message>
@@ -5612,7 +5616,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Active draw color 0x%1</source>
-        <translation>Couleur de dessin active 0x%1</translation>
+        <translation type="vanished">Couleur de dessin active 0x%1</translation>
     </message>
     <message>
         <source>Updated favorite color %1 to 0x%2</source>
@@ -6216,8 +6220,16 @@ Utiliser Créer la frame %1.</translation>
         </translation>
     </message>
     <message>
+        <source>Picked %1</source>
+        <translation>Prise : %1</translation>
+    </message>
+    <message>
         <source>Transparent pixels are painted on the %1 sprite</source>
         <translation>Les pixels transparents se peignent sur le sprite %1</translation>
+    </message>
+    <message>
+        <source>Active draw color %1: drag it onto a palette color, a favorite or an edit color; double-click to edit it</source>
+        <translation>Couleur de dessin active %1 : la faire glisser sur une couleur de la palette, une couleur favorite ou une couleur d&apos;édition ; double-clic pour la modifier</translation>
     </message>
     <message>
         <source>Swapped edit colors %1 and %2</source>

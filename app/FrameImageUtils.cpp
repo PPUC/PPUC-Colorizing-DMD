@@ -1,5 +1,7 @@
 #include "FrameImageUtils.h"
 
+#include "edit/ColorModel.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -7,6 +9,7 @@
 #include <vector>
 #include <QPainter>
 
+#include "edit/ColorModel.h"
 #include "render/ProjectGeometry.h"
 
 namespace colorizing::app {
@@ -456,6 +459,17 @@ QColor rgb565ToColor(uint16_t value)
     const int g6 = (value >> 5) & 0x3f;
     const int b5 = value & 0x1f;
     return QColor((r5 * 255) / 31, (g6 * 255) / 63, (b5 * 255) / 31);
+}
+
+QString colorValueText(uint16_t rgb565)
+{
+    const edit::Rgb888 color = edit::rgb565ToRgb888(rgb565);
+    const QString rgb888 = QStringLiteral("%1%2%3")
+                               .arg(color.red, 2, 16, QLatin1Char('0'))
+                               .arg(color.green, 2, 16, QLatin1Char('0'))
+                               .arg(color.blue, 2, 16, QLatin1Char('0'))
+                               .toUpper();
+    return QStringLiteral("0x%1 (RGB888 %2)").arg(rgb565, 4, 16, QLatin1Char('0')).arg(rgb888);
 }
 
 QColor defaultOffPixelColor()

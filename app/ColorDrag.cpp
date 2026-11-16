@@ -145,6 +145,22 @@ void ColorSlotButton::dropEvent(QDropEvent* event)
     }
 }
 
+DrawColorButton::DrawColorButton(QWidget* parent)
+    // Its own owner: a color dragged from anywhere else is no slot of it.
+    : ColorSlotButton(0, this, parent)
+{
+}
+
+void DrawColorButton::mouseDoubleClickEvent(QMouseEvent* event)
+{
+    if (isEnabled() && event->button() == Qt::LeftButton && onDoubleClicked) {
+        onDoubleClicked();
+        event->accept();
+        return;
+    }
+    ColorSlotButton::mouseDoubleClickEvent(event);
+}
+
 FavoriteColorButton::FavoriteColorButton(QWidget* parent)
     : QToolButton(parent)
 {

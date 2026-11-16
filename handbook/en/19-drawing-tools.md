@@ -179,7 +179,10 @@ box.
 
 ## Pick
 
-Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value.
+Click a colorized frame pixel to set the active draw color to that pixel's RGB565 value. The
+status bar names the value (RGB565 and RGB888, as the color picker's fields show them), and the
+color joins the color picker's recent colors. To keep it in a palette, drag the toolbar's draw
+color box onto a palette color (see "Colors").
 
 Hold `Shift` while clicking to select the edit color slot whose color is the pixel's color instead
 (the last one if several are, as in the Win32 editor); the draw color becomes that edit color. The

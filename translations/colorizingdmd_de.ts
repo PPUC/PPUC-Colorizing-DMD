@@ -4346,6 +4346,10 @@ Use Create %1 Frame.</source>
         <translation>Mit Lesezeichen</translation>
     </message>
     <message>
+        <source>Draw Color</source>
+        <translation>Zeichenfarbe</translation>
+    </message>
+    <message>
         <source>Fixed Duration</source>
         <translation>Feste Dauer</translation>
     </message>
@@ -5612,7 +5616,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Active draw color 0x%1</source>
-        <translation>Aktive Zeichenfarbe 0x%1</translation>
+        <translation type="vanished">Aktive Zeichenfarbe 0x%1</translation>
     </message>
     <message>
         <source>Updated favorite color %1 to 0x%2</source>
@@ -6216,8 +6220,16 @@ Use Create %1 Frame.</source>
         </translation>
     </message>
     <message>
+        <source>Picked %1</source>
+        <translation>Aufgenommen: %1</translation>
+    </message>
+    <message>
         <source>Transparent pixels are painted on the %1 sprite</source>
         <translation>Transparente Pixel werden auf dem %1-Sprite gezeichnet</translation>
+    </message>
+    <message>
+        <source>Active draw color %1: drag it onto a palette color, a favorite or an edit color; double-click to edit it</source>
+        <translation>Aktive Zeichenfarbe %1: auf eine Palettenfarbe, eine Favoritenfarbe oder eine Bearbeitungsfarbe ziehen; Doppelklick zum Bearbeiten</translation>
     </message>
     <message>
         <source>Swapped edit colors %1 and %2</source>

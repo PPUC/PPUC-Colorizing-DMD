@@ -16,6 +16,9 @@ tagged; the changes since the last tag are listed under *Next version*.
   picker.
 - The Frame Sprites section lists every sprite slot of the frame at once instead of four lines
   that scroll.
+- A color the Pick tool takes is named in the status bar and joins the color picker's recent
+  colors. The toolbar's draw color box can be dragged onto a palette color, a favorite or an
+  edit color, and a double click shows it in the color picker.
 
 ## 3.99.38
 

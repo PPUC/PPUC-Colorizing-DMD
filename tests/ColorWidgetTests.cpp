@@ -693,6 +693,15 @@ void testColorSwapDrop()
     expect(!drop(buttons[5], app::colorDragMimeData(&grid, 5, 0x1234)) &&
                !drop(buttons[5], app::colorDragMimeData(&other, 2, 0x1234)) && swaps.size() == 1,
            "a color dropped on itself or from another grid swaps nothing");
+    std::vector<std::pair<std::size_t, uint16_t>> gridDrops;
+    grid.setColorDroppedHandler([&gridDrops](std::size_t index, uint16_t color) {
+        gridDrops.emplace_back(index, color);
+    });
+    expect(drop(buttons[5], app::colorDragMimeData(&other, 2, 0x4321)) &&
+               drop(buttons[6], app::colorDragMimeData(nullptr, 0, 0x0001)) &&
+               gridDrops == std::vector<std::pair<std::size_t, uint16_t>>{{5, 0x4321}, {6, 1}} &&
+               swaps.size() == 1,
+           "with a drop handler a color from elsewhere (the draw color) is taken (issue #68)");
 
     ProjectDocument document = makeDocument(PlaneLayout::Ordinary, 4);
     EditColorBar bar;
@@ -740,6 +749,26 @@ void testFavoriteColorButton()
     expect(dropped == uint16_t{0x07e0}, "a color dropped on it is taken");
 }
 
+// The toolbar's draw color (issue #68): it drags its color, takes one dropped on it, and a
+// double click opens the picker.
+void testDrawColorButton()
+{
+    app::DrawColorButton button;
+    int edits = 0;
+    std::optional<uint16_t> dropped;
+    button.onDoubleClicked = [&edits]() { ++edits; };
+    button.onColorDropped = [&dropped](std::size_t, uint16_t rgb565) { dropped = rgb565; };
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick, QPointF(5, 5), QPointF(5, 5),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&button, &doubleClick);
+    expect(button.isEnabled() && edits == 1, "a double click opens the picker");
+    QMimeData* mime = app::colorDragMimeData(nullptr, 3, 0x07e0);
+    QDropEvent drop(QPointF(5, 5), Qt::CopyAction, mime, Qt::LeftButton, Qt::NoModifier);
+    static_cast<QObject*>(&button)->event(&drop);
+    delete mime;
+    expect(dropped == uint16_t{0x07e0}, "a color dropped on it becomes the draw color");
+}
+
 // The palette window (the color picker) opens where and as large as it was left (SoyGre).
 void testColorPickerKeepsItsPlace()
 {
@@ -770,6 +799,7 @@ void runColorWidgetTests()
     testColorRangeDrag();
     testColorSwapDrop();
     testFavoriteColorButton();
+    testDrawColorButton();
     for (PlaneLayout layout :
          {PlaneLayout::Ordinary, PlaneLayout::NativeExtra, PlaneLayout::NativeOriginal}) {
         testSetReplaceDrawing(layout, 4);

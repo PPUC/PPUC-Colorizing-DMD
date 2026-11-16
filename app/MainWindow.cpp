@@ -1504,6 +1504,11 @@ void MainWindow::createCentralView()
     m_palettePanel->onColorsSwapped = [this](std::size_t from, std::size_t to) {
         swapCurrentPaletteColors(from, to);
     };
+    // A color dragged onto the palette from elsewhere, such as the draw color the Pick tool
+    // took (issue #68).
+    m_palettePanel->onColorDropped = [this](std::size_t colorIndex, uint16_t rgb565) {
+        setCurrentPaletteColor(colorIndex, rgb565);
+    };
     m_palettePanel->onApplyGradientRequested = [this]() {
         applyCurrentPaletteGradient();
     };
@@ -1840,10 +1845,20 @@ void MainWindow::createCentralView()
                     }
                 });
     }
-    m_activeColorButton = new QToolButton(central);
+    // Dragged onto a palette color, a favorite or an edit color it gives the draw color there;
+    // a double click shows it in the color picker (issue #68).
+    m_activeColorButton = new DrawColorButton(central);
     m_activeColorButton->setFixedSize(34, 24);
-    m_activeColorButton->setEnabled(false);
     m_activeColorButton->setToolTip(tr("Active draw color"));
+    m_activeColorButton->onDoubleClicked = [this]() {
+        if (const std::optional<uint16_t> picked =
+                pickColor(m_activeDrawColor, tr("Draw Color"))) {
+            setActiveDrawColor(*picked);
+        }
+    };
+    m_activeColorButton->onColorDropped = [this](std::size_t, uint16_t rgb565) {
+        setActiveDrawColor(rgb565);
+    };
     toolbarLayout->addWidget(m_activeColorButton);
     startToolbarGroup();
     m_playbackButton = new QToolButton(central);
@@ -9621,10 +9636,18 @@ void MainWindow::editCurrentPaletteColor(std::size_t colorIndex)
     const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
     const std::optional<uint16_t> picked =
         pickColor(oldColor, tr("Palette Color"));
-    if (!picked) {
+    if (picked) {
+        setCurrentPaletteColor(colorIndex, *picked);
+    }
+}
+
+void MainWindow::setCurrentPaletteColor(std::size_t colorIndex, uint16_t newRgb565)
+{
+    const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
+    if (!m_document || !paletteIndex) {
         return;
     }
-    const uint16_t newRgb565 = *picked;
+    const uint16_t oldColor = m_document->paletteColor(*paletteIndex, colorIndex);
     if (newRgb565 == oldColor) {
         return;
     }
@@ -10109,6 +10132,9 @@ CanvasEditOutputs MainWindow::canvasEditOutputs()
     };
     outputs.pickColor = [this](uint16_t rgb565) {
         setActiveDrawColor(rgb565);
+        // The color picker's recent colors keep it, and the status bar names it (issue #68).
+        ColorPickerDialog::rememberRecentColor(rgb565);
+        statusBar()->showMessage(tr("Picked %1").arg(colorValueText(rgb565)), 4000);
         pickDone();
     };
     outputs.pickEditColorSlot = [this](uint16_t rgb565) {
@@ -10720,8 +10746,11 @@ void MainWindow::setActiveDrawColor(uint16_t rgb565)
     }
     if (m_activeColorButton) {
         m_activeColorButton->setToolTip(
-            tr("Active draw color 0x%1").arg(rgb565, 4, 16, QLatin1Char('0')));
+            tr("Active draw color %1: drag it onto a palette color, a favorite or an edit color; "
+               "double-click to edit it")
+                .arg(colorValueText(rgb565)));
         m_activeColorButton->setStyleSheet(colorButtonStyle(rgb565, true));
+        m_activeColorButton->setSlotColor(rgb565);
     }
 }
 

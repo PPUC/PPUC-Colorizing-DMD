@@ -54,6 +54,7 @@ class SigningSettingsPage;
 struct PendingCertificateRequest;
 class ColorRotationPanel;
 class ColorSetPanel;
+class DrawColorButton;
 class DynamicPanel;
 class EditColorBar;
 class EditMenuActions;
@@ -481,6 +482,7 @@ private:
     void setCurrentPaletteName(const QString& paletteName);
     void pickCurrentPaletteColor(std::size_t colorIndex);
     void editCurrentPaletteColor(std::size_t colorIndex);
+    void setCurrentPaletteColor(std::size_t colorIndex, uint16_t rgb565);
     void applyCurrentPaletteGradient();
     void setFavoriteDrawColor(std::size_t favoriteIndex, uint16_t rgb565);
     void editFavoriteColor(std::size_t favoriteIndex);
@@ -848,7 +850,7 @@ private:
     SameFramesPanel* m_sameFramesPanel = nullptr;
     PalettePanel* m_palettePanel = nullptr;
     SpritePanel* m_spritePanel = nullptr;
-    QToolButton* m_activeColorButton = nullptr;
+    DrawColorButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;
     FramePreviewWidget* m_preview = nullptr;
     SpriteEditorWidget* m_spriteEditor = nullptr;

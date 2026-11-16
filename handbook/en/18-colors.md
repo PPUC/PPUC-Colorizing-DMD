@@ -3,8 +3,11 @@
 ## Draw color, favorites and edit colors
 
 The active draw color is what `Point`, the shapes and `Flood` paint with in single color mode.
-It is shown in the read-only box at the end of the favorite swatches of the toolbar. It is set
-by a click on a favorite, a palette color, an edit color or with the `Pick` tool.
+It is shown in the box at the end of the favorite swatches of the toolbar, whose tool tip names
+its value. It is set by a click on a favorite, a palette color, an edit color or with the `Pick`
+tool, or by a color dropped on the box. Drag the box onto a palette color, a favorite or an edit
+color to give it the draw color there; double-click it to see and change the draw color in the
+color picker.
 
 - **Favorites**: four toolbar swatches (red `0xf800`, green `0x07e0`, blue `0x001f`, black
   `0x0000`). A click makes one the draw color; drag a palette color onto one, double-click it,
