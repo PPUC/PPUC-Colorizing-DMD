@@ -569,6 +569,8 @@ private:
     void updateZoomButton();
     // Space over the canvas: panning with the mouse while it is held.
     bool handleSpacePanning(QEvent* event);
+    // W held for selecting non-black pixels only; true when the event is the canvas'.
+    bool handleNonBlackKey(QObject* watched, QEvent* event);
     void endSpacePanning();
     // A slice of packing, when the editor has been idle for a while.
     void packIdleBlocks();

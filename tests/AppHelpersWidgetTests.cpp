@@ -14,6 +14,7 @@
 #include <QIcon>
 #include <QImage>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPalette>
 #include <QPixmap>
@@ -33,6 +34,7 @@
 #include "DrawingToolIcons.h"
 #include "RuntimeFixtures.h"
 #include "AppInfo.h"
+#include "CanvasKeys.h"
 #include "FrameImageUtils.h"
 #include "FrameStatusText.h"
 #include "dialogs/AboutDialog.h"
@@ -542,8 +544,32 @@ void testFlowLayoutCentersRows()
            "alone in the next row, it starts at that row's top");
 }
 
+// A key held for the canvas (W, Space) counts with the mouse over the canvas, whatever has the
+// focus (issue #64), but not while typing into a field or with a modal window open.
+void testKeyHeldForCanvas()
+{
+    QWidget window;
+    auto* canvas = new QWidget(&window);
+    auto* onCanvas = new QWidget(canvas);
+    auto* strip = new QListWidget(&window);
+    auto* field = new QLineEdit(&window);
+    expect(app::keyHeldForCanvas(canvas, strip, canvas, false) &&
+               app::keyHeldForCanvas(canvas, strip, onCanvas, false) &&
+               app::keyHeldForCanvas(canvas, canvas, canvas, false) &&
+               app::keyHeldForCanvas(canvas, nullptr, canvas, false),
+           "with the mouse over the canvas, the frame strip's focus does not matter");
+    expect(!app::keyHeldForCanvas(canvas, strip, strip, false) &&
+               !app::keyHeldForCanvas(canvas, strip, nullptr, false),
+           "not with the mouse elsewhere");
+    expect(!app::keyHeldForCanvas(canvas, field, canvas, false) &&
+               !app::keyHeldForCanvas(canvas, strip, canvas, true) &&
+               !app::keyHeldForCanvas(nullptr, strip, canvas, false),
+           "not while typing, with a modal window open or without a canvas");
+}
+
 void runAppHelpersWidgetTests()
 {
+    testKeyHeldForCanvas();
     testAboutDialog();
     testAboutDialogThirdPartyNotices();
     testActivityClock();

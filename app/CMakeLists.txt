@@ -12,6 +12,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     DmdOutput.cpp
     DmdOutput.h
     CanvasEditController.cpp
+    CanvasKeys.cpp
+    CanvasKeys.h
     CanvasHistory.cpp
     CanvasHistory.h
     ThumbnailCaptions.cpp

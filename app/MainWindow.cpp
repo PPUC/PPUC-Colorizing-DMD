@@ -66,6 +66,7 @@
 #include "dialogs/CromcHeaderDialog.h"
 #include "dialogs/SigningSettingsPage.h"
 #include "team/CertificateRequest.h"
+#include "CanvasKeys.h"
 #include "ColorDrag.h"
 #include "team/TeamController.h"
 #include "FramesClipboard.h"
@@ -11001,16 +11002,11 @@ bool MainWindow::handleSpacePanning(QEvent* event)
         return true;
     }
     // Not while typing into a field, nor when the mouse is not over the canvas.
-    QWidget* focus = QApplication::focusWidget();
-    if (qobject_cast<QLineEdit*>(focus) || qobject_cast<QAbstractSpinBox*>(focus) ||
-        qobject_cast<QTextEdit*>(focus) || qobject_cast<QPlainTextEdit*>(focus) ||
-        QApplication::activeModalWidget() || QApplication::activePopupWidget()) {
-        return false;
-    }
     QWidget* canvas = spriteCanvasShown() ? static_cast<QWidget*>(m_spriteEditor)
                                           : static_cast<QWidget*>(m_preview);
-    QWidget* under = QApplication::widgetAt(QCursor::pos());
-    if (!canvas || !under || (under != canvas && !canvas->isAncestorOf(under))) {
+    if (!keyHeldForCanvas(canvas, QApplication::focusWidget(),
+                          QApplication::widgetAt(QCursor::pos()),
+                          QApplication::activeModalWidget() || QApplication::activePopupWidget())) {
         return false;
     }
     m_spacePanning = true;
@@ -11036,6 +11032,45 @@ void MainWindow::endSpacePanning()
     }
 }
 
+bool MainWindow::handleNonBlackKey(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::ApplicationDeactivate ||
+        event->type() == QEvent::WindowDeactivate) {
+        m_nonBlackKeyDown = false;
+        return false;
+    }
+    if (event->type() != QEvent::KeyPress && event->type() != QEvent::KeyRelease) {
+        return false;
+    }
+    const auto* keyEvent = static_cast<QKeyEvent*>(event);
+    if (keyEvent->key() != Qt::Key_W || keyEvent->isAutoRepeat()) {
+        // Held, the key repeats: nothing else gets it meanwhile.
+        return keyEvent->key() == Qt::Key_W && m_nonBlackKeyDown &&
+               event->type() == QEvent::KeyPress && watched != m_preview;
+    }
+    if (event->type() == QEvent::KeyRelease) {
+        m_nonBlackKeyDown = false;
+        return false;
+    }
+    if (!m_document || !m_preview) {
+        return false;
+    }
+    // On the canvas, or with the mouse over it while the frame strip or another widget has the
+    // focus (issue #64), with Ctrl/Cmd for adding to the selection as well.
+    if (watched == m_preview) {
+        m_nonBlackKeyDown = true;
+        return false;
+    }
+    if (spriteCanvasShown() ||
+        !keyHeldForCanvas(m_preview, QApplication::focusWidget(),
+                          QApplication::widgetAt(QCursor::pos()),
+                          QApplication::activeModalWidget() || QApplication::activePopupWidget())) {
+        return false;
+    }
+    m_nonBlackKeyDown = true;
+    return true;
+}
+
 bool MainWindow::eventFilter(QObject* watched, QEvent* event)
 {
     // Space held over the canvas moves the shown part with the mouse, as in image editors.
@@ -11056,11 +11091,8 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         default:
             break;
     }
-    if (watched == m_preview && event->type() == QEvent::KeyRelease) {
-        const auto* keyEvent = static_cast<QKeyEvent*>(event);
-        if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
-            m_nonBlackKeyDown = false;
-        }
+    if (watched->isWidgetType() && handleNonBlackKey(watched, event)) {
+        return true;
     }
     if (watched == m_preview && event->type() == QEvent::KeyPress && m_document) {
         const auto* keyEvent = static_cast<QKeyEvent*>(event);
@@ -11089,9 +11121,6 @@ bool MainWindow::eventFilter(QObject* watched, QEvent* event)
         if (keyEvent->key() == Qt::Key_Escape && keyEvent->modifiers() == Qt::NoModifier &&
             m_frameList && m_frameList->selectCurrentAlone()) {
             return true;
-        }
-        if (keyEvent->key() == Qt::Key_W && !keyEvent->isAutoRepeat()) {
-            m_nonBlackKeyDown = true;
         }
         const std::optional<std::size_t> slot = editColorSlotForKeyEvent(
             *keyEvent, m_document->colorCount(), currentNativeKeyCodes());

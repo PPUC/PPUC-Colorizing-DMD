@@ -41,7 +41,8 @@ key. The `Win32` column is CDMD's, a Windows program.
 With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+X` and
 `Ctrl/Cmd+A` do what they do there (`Ctrl/Cmd+A` in the frame list selects every frame). A single
 letter cannot be a menu shortcut (a native macOS menu bar takes it from every widget), so `Invert
-Selection` is not `I`; `K`, `L` and `W` act only while the frame canvas has the focus. Other
+Selection` is not `I`; `K` and `L` act only while the frame canvas has the focus, `W` also while the
+mouse is over it (as `Space` for moving the view). Other
 shortcuts of the editor: the platform's keys for Open (`Ctrl/Cmd+O`), Save, Save As, Quit, Undo and
 Redo, the platform's help key for `Help -> Handbook` (`F1`; `Cmd+?` on macOS), `Ctrl/Cmd+R` Runtime
 view, `Ctrl/Cmd+3` / `Ctrl/Cmd+6` its planes, `Delete` / `Backspace` delete frames in the frame

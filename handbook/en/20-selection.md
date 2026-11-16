@@ -34,7 +34,8 @@ painted on the original frame, has no selection. The `Shape` of the `Sel` tool i
 - `Ctrl/Cmd`+click with `Flood`: the connected pixels of the clicked color join (with `Shift`:
   leave) the selection.
 - Hold `W` while selecting, or check `Edit -> Select Non-Black Pixels Only`, and black pixels
-  (stored color 0) stay out of what is added, as in the Win32 editor.
+  (stored color 0) stay out of what is added, as in the Win32 editor. `W` counts while the frame
+  canvas has the focus or the mouse is over it, also right after a click in the frame strip.
 - `Ctrl/Cmd`+`Alt`+click with `Flood`, or `Edit -> Select By Color` and then a click: every pixel of
   the clicked color joins the selection, with `Shift` leaves it. The color is the one the canvas
   shows (with dynamic content, sprites and, when shown, the background layer); the Win32 editor
