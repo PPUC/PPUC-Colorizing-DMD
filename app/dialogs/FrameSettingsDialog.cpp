@@ -17,6 +17,7 @@ namespace {
 using edit::FrameSettingsPart;
 
 const QString kSettingsKey = QStringLiteral("copyFrameSettings/parts");
+const QString kDuplicateSettingsKey = QStringLiteral("duplicateFrame/parts");
 
 // What is chosen at first: the settings an author copies to similar frames. Identification,
 // trigger, lights, DOF events and duration change how or when a frame plays.
@@ -32,6 +33,13 @@ bool chosenAtFirst(FrameSettingsPart part)
         default:
             return true;
     }
+}
+
+// What a copy of a frame takes at first: everything it uses but what would make the copy fire
+// with the frame (its trigger and DOF events).
+bool duplicatedAtFirst(FrameSettingsPart part)
+{
+    return part != FrameSettingsPart::Trigger && part != FrameSettingsPart::DofEvents;
 }
 
 QString partKey(FrameSettingsPart part)
@@ -97,29 +105,78 @@ FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& docume
         this);
     intro->setWordWrap(true);
     layout->addWidget(intro);
+    addParts(document, source, targets,
+             std::vector<FrameSettingsPart>(std::begin(edit::kFrameSettingsParts),
+                                            std::end(edit::kFrameSettingsParts)),
+             chosen);
+    addNoteAndButtons(tr("Copy"));
+}
 
+FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& document,
+                                         Duplicate duplicate,
+                                         QWidget* parent)
+    : QDialog(parent),
+      m_duplicate(true)
+{
+    setWindowTitle(tr("Duplicate Frame"));
+    auto* layout = new QVBoxLayout(this);
+    auto* intro = new QLabel(
+        (duplicate.selection
+             ? tr("Frame %1 is copied right behind it, with its original, duration and tags; "
+                  "only the selected pixels take its picture and dynamic zones. Which of its "
+                  "settings does the copy take?")
+             : tr("Frame %1 is copied right behind it, with its original, picture, duration "
+                  "and tags. Which of its settings does the copy take?"))
+            .arg(static_cast<qulonglong>(duplicate.source)),
+        this);
+    intro->setWordWrap(true);
+    layout->addWidget(intro);
+    addParts(document, duplicate.source, {},
+             edit::usedFrameSettingsParts(document, duplicate.source), std::nullopt);
+    addNoteAndButtons(tr("Duplicate"));
+}
+
+void FrameSettingsDialog::addParts(const document::ProjectDocument& document,
+                                   std::size_t source,
+                                   const std::vector<std::size_t>& targets,
+                                   const std::vector<FrameSettingsPart>& offered,
+                                   const std::optional<std::vector<FrameSettingsPart>>& chosen)
+{
+    auto* layout = static_cast<QVBoxLayout*>(this->layout());
     const QSettings settings;
-    const QStringList stored = settings.value(kSettingsKey).toStringList();
-    const bool hasStored = settings.contains(kSettingsKey);
+    const QString key = m_duplicate ? kDuplicateSettingsKey : kSettingsKey;
+    const QStringList stored = settings.value(key).toStringList();
+    const bool hasStored = settings.contains(key);
     const auto group = [&](const QString& title, std::initializer_list<FrameSettingsPart> parts) {
-        auto* box = new QGroupBox(title, this);
-        auto* boxLayout = new QVBoxLayout(box);
+        QGroupBox* box = nullptr;
         for (FrameSettingsPart part : parts) {
-            const std::size_t changed =
-                edit::framesChangedBy(document, source, targets, part);
-            auto* checkBox = new QCheckBox(
-                tr("%1 (changes %n frame(s))", "", static_cast<int>(changed))
-                    .arg(frameSettingsPartName(part)),
-                box);
+            if (std::find(offered.begin(), offered.end(), part) == offered.end()) {
+                continue;
+            }
+            if (!box) {
+                box = new QGroupBox(title, this);
+                box->setLayout(new QVBoxLayout);
+                layout->addWidget(box);
+            }
+            // A copy is a new frame: each part changes it, and only the parts the frame uses
+            // are offered.
+            const QString text =
+                m_duplicate
+                    ? frameSettingsPartName(part)
+                    : tr("%1 (changes %n frame(s))", "",
+                         static_cast<int>(edit::framesChangedBy(document, source, targets,
+                                                                part)))
+                          .arg(frameSettingsPartName(part));
+            auto* checkBox = new QCheckBox(text, box);
             checkBox->setChecked(
                 chosen ? std::find(chosen->begin(), chosen->end(), part) != chosen->end()
                 : hasStored ? stored.contains(partKey(part))
-                            : chosenAtFirst(part));
+                : m_duplicate ? duplicatedAtFirst(part)
+                              : chosenAtFirst(part));
             connect(checkBox, &QCheckBox::toggled, this, [this]() { updateNote(); });
-            boxLayout->addWidget(checkBox);
+            box->layout()->addWidget(checkBox);
             m_checkBoxes[part] = checkBox;
         }
-        layout->addWidget(box);
     };
     group(tr("Dynamic content"),
           {FrameSettingsPart::DynamicZones, FrameSettingsPart::DynamicColors,
@@ -131,14 +188,18 @@ FrameSettingsDialog::FrameSettingsDialog(const document::ProjectDocument& docume
           {FrameSettingsPart::Identification, FrameSettingsPart::Trigger,
            FrameSettingsPart::Lights, FrameSettingsPart::DofEvents,
            FrameSettingsPart::Duration});
+}
 
+void FrameSettingsDialog::addNoteAndButtons(const QString& acceptLabel)
+{
+    auto* layout = static_cast<QVBoxLayout*>(this->layout());
     m_note = new QLabel(this);
     m_note->setWordWrap(true);
     layout->addWidget(m_note);
 
     auto* buttons =
         new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(tr("Copy"));
+    buttons->button(QDialogButtonBox::Ok)->setText(acceptLabel);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
@@ -149,7 +210,7 @@ std::vector<FrameSettingsPart> FrameSettingsDialog::parts() const
 {
     std::vector<FrameSettingsPart> chosen;
     for (FrameSettingsPart part : edit::kFrameSettingsParts) {
-        if (m_checkBoxes.at(part)->isChecked()) {
+        if (const QCheckBox* box = checkBox(part); box && box->isChecked()) {
             chosen.push_back(part);
         }
     }
@@ -158,7 +219,8 @@ std::vector<FrameSettingsPart> FrameSettingsDialog::parts() const
 
 QCheckBox* FrameSettingsDialog::checkBox(FrameSettingsPart part) const
 {
-    return m_checkBoxes.at(part);
+    const auto found = m_checkBoxes.find(part);
+    return found == m_checkBoxes.end() ? nullptr : found->second;
 }
 
 void FrameSettingsDialog::accept()
@@ -168,7 +230,7 @@ void FrameSettingsDialog::accept()
         for (FrameSettingsPart part : parts()) {
             chosen << partKey(part);
         }
-        QSettings().setValue(kSettingsKey, chosen);
+        QSettings().setValue(m_duplicate ? kDuplicateSettingsKey : kSettingsKey, chosen);
     }
     QDialog::accept();
 }
@@ -176,7 +238,16 @@ void FrameSettingsDialog::accept()
 void FrameSettingsDialog::updateNote()
 {
     QStringList notes;
-    if (m_checkBoxes.at(FrameSettingsPart::Identification)->isChecked()) {
+    const QCheckBox* identification = checkBox(FrameSettingsPart::Identification);
+    if (m_duplicate) {
+        // Same original: libserum finds the frame first, so the copy needs another mask.
+        notes << tr("The copy has the frame's original: libserum finds the frame before it, "
+                    "until the copy gets another comparison mask or shape mode.");
+        if (const QCheckBox* trigger = checkBox(FrameSettingsPart::Trigger);
+            trigger && trigger->isChecked()) {
+            notes << tr("Once the copy is identified, it fires the trigger as well.");
+        }
+    } else if (identification && identification->isChecked()) {
         notes << tr("The comparison mask and the shape mode decide how libserum finds the "
                     "frames: the targets may be identified differently afterwards.");
     }

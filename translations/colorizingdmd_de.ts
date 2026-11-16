@@ -2007,6 +2007,22 @@ Use Create %1 Frame.</source>
             <numerusform>Die gewählten Einstellungen von Frame %1 ersetzen die von %n ausgewählten Frames. Die Bilder bleiben; dafür ist Kopieren und Einfügen da.</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Duplicate Frame</source>
+        <translation>Frame duplizieren</translation>
+    </message>
+    <message>
+        <source>Frame %1 is copied right behind it, with its original, duration and tags; only the selected pixels take its picture and dynamic zones. Which of its settings does the copy take?</source>
+        <translation>Frame %1 wird direkt dahinter kopiert, mit seinem Original, seiner Dauer und seinen Tags; nur die ausgewählten Pixel übernehmen sein Bild und seine dynamischen Zonen. Welche seiner Einstellungen übernimmt die Kopie?</translation>
+    </message>
+    <message>
+        <source>Frame %1 is copied right behind it, with its original, picture, duration and tags. Which of its settings does the copy take?</source>
+        <translation>Frame %1 wird direkt dahinter kopiert, mit seinem Original, Bild, seiner Dauer und seinen Tags. Welche seiner Einstellungen übernimmt die Kopie?</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>Duplizieren</translation>
+    </message>
     <message numerus="yes">
         <source>%1 (changes %n frame(s))</source>
         <translation>
@@ -2029,6 +2045,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Copy</source>
         <translation>Kopieren</translation>
+    </message>
+    <message>
+        <source>The copy has the frame&apos;s original: libserum finds the frame before it, until the copy gets another comparison mask or shape mode.</source>
+        <translation>Die Kopie hat das Original des Frames: libserum findet den Frame davor, bis die Kopie eine andere Vergleichsmaske oder einen anderen Formmodus bekommt.</translation>
+    </message>
+    <message>
+        <source>Once the copy is identified, it fires the trigger as well.</source>
+        <translation>Sobald die Kopie erkannt wird, löst sie den Trigger ebenfalls aus.</translation>
     </message>
     <message>
         <source>The comparison mask and the shape mode decide how libserum finds the frames: the targets may be identified differently afterwards.</source>
@@ -3300,6 +3324,10 @@ Use Create %1 Frame.</source>
         <translation>Ausgewählte Frames löschen</translation>
     </message>
     <message>
+        <source>Du&amp;plicate Frame...</source>
+        <translation>Frame du&amp;plizieren...</translation>
+    </message>
+    <message>
         <source>Edit Signing &amp;Notice</source>
         <translation>Signatur&amp;hinweis bearbeiten</translation>
     </message>
@@ -4336,6 +4364,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Export the selected frames or a range of frames, as shown or their content only</source>
         <translation>Die ausgewählten Frames oder einen Bereich von Frames exportieren, wie angezeigt oder nur ihren Inhalt</translation>
+    </message>
+    <message>
+        <source>Copy the current frame right behind it, with the settings it uses that you choose; with a selection, only the selected pixels</source>
+        <translation>Den aktuellen Frame direkt dahinter kopieren, mit den gewählten seiner Einstellungen; mit einer Auswahl nur die ausgewählten Pixel</translation>
     </message>
     <message>
         <source>Show the canvas picture on a connected DMD or a dmdserver</source>
@@ -6556,6 +6588,18 @@ Use Create %1 Frame.</source>
             <numerusform>; %n Frame einer Szene hat nur bekommen, was er haben kann</numerusform>
             <numerusform>; %n Frames von Szenen haben nur bekommen, was sie haben können</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>A frame of a scene or the signing notice cannot be duplicated: a scene gets more frames in its settings</source>
+        <translation>Ein Frame einer Szene oder der Signaturhinweis kann nicht dupliziert werden: eine Szene bekommt weitere Frames in ihren Einstellungen</translation>
+    </message>
+    <message>
+        <source>Copied the selected pixels of frame %1 to the new frame %2</source>
+        <translation>Die ausgewählten Pixel von Frame %1 in den neuen Frame %2 kopiert</translation>
+    </message>
+    <message>
+        <source>Duplicated frame %1 as frame %2</source>
+        <translation>Frame %1 als Frame %2 dupliziert</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

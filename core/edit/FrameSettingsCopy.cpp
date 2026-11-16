@@ -357,6 +357,90 @@ std::size_t framesChangedBy(const ProjectDocument& document,
     return changed;
 }
 
+std::vector<FrameSettingsPart> usedFrameSettingsParts(const ProjectDocument& document,
+                                                      std::size_t frame)
+{
+    checkFrame(document, frame);
+    const document::FrameRecord fresh = document.makeUncolorizedFrame(
+        document.originalFrame(frame), document.frameDurationMs(frame));
+    const Resolution dynamicPlane = document.dynamicPlane();
+    const auto& dynamic = document.dynamicData(frame);
+    const auto& background = document.backgroundData(frame);
+    // The planes both have: a fresh frame has HD only where the project gives every frame HD.
+    std::vector<Resolution> planes;
+    for (Resolution plane : picturePlanes(document)) {
+        if (plane == Resolution::Sd || (document.hasHdFrame(frame) && fresh.colorizedHd)) {
+            planes.push_back(plane);
+        }
+    }
+    const auto uses = [&](FrameSettingsPart part) {
+        switch (part) {
+            case FrameSettingsPart::DynamicZones:
+                return dynamic && fresh.dynamicData &&
+                       !(dynamicMask(*dynamic, dynamicPlane).pixels ==
+                         dynamicMask(*fresh.dynamicData, dynamicPlane).pixels);
+            case FrameSettingsPart::DynamicColors:
+                return dynamic && fresh.dynamicData &&
+                       (!(dynamicColors(*dynamic, dynamicPlane) ==
+                          dynamicColors(*fresh.dynamicData, dynamicPlane)) ||
+                        document.originalOnlyDynamicSets(frame) !=
+                            fresh.originalOnlyDynamicSets);
+            case FrameSettingsPart::DynamicShadows:
+                return dynamic && fresh.dynamicData &&
+                       (!(shadowDirections(*dynamic, dynamicPlane) ==
+                          shadowDirections(*fresh.dynamicData, dynamicPlane)) ||
+                        !(shadowColors(*dynamic, dynamicPlane) ==
+                          shadowColors(*fresh.dynamicData, dynamicPlane)));
+            case FrameSettingsPart::Background:
+                return background && fresh.backgroundData &&
+                       background->backgroundId != fresh.backgroundData->backgroundId;
+            case FrameSettingsPart::BackgroundMask:
+                if (!background || !fresh.backgroundData) {
+                    return false;
+                }
+                for (Resolution plane : planes) {
+                    if (!(backgroundMask(*background, plane).pixels ==
+                          backgroundMask(*fresh.backgroundData, plane).pixels)) {
+                        return true;
+                    }
+                }
+                return false;
+            case FrameSettingsPart::Sprites:
+                return !usedSlots(document, frame).empty();
+            case FrameSettingsPart::ColorRotations:
+                for (Resolution plane : planes) {
+                    const auto& rotations = plane == Resolution::Hd ? fresh.colorRotationsHd
+                                                                     : fresh.colorRotationsSd;
+                    if (!(document.colorRotations(frame, plane) == rotations)) {
+                        return true;
+                    }
+                }
+                return false;
+            case FrameSettingsPart::Identification:
+                return document.comparisonMaskId(frame) != fresh.comparisonMaskId ||
+                       document.shapeComparisonMode(frame) != fresh.shapeComparisonMode;
+            case FrameSettingsPart::Trigger:
+                return document.pupTriggerId(frame) != fresh.pupTriggerId ||
+                       document.sceneTriggerId(frame) != fresh.sceneTriggerId ||
+                       document.monochromeTriggerId(frame) != fresh.monochromeTriggerId;
+            case FrameSettingsPart::Lights:
+                return document.frameLights(frame) != fresh.lights;
+            case FrameSettingsPart::DofEvents:
+                return document.frameDofEvents(frame) != fresh.dofEvents;
+            case FrameSettingsPart::Duration:
+                return false;
+        }
+        return false;
+    };
+    std::vector<FrameSettingsPart> used;
+    for (FrameSettingsPart part : kFrameSettingsParts) {
+        if (uses(part)) {
+            used.push_back(part);
+        }
+    }
+    return used;
+}
+
 FrameSettingsCopy copyFrameSettings(ProjectDocument& document,
                                     std::size_t source,
                                     const std::vector<std::size_t>& targets,

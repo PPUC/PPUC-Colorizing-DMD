@@ -16,6 +16,9 @@ class ProjectDocument;
 
 namespace colorizing::edit {
 
+// edit/FrameSettingsCopy.h.
+enum class FrameSettingsPart;
+
 // Edits of any number of frames and records, made one after the other and undone as one step
 // under a name (the editor API's edit batch, for plugins). It lives in the history of the
 // structure commands, as the steps may add or delete records, and so it is undone in strict
@@ -127,6 +130,21 @@ private:
                                                         const std::vector<uint8_t>& original,
                                                         std::size_t like,
                                                         std::size_t* added);
+// Edit -> Duplicate Frame: a copy of the frame right behind it, in its section, with the same
+// original, duration and tags, its colorized pictures, and the parts of its settings given
+// (Copy Frame Settings' parts, see usedFrameSettingsParts()). With a selection (selection:
+// the selectionPlane's size, not 0 where selected; empty for none) only the selected pixels
+// take the pictures and the dynamic zones; elsewhere the copy is as a frame fresh from a dump
+// (the original's plain colors, no dynamic zones). *added (unless null) gets its index. Throws
+// std::invalid_argument for a frame of a scene or the signing notice, a selection of the wrong
+// size or with nothing selected, std::out_of_range for a frame that does not exist.
+[[nodiscard]] std::unique_ptr<EditCommand> duplicateFrame(
+    document::ProjectDocument& document,
+    std::size_t source,
+    const std::vector<FrameSettingsPart>& parts,
+    render::Resolution selectionPlane,
+    const std::vector<uint8_t>& selection,
+    std::size_t* added);
 // Adds the scene (no variant) as addScene() does, with a frame for each frame of `like`: its
 // frameGroups as given, its frameCount like.size() / frameGroups (the frames given group by
 // group). Each of its frames is made like the frame given for it: its colorized pictures, and

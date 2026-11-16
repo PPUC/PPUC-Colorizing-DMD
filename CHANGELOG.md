@@ -19,6 +19,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - A color the Pick tool takes is named in the status bar and joins the color picker's recent
   colors. The toolbar's draw color box can be dragged onto a palette color, a favorite or an
   edit color, and a double click shows it in the color picker.
+- Edit -> Duplicate Frame (Ctrl/Cmd+J) copies the current frame right behind it, or only its
+  selected pixels, with the settings it uses that you check.
 
 ## 3.99.38
 

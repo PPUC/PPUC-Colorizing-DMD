@@ -2,6 +2,7 @@
 
 #include "edit/EditBatch.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -12,6 +13,7 @@
 
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
+#include "edit/FrameSettingsCopy.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
 
@@ -465,6 +467,110 @@ void testPictures()
 
 }  // namespace
 
+// Edit -> Duplicate Frame (issue #69): a copy right behind the frame, with the parts of its
+// settings chosen; with a selection only the selected pixels take its picture and zones.
+void testDuplicateFrame()
+{
+    ProjectDocument document =
+        ProjectDocument::fromSnapshot(fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    const std::size_t frames = document.frameCount();
+    document.setPupTriggerId(2, 1234);
+    document.setFrameTags(2, {"Multiball"});
+    document.setColorizedPixel(2, Resolution::Sd, 5, 2, 0xf800);
+    document.setColorizedPixel(2, Resolution::Sd, 32, 9, 0x07e0);
+    const auto has = [](const std::vector<edit::FrameSettingsPart>& parts,
+                        edit::FrameSettingsPart part) {
+        return std::find(parts.begin(), parts.end(), part) != parts.end();
+    };
+
+    // What the frames use: only that is offered.
+    const std::vector<edit::FrameSettingsPart> used = edit::usedFrameSettingsParts(document, 2);
+    expect(has(used, edit::FrameSettingsPart::DynamicZones) &&
+               has(used, edit::FrameSettingsPart::DynamicShadows) &&
+               has(used, edit::FrameSettingsPart::Identification) &&
+               has(used, edit::FrameSettingsPart::Trigger) &&
+               !has(used, edit::FrameSettingsPart::Sprites) &&
+               !has(used, edit::FrameSettingsPart::ColorRotations) &&
+               !has(used, edit::FrameSettingsPart::Duration),
+           "frame 2 uses dynamic zones, shadows, a comparison mask and a trigger");
+    const std::vector<edit::FrameSettingsPart> sprites = edit::usedFrameSettingsParts(document, 4);
+    expect(has(sprites, edit::FrameSettingsPart::Sprites) &&
+               has(sprites, edit::FrameSettingsPart::Background) &&
+               !has(sprites, edit::FrameSettingsPart::DynamicZones) &&
+               has(edit::usedFrameSettingsParts(document, 5),
+                   edit::FrameSettingsPart::ColorRotations),
+           "frame 4 sprites and a background, frame 5 color rotations");
+
+    // The whole frame, without its trigger.
+    std::vector<edit::FrameSettingsPart> parts = used;
+    parts.erase(std::remove(parts.begin(), parts.end(), edit::FrameSettingsPart::Trigger),
+                parts.end());
+    const std::vector<uint8_t> nextOriginal = document.originalFrame(3).pixels.toVector();
+    std::size_t copy = 0;
+    std::unique_ptr<edit::EditCommand> whole =
+        edit::duplicateFrame(document, 2, parts, Resolution::Sd, {}, &copy);
+    expect(whole && copy == 3 && document.frameCount() == frames + 1 &&
+               document.originalFrame(4).pixels.toVector() == nextOriginal,
+           "the copy is right behind the frame, the others move back");
+    expect(document.originalFrame(3).pixels.toVector() ==
+                   document.originalFrame(2).pixels.toVector() &&
+               samePixels(document.colorizedFrame(3, Resolution::Sd),
+                          document.colorizedFrame(2, Resolution::Sd)) &&
+               document.hasDynamicPixels(3) &&
+               document.comparisonMaskId(3) == document.comparisonMaskId(2) &&
+               document.frameDurationMs(3) == document.frameDurationMs(2) &&
+               document.frameTags(3) == std::vector<std::string>{"Multiball"},
+           "with its original, picture, dynamic zones, comparison mask, duration and tags");
+    expect(document.pupTriggerId(3) == document::kNoTriggerId, "not the trigger left out");
+    whole->revert(document);
+    expect(document.frameCount() == frames &&
+               document.originalFrame(3).pixels.toVector() == nextOriginal,
+           "undone as one step");
+
+    // A selection on the SD plane: x 30 to 39, y 8 to 11.
+    const render::Size sd = document.geometry().planeSize(Resolution::Sd);
+    std::vector<uint8_t> selection(static_cast<std::size_t>(sd.width) * sd.height, 0);
+    for (int y = 8; y < 12; ++y) {
+        for (int x = 30; x < 40; ++x) {
+            selection[static_cast<std::size_t>(y) * sd.width + x] = 1;
+        }
+    }
+    std::unique_ptr<edit::EditCommand> part =
+        edit::duplicateFrame(document, 2, parts, Resolution::Sd, selection, &copy);
+    const document::FrameRecord fresh =
+        document.makeUncolorizedFrame(document.originalFrame(2), 33);
+    const Resolution dynamicPlane = document.dynamicPlane();
+    const int dynamicScale = dynamicPlane == Resolution::Hd ? 2 : 1;
+    const auto zone = [&](std::size_t frame, int x, int y) {
+        const auto& data = *document.dynamicData(frame);
+        const document::IndexedFrame& mask =
+            dynamicPlane == Resolution::Hd ? data.maskHd : data.maskSd;
+        return mask.pixels[static_cast<std::size_t>(y * dynamicScale) * mask.size.width +
+                           static_cast<std::size_t>(x * dynamicScale)];
+    };
+    expect(part && document.colorizedPixel(3, Resolution::Sd, 32, 9) == 0x07e0 &&
+               document.colorizedPixel(3, Resolution::Sd, 5, 2) ==
+                   fresh.colorizedSd.pixels[2 * static_cast<std::size_t>(sd.width) + 5],
+           "with a selection, the picture inside it; outside, the plain look of a fresh frame");
+    expect(zone(2, 25, 7) == 4 && zone(3, 25, 7) == 255 && zone(3, 32, 9) == 4,
+           "and the dynamic zones only inside it");
+    part->revert(document);
+
+    const auto refused = [&](std::size_t frame, const std::vector<uint8_t>& area) {
+        try {
+            (void)edit::duplicateFrame(document, frame, {}, Resolution::Sd, area, nullptr);
+        } catch (const std::invalid_argument&) {
+            return document.frameCount() == frames;
+        } catch (const std::out_of_range&) {
+            return document.frameCount() == frames;
+        }
+        return false;
+    };
+    expect(refused(frames + 3, {}) && refused(2, std::vector<uint8_t>(5, 1)) &&
+               refused(2, std::vector<uint8_t>(selection.size(), 0)),
+           "refused: a frame that does not exist, a selection of the wrong size or empty");
+}
+
 void runEditBatchTests()
 {
     testSteps();
@@ -473,4 +579,5 @@ void runEditBatchTests()
     testAddFrameLike();
     testCreateFramesHd();
     testPictures();
+    testDuplicateFrame();
 }

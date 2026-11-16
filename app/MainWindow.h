@@ -592,6 +592,8 @@ private:
     // Edit -> Copy Frame Settings: the current frame's chosen settings replace those of the
     // other selected frames (edit::copyFrameSettings()), one undo step.
     // chosen: the parts the dialog starts with, see FrameSettingsDialog.
+    // Edit -> Duplicate Frame (issue #69).
+    void duplicateCurrentFrame();
     void copyFrameSettings(
         std::optional<std::vector<edit::FrameSettingsPart>> chosen = std::nullopt);
     // Asks for the duration and deletes the selected frames that are shorter.
@@ -750,6 +752,7 @@ private:
     QAction* m_addFramesFromDumpAction = nullptr;
     QAction* m_deleteFramesAction = nullptr;
     QAction* m_sourceFrameAction = nullptr;
+    QAction* m_duplicateFrameAction = nullptr;
     QAction* m_copyFrameSettingsAction = nullptr;
     QAction* m_editSigningNoticeAction = nullptr;
     // The same in the frame list's menu, with the Delete and Backspace keys.

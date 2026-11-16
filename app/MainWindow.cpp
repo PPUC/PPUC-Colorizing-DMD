@@ -941,6 +941,17 @@ void MainWindow::createActions()
     connect(pasteFramesAction, &QAction::triggered, this, [this]() {
         pasteFramesFromClipboard();
     });
+    // A copy of the current frame right behind it, or of its selected pixels (issue #69).
+    m_duplicateFrameAction =
+        withShortcutId(editMenu->addAction(tr("Du&plicate Frame...")), "duplicate-frame");
+    m_duplicateFrameAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_J));
+    m_duplicateFrameAction->setToolTip(
+        tr("Copy the current frame right behind it, with the settings it uses that you choose; "
+           "with a selection, only the selected pixels"));
+    m_duplicateFrameAction->setEnabled(false);
+    connect(m_duplicateFrameAction, &QAction::triggered, this, [this]() {
+        duplicateCurrentFrame();
+    });
     m_sourceFrameAction =
         withShortcutId(editMenu->addAction(tr("New &Frame From Original Colors")),
                        "new-frame-from-original-colors");
@@ -13089,6 +13100,59 @@ void MainWindow::copyFrameSettings(std::optional<std::vector<edit::FrameSettings
     }
 }
 
+void MainWindow::duplicateCurrentFrame()
+{
+    const std::optional<std::size_t> source = currentFrameIndex();
+    if (!m_document || !source) {
+        return;
+    }
+    if (m_document->sceneFrame(*source) || m_document->signingNoticeFrame() == *source) {
+        statusBar()->showMessage(
+            tr("A frame of a scene or the signing notice cannot be duplicated: a scene gets "
+               "more frames in its settings"),
+            5000);
+        return;
+    }
+    setPlaybackRunning(false);
+    applyPendingSpriteDependentViews();
+    // The selection of the frame canvas, on the plane it was made on.
+    const edit::PlaneSelection* selection = m_canvasEdit.selection();
+    const bool selected = selection && !selection->isEmpty() &&
+                          activePaintTarget() == PaintTarget::Frame && !spriteCanvasShown();
+    std::vector<edit::FrameSettingsPart> parts;
+    // Only the settings the frame uses are offered; without any, there is nothing to ask.
+    if (!edit::usedFrameSettingsParts(*m_document, *source).empty()) {
+        FrameSettingsDialog dialog(*m_document, FrameSettingsDialog::Duplicate{*source, selected},
+                                   this);
+        if (dialog.exec() != QDialog::Accepted) {
+            return;
+        }
+        parts = dialog.parts();
+    }
+    try {
+        const std::vector<uint8_t> mask = selected ? selection->mask() : std::vector<uint8_t>{};
+        std::size_t copy = 0;
+        std::unique_ptr<edit::EditCommand> command = edit::duplicateFrame(
+            *m_document, *source, parts,
+            selected ? selection->plane() : render::Resolution::Sd, mask, &copy);
+        m_droppedStructureSteps =
+            pushToHistory(edit::structureHistoryKey(), std::move(command));
+        refreshAfterEditBatch();
+        updateUndoRedoActions();
+        goToFrame(copy);
+        statusBar()->showMessage(
+            selected ? tr("Copied the selected pixels of frame %1 to the new frame %2")
+                           .arg(static_cast<qulonglong>(*source))
+                           .arg(static_cast<qulonglong>(copy))
+                     : tr("Duplicated frame %1 as frame %2")
+                           .arg(static_cast<qulonglong>(*source))
+                           .arg(static_cast<qulonglong>(copy)),
+            5000);
+    } catch (const std::exception& ex) {
+        statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+    }
+}
+
 void MainWindow::addSourceFrame()
 {
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
@@ -13142,6 +13206,9 @@ void MainWindow::updateStructureControls()
     }
     if (m_sourceFrameAction) {
         m_sourceFrameAction->setEnabled(hasDocument && currentFrameIndex().has_value());
+    }
+    if (m_duplicateFrameAction) {
+        m_duplicateFrameAction->setEnabled(hasDocument && currentFrameIndex().has_value());
     }
     if (m_copyFrameSettingsAction) {
         m_copyFrameSettingsAction->setEnabled(hasDocument && currentFrameIndex().has_value());

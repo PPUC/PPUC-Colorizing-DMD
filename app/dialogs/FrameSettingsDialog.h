@@ -32,19 +32,39 @@ public:
                         std::optional<std::vector<edit::FrameSettingsPart>> chosen =
                             std::nullopt);
 
+    // Edit -> Duplicate Frame (issue #69): which settings of the frame its copy takes, of
+    // those it uses (edit::usedFrameSettingsParts(), which must not be empty). selection: only
+    // the selected pixels are copied. The choices are kept for the next time, apart from
+    // those of Copy Frame Settings.
+    struct Duplicate {
+        std::size_t source = 0;
+        bool selection = false;
+    };
+    FrameSettingsDialog(const document::ProjectDocument& document,
+                        Duplicate duplicate,
+                        QWidget* parent = nullptr);
+
     [[nodiscard]] std::vector<edit::FrameSettingsPart> parts() const;
-    // The check box of a part, for tests.
+    // The check box of a part, for tests; nullptr for a part not offered.
     [[nodiscard]] QCheckBox* checkBox(edit::FrameSettingsPart part) const;
 
     // Stores the choices for the next time.
     void accept() override;
 
 private:
+    // Adds the groups of the parts offered; chosen at first: given, kept or the defaults.
+    void addParts(const document::ProjectDocument& document,
+                  std::size_t source,
+                  const std::vector<std::size_t>& targets,
+                  const std::vector<edit::FrameSettingsPart>& offered,
+                  const std::optional<std::vector<edit::FrameSettingsPart>>& chosen);
+    void addNoteAndButtons(const QString& acceptLabel);
     void updateNote();
 
     std::map<edit::FrameSettingsPart, QCheckBox*> m_checkBoxes;
     QLabel* m_note = nullptr;
     bool m_keepsChoices = true;
+    bool m_duplicate = false;
     std::size_t m_sceneFrames = 0;
 };
 

@@ -1,11 +1,13 @@
 #include "edit/EditBatch.h"
 
+#include <algorithm>
 #include <set>
 #include <stdexcept>
 #include <utility>
 
 #include "document/ProjectDocument.h"
 #include "edit/FrameContentCommand.h"
+#include "edit/FrameMove.h"
 #include "edit/FrameSettingsCopy.h"
 #include "edit/SameFrames.h"
 #include "edit/SceneEdits.h"
@@ -545,6 +547,112 @@ std::unique_ptr<EditCommand> addFrameLike(ProjectDocument& document,
         batch.add(copyFrameSettings(document, source, {index}, parts).command);
         if (added) {
             *added = index;
+        }
+    } catch (...) {
+        batch.cancel(document);
+        throw;
+    }
+    return batch.finish();
+}
+
+namespace {
+
+// The selection on another plane: a pixel there is selected when the pixel of the selection's
+// plane under it is.
+std::vector<uint8_t> selectionOnPlane(const std::vector<uint8_t>& selection,
+                                      render::Size from,
+                                      render::Size to)
+{
+    if (from.width == to.width && from.height == to.height) {
+        return selection;
+    }
+    std::vector<uint8_t> mapped(static_cast<std::size_t>(to.width) *
+                                static_cast<std::size_t>(to.height));
+    for (int y = 0; y < to.height; ++y) {
+        const int fromY = y * from.height / to.height;
+        for (int x = 0; x < to.width; ++x) {
+            const int fromX = x * from.width / to.width;
+            mapped[static_cast<std::size_t>(y) * static_cast<std::size_t>(to.width) +
+                   static_cast<std::size_t>(x)] =
+                selection[static_cast<std::size_t>(fromY) * static_cast<std::size_t>(from.width) +
+                          static_cast<std::size_t>(fromX)];
+        }
+    }
+    return mapped;
+}
+
+}  // namespace
+
+std::unique_ptr<EditCommand> duplicateFrame(ProjectDocument& document,
+                                            std::size_t source,
+                                            const std::vector<FrameSettingsPart>& parts,
+                                            Resolution selectionPlane,
+                                            const std::vector<uint8_t>& selection,
+                                            std::size_t* added)
+{
+    checkFrame(document, source);
+    if (document.sceneFrame(source) || document.signingNoticeFrame() == source) {
+        throw std::invalid_argument(
+            "a frame of a scene or the signing notice cannot be duplicated");
+    }
+    const render::Size selectionSize = document.geometry().planeSize(selectionPlane);
+    if (!selection.empty() &&
+        (selection.size() != static_cast<std::size_t>(selectionSize.width) *
+                                 static_cast<std::size_t>(selectionSize.height) ||
+         std::all_of(selection.begin(), selection.end(), [](uint8_t pixel) {
+             return pixel == 0;
+         }))) {
+        throw std::invalid_argument("the selection does not fit the plane or selects nothing");
+    }
+    document::FrameRecord record = document.makeUncolorizedFrame(
+        document.originalFrame(source), document.frameDurationMs(source));
+    record.tags = document.frameTags(source);
+    std::vector<document::FrameRecord> records;
+    records.push_back(std::move(record));
+
+    EditBatch batch("Duplicate frame");
+    try {
+        std::unique_ptr<StructureCommand> adding = addFrames(document, std::move(records));
+        const std::size_t appended = adding->recordIndices().front();
+        batch.add(std::move(adding));
+        // Right behind the source, in its section; the source keeps its index (the copy was
+        // appended behind it).
+        const std::size_t copy = source + 1;
+        if (appended != copy) {
+            batch.add(moveFrames(document, {appended}, copy));
+        }
+        for (const Resolution plane : colorizedPlanes(document, source)) {
+            const std::vector<uint8_t> write =
+                selection.empty() ? std::vector<uint8_t>{}
+                                  : selectionOnPlane(selection, selectionSize,
+                                                     document.geometry().planeSize(plane));
+            batch.add(setFramePicture(document, copy, plane,
+                                      document.colorizedFrame(source, plane).pixels.toVector(),
+                                      write));
+        }
+        if (!parts.empty()) {
+            batch.add(copyFrameSettings(document, source, {copy}, parts).command);
+        }
+        // Dynamic zones only where the selection is.
+        const auto& dynamic = document.dynamicData(copy);
+        if (!selection.empty() && dynamic &&
+            std::find(parts.begin(), parts.end(), FrameSettingsPart::DynamicZones) !=
+                parts.end()) {
+            const Resolution plane = document.dynamicPlane();
+            const render::Size size = document.geometry().planeSize(plane);
+            const std::vector<uint8_t> inside = selectionOnPlane(selection, selectionSize, size);
+            std::vector<uint8_t> sets = (plane == Resolution::Hd ? dynamic->maskHd
+                                                                 : dynamic->maskSd)
+                                            .pixels.toVector();
+            for (std::size_t pixel = 0; pixel < sets.size(); ++pixel) {
+                if (inside[pixel] == 0) {
+                    sets[pixel] = 255;
+                }
+            }
+            batch.add(setDynamicZones(document, copy, sets));
+        }
+        if (added) {
+            *added = copy;
         }
     } catch (...) {
         batch.cancel(document);

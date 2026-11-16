@@ -63,6 +63,14 @@ struct FrameSettingsCopy {
     std::size_t sceneFramesLeftOut = 0;
 };
 
+// The parts the frame has other than a frame fresh from a dump with its original
+// (ProjectDocument::makeUncolorizedFrame()): what a copy of it can take (Edit -> Duplicate
+// Frame). The duration is none of them: a copy always lasts as long. In the order of
+// kFrameSettingsParts. Throws std::out_of_range for a frame that does not exist.
+[[nodiscard]] std::vector<FrameSettingsPart> usedFrameSettingsParts(
+    const document::ProjectDocument& document,
+    std::size_t frame);
+
 // Throws std::out_of_range for a frame that does not exist; the document is then as it was.
 [[nodiscard]] FrameSettingsCopy copyFrameSettings(document::ProjectDocument& document,
                                                   std::size_t source,

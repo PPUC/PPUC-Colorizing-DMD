@@ -96,9 +96,58 @@ void testDialog()
     QSettings::setDefaultFormat(QSettings::NativeFormat);
 }
 
+// Edit -> Duplicate Frame (issue #69): only the settings the frame uses are offered; its
+// trigger and DOF events are not chosen at first; the choices are kept apart.
+void testDuplicateDialog()
+{
+    QTemporaryDir directory;
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("DuplicateFrameDialogTests"));
+
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeFullProject(render::PlaneLayout::Ordinary));
+    document.setPupTriggerId(2, 1234);
+    {
+        app::FrameSettingsDialog dialog(document, app::FrameSettingsDialog::Duplicate{2, true});
+        expect(dialog.checkBox(FrameSettingsPart::DynamicZones) &&
+                   dialog.checkBox(FrameSettingsPart::DynamicZones)->isChecked() &&
+                   dialog.checkBox(FrameSettingsPart::Identification)->isChecked() &&
+                   dialog.checkBox(FrameSettingsPart::Trigger) &&
+                   !dialog.checkBox(FrameSettingsPart::Trigger)->isChecked(),
+               "what frame 2 uses is offered and chosen, but not its trigger");
+        expect(!dialog.checkBox(FrameSettingsPart::Sprites) &&
+                   !dialog.checkBox(FrameSettingsPart::ColorRotations) &&
+                   !dialog.checkBox(FrameSettingsPart::Duration) &&
+                   !dialog.checkBox(FrameSettingsPart::DofEvents),
+               "what it does not use is not offered");
+        expect(dialog.windowTitle() == QStringLiteral("Duplicate Frame") &&
+                   !dialog.checkBox(FrameSettingsPart::DynamicZones)
+                        ->text()
+                        .contains(QStringLiteral("changes")),
+               "a dialog of its own, without frame counts");
+        dialog.checkBox(FrameSettingsPart::Trigger)->setChecked(true);
+        dialog.accept();
+        const std::vector<FrameSettingsPart> parts = dialog.parts();
+        expect(std::find(parts.begin(), parts.end(), FrameSettingsPart::Trigger) != parts.end(),
+               "the parts are the chosen ones");
+    }
+    {
+        app::FrameSettingsDialog dialog(document, app::FrameSettingsDialog::Duplicate{2, false});
+        expect(dialog.checkBox(FrameSettingsPart::Trigger)->isChecked(),
+               "the choices are kept for the next duplicate");
+        app::FrameSettingsDialog copy(document, 2, {1});
+        expect(!copy.checkBox(FrameSettingsPart::Trigger)->isChecked(),
+               "apart from those of Copy Frame Settings");
+    }
+    QCoreApplication::setOrganizationName(QString());
+    QSettings::setDefaultFormat(QSettings::NativeFormat);
+}
+
 }  // namespace
 
 void runFrameSettingsWidgetTests()
 {
     testDialog();
+    testDuplicateDialog();
 }

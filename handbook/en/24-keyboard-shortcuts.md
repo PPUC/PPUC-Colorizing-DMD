@@ -34,6 +34,7 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Shift+H` | Show or hide all helper lines | - |
 | `Ctrl/Cmd+X` | Switch between SD and HD (`View -> Switch SD/HD`) | same |
 | `Ctrl/Cmd+Shift+B` | Set or remove the current frame's bookmark | - |
+| `Ctrl/Cmd+J` | Duplicate the current frame (or its selected pixels) | - |
 | `Alt+B`, `Alt+Shift+B` | Next, previous frame with a bookmark | - |
 | `Alt+R` | Go to where the frames moved last were | - |
 | `Esc` while dragging a helper line | Put the line back | - |

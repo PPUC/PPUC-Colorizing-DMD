@@ -2007,6 +2007,22 @@ Utiliser Créer la frame %1.</translation>
             <numerusform>Les réglages choisis de la frame %1 remplacent ceux de %n frames sélectionnées. Les images restent ; Copier et Coller sert à cela.</numerusform>
         </translation>
     </message>
+    <message>
+        <source>Duplicate Frame</source>
+        <translation>Dupliquer la frame</translation>
+    </message>
+    <message>
+        <source>Frame %1 is copied right behind it, with its original, duration and tags; only the selected pixels take its picture and dynamic zones. Which of its settings does the copy take?</source>
+        <translation>La frame %1 est copiée juste derrière elle, avec son original, sa durée et ses tags ; seuls les pixels sélectionnés prennent son image et ses zones dynamiques. Quels réglages la copie prend-elle ?</translation>
+    </message>
+    <message>
+        <source>Frame %1 is copied right behind it, with its original, picture, duration and tags. Which of its settings does the copy take?</source>
+        <translation>La frame %1 est copiée juste derrière elle, avec son original, son image, sa durée et ses tags. Quels réglages la copie prend-elle ?</translation>
+    </message>
+    <message>
+        <source>Duplicate</source>
+        <translation>Dupliquer</translation>
+    </message>
     <message numerus="yes">
         <source>%1 (changes %n frame(s))</source>
         <translation>
@@ -2029,6 +2045,14 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Copy</source>
         <translation>Copier</translation>
+    </message>
+    <message>
+        <source>The copy has the frame&apos;s original: libserum finds the frame before it, until the copy gets another comparison mask or shape mode.</source>
+        <translation>La copie a l&apos;original de la frame : libserum trouve la frame avant elle, tant que la copie n&apos;a pas un autre masque de comparaison ou un autre mode forme.</translation>
+    </message>
+    <message>
+        <source>Once the copy is identified, it fires the trigger as well.</source>
+        <translation>Dès que la copie est identifiée, elle déclenche aussi le trigger.</translation>
     </message>
     <message>
         <source>The comparison mask and the shape mode decide how libserum finds the frames: the targets may be identified differently afterwards.</source>
@@ -3300,6 +3324,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Supprimer les frames sélectionnées</translation>
     </message>
     <message>
+        <source>Du&amp;plicate Frame...</source>
+        <translation>Du&amp;pliquer la frame...</translation>
+    </message>
+    <message>
         <source>Edit Signing &amp;Notice</source>
         <translation>Modifier l&apos;&amp;avis de signature</translation>
     </message>
@@ -4336,6 +4364,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Export the selected frames or a range of frames, as shown or their content only</source>
         <translation>Exporter les frames sélectionnées ou une plage de frames, comme affichées ou leur contenu seulement</translation>
+    </message>
+    <message>
+        <source>Copy the current frame right behind it, with the settings it uses that you choose; with a selection, only the selected pixels</source>
+        <translation>Copier la frame actuelle juste derrière elle, avec les réglages choisis parmi ceux qu&apos;elle utilise ; avec une sélection, seulement les pixels sélectionnés</translation>
     </message>
     <message>
         <source>Show the canvas picture on a connected DMD or a dmdserver</source>
@@ -6556,6 +6588,18 @@ Utiliser Créer la frame %1.</translation>
             <numerusform>; %n frame de scène n&apos;a reçu que ce qu&apos;elle peut avoir</numerusform>
             <numerusform>; %n frames de scènes n&apos;ont reçu que ce qu&apos;elles peuvent avoir</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>A frame of a scene or the signing notice cannot be duplicated: a scene gets more frames in its settings</source>
+        <translation>Une frame d&apos;une scène ou l&apos;avis de signature ne peut pas être dupliqué : une scène reçoit d&apos;autres frames dans ses réglages</translation>
+    </message>
+    <message>
+        <source>Copied the selected pixels of frame %1 to the new frame %2</source>
+        <translation>Pixels sélectionnés de la frame %1 copiés dans la nouvelle frame %2</translation>
+    </message>
+    <message>
+        <source>Duplicated frame %1 as frame %2</source>
+        <translation>Frame %1 dupliquée en frame %2</translation>
     </message>
     <message>
         <source>New Frame From Original Colors</source>

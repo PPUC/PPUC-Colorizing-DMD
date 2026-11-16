@@ -49,6 +49,27 @@ the last frame, uncolorized and shown for 100 ms, as the Win32 editor does. The 
 keeps its picture; undo removes the new frame again. If a pixel has another color, nothing is
 added and a message names the first such pixel.
 
+## Duplicating a frame
+
+`Edit -> Duplicate Frame...` (`Ctrl/Cmd+J`) copies the current frame right behind it, in its
+section: the same original, picture, duration and tags, for example to mask it in another way
+or to keep its state while you work on it.
+
+- A window lists the settings the frame uses, and only those, grouped as in `Copy Frame
+  Settings...`: dynamic zones, their colors and shadows, background and background mask,
+  sprites, color rotations, comparison mask and shape mode, trigger, speaker lights and DOF
+  events. Check what the copy takes. At first all are checked but the trigger and the DOF
+  events, which would make the copy fire as well; your choice is kept for the next time. A
+  frame that uses none of them is copied without asking.
+- With a selection on the frame canvas, only the selected pixels take the frame's picture and
+  dynamic zones; elsewhere the copy looks like a frame fresh from a dump (the original's plain
+  colors, no dynamic zones). Its original is always the whole frame's.
+- The copy has the frame's original, so libserum finds the frame before it: the copy is
+  identified only once it has another comparison mask or shape mode.
+- Frames of a scene and the signing notice cannot be duplicated (a scene gets more frames in its
+  settings).
+- It is one step of `Undo`.
+
 ## Moving frames
 
 The selected frames can be put elsewhere in the project, so a project can be sorted without
