@@ -19,8 +19,9 @@ Currently preserved sprite data includes:
 The Inspector has two sprite sections, each shown on its own canvas:
 
 - `Frame Sprites`, on the frame canvas: what ties sprites to the frames. The selected sprite,
-  the sprites of the current frame (in a short list that scrolls; `Used by the current frame`
-  in the left sidebar shows them too), the slot selector, `Assign`, `Capture`, `Remove`,
+  the sprites of the current frame (every slot it uses, one line each with the slot number and
+  bounds; the section scrolls when they do not fit, and `Used by the current frame` in the left
+  sidebar shows them too), the slot selector, `Assign`, `Capture`, `Remove`,
   `Move Up`, `Move Down`, `Copy to Selected Frames`,
   `Select Capture`, `Clear Sel`, `Show Bounds`, `Outline Sprites`, `Source Frame`, the slot's
   bounds (`Min X` to `Max Y`) and `Edit Sprite`.

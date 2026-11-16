@@ -14,6 +14,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   while the frame strip has the focus, for example right after a click on a frame.
 - A double click on a recent or a palette color in the color picker takes it and closes the
   picker.
+- The Frame Sprites section lists every sprite slot of the frame at once instead of four lines
+  that scroll.
 
 ## 3.99.38
 

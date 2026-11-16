@@ -12,7 +12,6 @@
 #include <QLineEdit>
 #include <QPalette>
 #include <QSignalBlocker>
-#include <QScrollArea>
 #include <QSpinBox>
 #include <QStringList>
 #include <QToolButton>
@@ -238,16 +237,9 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_frameSpritesLabel = new QLabel(tr("No frame sprites"), m_framePage);
     m_frameSpritesLabel->setWordWrap(true);
     m_frameSpritesLabel->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-    // The frame's sprites can be 16 lines: they scroll in a few lines' height (the left
-    // sidebar's "Used by the current frame" lists them as well).
-    auto* frameSpritesArea = new QScrollArea(m_framePage);
-    frameSpritesArea->setWidget(m_frameSpritesLabel);
-    frameSpritesArea->setWidgetResizable(true);
-    frameSpritesArea->setFrameShape(QFrame::NoFrame);
-    frameSpritesArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    frameSpritesArea->setMaximumHeight(
-        QFontMetrics(m_frameSpritesLabel->font()).lineSpacing() * 4 + 6);
-    frameSpritesArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    // Every slot the frame uses, one line each, so that they are seen at a glance (issue #67);
+    // the section scrolls when they do not fit.
+    m_frameSpritesLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_selectedSpriteLabel = new QLabel(tr("Selected: None"), m_framePage);
     m_selectedSpriteLabel->setWordWrap(true);
     m_spriteCountWarningLabel = new QLabel(m_framePage);
@@ -264,7 +256,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_spriteCountWarningLabel->hide();
     frameLayout->addWidget(m_selectedSpriteLabel);
     frameLayout->addWidget(m_spriteCountWarningLabel);
-    frameLayout->addWidget(frameSpritesArea);
+    frameLayout->addWidget(m_frameSpritesLabel);
     frameLayout->addWidget(m_slotComboBox);
     auto* slotButtonLayout = new QHBoxLayout();
     slotButtonLayout->addWidget(m_assignButton);

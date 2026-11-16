@@ -2918,13 +2918,10 @@ void testSpritePanel()
     }
     expect(selectedLabel && frameSpritesLabel,
            "sprite panel should start with its empty selection and frame labels");
-    {
-        // The frame's sprites (up to 16 lines) scroll in a few lines' height.
-        QWidget* viewport = frameSpritesLabel->parentWidget();
-        auto* area = viewport ? qobject_cast<QScrollArea*>(viewport->parentWidget()) : nullptr;
-        expect(area && area->maximumHeight() < 8 * frameSpritesLabel->fontMetrics().lineSpacing(),
-               "the frame's sprite list scrolls in a short area");
-    }
+    // Every line of the frame's sprites shows, without a scroll area of their own (issue #67).
+    expect(frameSpritesLabel->parentWidget() == panel.framePage() &&
+               frameSpritesLabel->maximumHeight() == QWIDGETSIZE_MAX,
+           "the frame's sprite list shows all its lines");
     expect(assignButton->text() == QStringLiteral("Assign") &&
                captureButton->text() == QStringLiteral("Capture") &&
                removeButton->text() == QStringLiteral("Remove") &&
