@@ -376,6 +376,13 @@ void testRecentColors()
     auto* first = child<QToolButton>(dialog, "colorPickerRecent0");
     first->click();
     expect(dialog.rgb565() == 5, "a recent color is picked by a click");
+    auto* second = child<QToolButton>(dialog, "colorPickerRecent1");
+    second->click();
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick, QPointF(4, 4), QPointF(4, 4),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(second, &doubleClick);
+    expect(dialog.rgb565() == 9 && dialog.result() == QDialog::Accepted,
+           "a double click takes a recent color and closes the picker (issue #65)");
     QSettings().remove(QStringLiteral("colorPicker/recentColors"));
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);
@@ -397,7 +404,7 @@ void testColorPickerPalettes()
            "the picker shows the palette it was given first");
     QList<QToolButton*> swatches;
     for (QWidget* grid : dialog.findChildren<QWidget*>()) {
-        if (grid->toolTip() == QStringLiteral("Click a color of the palette to take it")) {
+        if (grid->toolTip().startsWith(QStringLiteral("Click a color of the palette"))) {
             swatches = grid->findChildren<QToolButton*>(QString(), Qt::FindDirectChildrenOnly);
         }
     }
@@ -407,6 +414,13 @@ void testColorPickerPalettes()
     comboBox->setCurrentIndex(0);
     swatches[5]->click();
     expect(dialog.rgb565() == 0x07e0, "another palette, its colors");
+    expect(dialog.result() != QDialog::Accepted, "a click leaves the picker open");
+    swatches[5]->click();
+    QMouseEvent doubleClick(QEvent::MouseButtonDblClick, QPointF(4, 4), QPointF(4, 4),
+                            Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(swatches[5], &doubleClick);
+    expect(dialog.result() == QDialog::Accepted && dialog.rgb565() == 0x07e0,
+           "a double click takes a palette color and closes the picker");
     ColorPickerDialog plain(0xf800, QStringLiteral("Plain"));
     expect(!plain.findChild<QComboBox*>(), "without palettes, no palette row");
 }

@@ -672,8 +672,12 @@
         <translation>Une palette du projet où choisir une couleur</translation>
     </message>
     <message>
+        <source>Click a color of the palette to take it; a double click takes it and closes</source>
+        <translation>Cliquer sur une couleur de la palette pour la prendre ; un double-clic la prend et ferme la fenêtre</translation>
+    </message>
+    <message>
         <source>Click a color of the palette to take it</source>
-        <translation>Cliquer sur une couleur de la palette pour la prendre</translation>
+        <translation type="vanished">Cliquer sur une couleur de la palette pour la prendre</translation>
     </message>
     <message>
         <source>Palette</source>

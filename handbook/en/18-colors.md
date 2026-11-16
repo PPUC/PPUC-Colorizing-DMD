@@ -116,6 +116,9 @@ as it was left. It has the fields of the Win32 picker, all kept in step with eac
   with the palette selected in the `Palette` section; another one can be chosen,
 - `Before` and `Now`.
 
+A double click on one of the last colors or on a palette color takes it and closes the picker,
+as `OK` does.
+
 The result is the RGB565 color of the fields. A color that is shown and entered again in any field
 gives the same RGB565 value back; that holds for all 65536 RGB565 colors (with whole numbers for
 H, S and V, as the Win32 picker shows them, about 10,000 colors would come back different).

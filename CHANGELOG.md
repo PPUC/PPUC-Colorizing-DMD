@@ -12,6 +12,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   and set the scene a frame starts.
 - Holding `W` to select non-black pixels only also works with the mouse over the frame canvas
   while the frame strip has the focus, for example right after a click on a frame.
+- A double click on a recent or a palette color in the color picker takes it and closes the
+  picker.
 
 ## 3.99.38
 

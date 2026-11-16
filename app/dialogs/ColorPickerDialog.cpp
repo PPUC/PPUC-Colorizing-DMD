@@ -343,6 +343,8 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
             connect(button, &QToolButton::clicked, this, [this, color]() {
                 setFromRgb(edit::rgb565ToRgb888(color));
             });
+            // A double click takes the color and closes the picker (issue #65).
+            button->installEventFilter(this);
         } else {
             button->setEnabled(false);
         }
@@ -365,7 +367,8 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
                                                  .arg(m_palettes[index].name));
         }
         m_paletteGrid = new ColorGridWidget(document::kPaletteColorCount, 16, this);
-        m_paletteGrid->setToolTip(tr("Click a color of the palette to take it"));
+        m_paletteGrid->setToolTip(
+            tr("Click a color of the palette to take it; a double click takes it and closes"));
         m_paletteGrid->setColorClickedHandler([this](std::size_t colorIndex) {
             const int palette = m_paletteComboBox->currentIndex();
             if (palette >= 0 && static_cast<std::size_t>(palette) < m_palettes.size() &&
@@ -373,6 +376,10 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
                 setFromRgb(edit::rgb565ToRgb888(
                     m_palettes[static_cast<std::size_t>(palette)].colors[colorIndex]));
             }
+        });
+        m_paletteGrid->setColorDoubleClickedHandler([this](std::size_t) {
+            // The click before it took the color.
+            accept();
         });
         const auto showPalette = [this](int palette) {
             if (palette >= 0 && static_cast<std::size_t>(palette) < m_palettes.size()) {
@@ -410,6 +417,20 @@ ColorPickerDialog::ColorPickerDialog(uint16_t initialRgb565,
     setFromRgb(initial);
     // It opens where and as large as it was left.
     keepWindowGeometry(this, QStringLiteral("colorPicker"));
+}
+
+bool ColorPickerDialog::eventFilter(QObject* watched, QEvent* event)
+{
+    if (event->type() == QEvent::MouseButtonDblClick &&
+        static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+        const auto recent = std::find(m_recentButtons.begin(), m_recentButtons.end(), watched);
+        if (recent != m_recentButtons.end() && (*recent)->isEnabled()) {
+            // The click before it took the color.
+            accept();
+            return true;
+        }
+    }
+    return QDialog::eventFilter(watched, event);
 }
 
 std::optional<uint16_t> ColorPickerDialog::getColor(uint16_t initialRgb565,

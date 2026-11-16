@@ -69,6 +69,10 @@ public:
     [[nodiscard]] static std::vector<uint16_t> recentColors();
     static void rememberRecentColor(uint16_t rgb565);
 
+protected:
+    // A double click on a recent color takes it and closes the picker.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     void setFromRgb(edit::Rgb888 color);
     void setFromHsv(edit::Hsv hsv);
