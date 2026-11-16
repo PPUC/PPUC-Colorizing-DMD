@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -27,7 +28,18 @@ struct ProposedPicture {
     std::string label;
 };
 
-// A field of a plugin's settings form (EditSettings).
+// A picture of a form's image field (ShowLiveForm).
+struct FormImage {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    // Each pixel drawn as a square of this size.
+    uint32_t scale = 1;
+    // RGB565, row-major.
+    std::vector<uint16_t> pixels;
+    std::string caption;
+};
+
+// A field of a plugin's settings form (EditSettings, ShowForm, ShowLiveForm).
 struct SettingField {
     enum class Kind {
         Text,
@@ -40,6 +52,8 @@ struct SettingField {
         Note,
         // A checkbox shown unchecked, which has to be checked to accept the form.
         Consent,
+        // A row of pictures, without a value (live forms only).
+        Image,
     };
     std::string key;
     std::string label;
@@ -48,7 +62,29 @@ struct SettingField {
     // Choice: the values and their labels; File: the name filters, each as value and label.
     std::vector<std::pair<std::string, std::string>> choices;
     std::string help;
+    // How it starts in a live form.
+    bool enabled = true;
+    bool visible = true;
+    // Image: the pictures, left to right.
+    std::vector<FormImage> images;
 };
+
+// A change of a field of a live form (SetFormField): what is set.
+struct FormFieldUpdate {
+    std::optional<bool> enabled;
+    std::optional<bool> visible;
+    std::optional<std::string> value;
+    std::optional<std::string> label;
+    std::optional<std::vector<std::pair<std::string, std::string>>> choices;
+    std::optional<std::string> help;
+    std::optional<std::vector<FormImage>> images;
+};
+
+// How the author closed a live form: cancelled, accepted, or kFormButton plus the index of
+// the extra button.
+constexpr int kFormCancelled = 0;
+constexpr int kFormAccepted = 1;
+constexpr int kFormButton = 2;
 
 // What the editor answers plugins through its editor API (plugin-api/ColorizingDMDPlugin.h),
 // which the plugin host serves on the plugin bus. The editor implements it (EditorPlugins);
@@ -103,6 +139,27 @@ public:
                               const std::string& acceptLabel,
                               std::vector<SettingField> fields,
                               std::function<void(bool saved)> done) = 0;
+    // A form that does not block the editor and that the plugin changes while it is open, with
+    // extra buttons that close it as the accept button does. changed runs when the author
+    // changes a field's value; closed when the author closes the form (kForm...), the values
+    // kept as settings unless cancelled. False when the plugin has a form open.
+    virtual bool showLiveForm(const std::string& pluginId,
+                              const std::string& title,
+                              const std::string& acceptLabel,
+                              std::vector<std::string> extraButtons,
+                              std::vector<SettingField> fields,
+                              std::function<void(const std::string& key)> changed,
+                              std::function<void(int result)> closed) = 0;
+    // The value the field of the plugin's live form shows; nothing without the form or a field
+    // with a value.
+    [[nodiscard]] virtual std::optional<std::string> formValue(const std::string& pluginId,
+                                                               const std::string& key) const = 0;
+    // False, changing nothing, without the form or the field, or for a change it cannot take.
+    virtual bool updateFormField(const std::string& pluginId,
+                                 const std::string& key,
+                                 const FormFieldUpdate& update) = 0;
+    // Closes the live form without telling the plugin; false without one.
+    virtual bool closeForm(const std::string& pluginId) = 0;
 };
 
 // The backend the API answers with from now on; nullptr: no project, no menu. Not owned.

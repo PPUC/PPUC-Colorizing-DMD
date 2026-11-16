@@ -7,6 +7,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 - In a team project, adding, deleting or applying a light effect while a partner changes the
   settings says so, instead of seeming to add the effect and doing nothing.
+- Editor API version 9 for plugins: forms that stay open beside the editor and change as you
+  fill them in, with pictures and extra buttons such as Back; plugins create scenes from frames
+  and set the scene a frame starts.
 
 ## 3.99.38
 

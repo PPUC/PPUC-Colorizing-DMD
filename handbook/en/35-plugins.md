@@ -48,6 +48,13 @@ by one of the same id in your folder.
   its own button (`Start`, for example): a file is chosen with `Choose...` or typed in, and a
   box that confirms something (that you may use a file, for example) is unchecked every time
   the form opens; the button stays off until it is checked.
+- A plugin can also show a form that stays open beside the editor and changes as you fill it
+  in: choosing one entry can enable another field, hide it or give it other choices, and the
+  form can show pictures, such as a preview of what the plugin will make from the current
+  frame. You can work in the editor while it is open, for example select other frames. Besides
+  its own button and `Cancel` such a form can have further buttons, such as `Back` to go to a
+  plugin's previous step; like the plugin's own button they keep what you entered for the next
+  time, `Cancel` does not.
 - What a plugin logs is in `Help -> Plugin Log`.
 - Plugins that are not part of the editor's packages come from their authors; load only those
   you trust, as they run inside the editor.
@@ -79,4 +86,14 @@ Version 7 copies frame settings in an edit batch (`CopyFrameSettings`), the part
 Version 8 creates HD for frames and sprites with the filters of Create HD (`CreateFrameHd`,
 `CreateSpriteHd`), deletes frames (`DeleteFrames`), and names, adds and deletes sections
 (`SetSection`, `DeleteSection`), all in edit batches.
+Version 9 adds live forms (`ShowLiveForm`): a form that does not block the editor, with up to
+four extra buttons, that tells the plugin which field the author changed (`GetFormValue` reads
+the values shown) and that the plugin changes while it is open (`SetFormField`: enable, hide,
+another value, label, choices or help); a new field kind shows a row of pictures (RGB565, drawn
+2 to 8 times their size without smoothing, with captions). `CloseForm` closes it. In edit
+batches, `CreateScene` adds a scene whose frames are made like frames of the project, with the
+settings of the scene window, and `SetFrameScene` sets the scene a frame starts. The current
+frame (`GetCurrentFrame`) is the frame clicked last, normally one of the selected frames; a
+frame unselected with Ctrl+click (Cmd+click on macOS) stays current, so a plugin that takes two
+selected frames as "from" and "to" checks that the current one is among them.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

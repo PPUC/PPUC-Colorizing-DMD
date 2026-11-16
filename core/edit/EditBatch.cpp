@@ -8,6 +8,7 @@
 #include "edit/FrameContentCommand.h"
 #include "edit/FrameSettingsCopy.h"
 #include "edit/SameFrames.h"
+#include "edit/SceneEdits.h"
 #include "edit/StateCommands.h"
 #include "edit/StructureCommand.h"
 #include "edit/UndoHistories.h"
@@ -544,6 +545,63 @@ std::unique_ptr<EditCommand> addFrameLike(ProjectDocument& document,
         batch.add(copyFrameSettings(document, source, {index}, parts).command);
         if (added) {
             *added = index;
+        }
+    } catch (...) {
+        batch.cancel(document);
+        throw;
+    }
+    return batch.finish();
+}
+
+std::unique_ptr<EditCommand> addSceneLike(ProjectDocument& document,
+                                          document::SceneDefinition scene,
+                                          const std::vector<std::size_t>& like,
+                                          std::size_t* first)
+{
+    for (const std::size_t frame : like) {
+        checkFrame(document, frame);
+    }
+    if (scene.baseSceneId) {
+        throw std::invalid_argument("a scene made from frames has frames of its own");
+    }
+    const std::size_t groups = scene.frameGroups == 0 ? 1 : scene.frameGroups;
+    if (like.empty() || like.size() % groups != 0 || like.size() / groups > UINT16_MAX) {
+        throw std::invalid_argument("the frames do not make whole groups of a scene");
+    }
+    scene.frameGroups = static_cast<uint8_t>(groups);
+    scene.frameCount = static_cast<uint16_t>(like.size() / groups);
+    std::vector<FrameSettingsPart> parts;
+    for (const FrameSettingsPart part : kFrameSettingsParts) {
+        if (part != FrameSettingsPart::Trigger && part != FrameSettingsPart::DofEvents &&
+            part != FrameSettingsPart::Duration) {
+            parts.push_back(part);
+        }
+    }
+
+    EditBatch batch("Add scene");
+    try {
+        batch.add(addScene(document, scene));
+        // The new frames lie together, behind the last frame (before the signing notice when
+        // that is the last); a frame given behind them moved back by their number.
+        const std::vector<std::size_t> added = sceneFrames(document, scene.sceneId);
+        const std::size_t start = added.front();
+        for (const std::size_t index : added) {
+            const document::SceneFrameRef& ref = *document.sceneFrame(index);
+            const std::size_t given =
+                like[(static_cast<std::size_t>(ref.group) - 1) * scene.frameCount +
+                     ref.frameIndex];
+            const std::size_t source = given >= start ? given + added.size() : given;
+            // The pictures first: an HD picture gives the new frame HD, which the settings of
+            // that plane need.
+            for (const Resolution plane : colorizedPlanes(document, source)) {
+                batch.add(setFramePicture(document, index, plane,
+                                          document.colorizedFrame(source, plane).pixels.toVector(),
+                                          {}));
+            }
+            batch.add(copyFrameSettings(document, source, {index}, parts).command);
+        }
+        if (first) {
+            *first = start;
         }
     } catch (...) {
         batch.cancel(document);

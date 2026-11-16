@@ -362,6 +362,38 @@ bool EditorPlugins::editSettings(const std::string& pluginId,
                                  std::vector<vpx::SettingField> fields,
                                  std::function<void(bool saved)> done)
 {
+    return openForm(pluginId, title, acceptLabel, {}, std::move(fields), false,
+                    [done = std::move(done)](int result) {
+                        if (done) {
+                            done(result == vpx::kFormAccepted);
+                        }
+                    });
+}
+
+bool EditorPlugins::showLiveForm(const std::string& pluginId,
+                                 const std::string& title,
+                                 const std::string& acceptLabel,
+                                 std::vector<std::string> extraButtons,
+                                 std::vector<vpx::SettingField> fields,
+                                 std::function<void(const std::string& key)> changed,
+                                 std::function<void(int result)> closed)
+{
+    if (!openForm(pluginId, title, acceptLabel, std::move(extraButtons), std::move(fields), true,
+                  std::move(closed))) {
+        return false;
+    }
+    settingsWindow(pluginId)->setChangedAction(std::move(changed));
+    return true;
+}
+
+bool EditorPlugins::openForm(const std::string& pluginId,
+                             const std::string& title,
+                             const std::string& acceptLabel,
+                             std::vector<std::string> extraButtons,
+                             std::vector<vpx::SettingField> fields,
+                             bool live,
+                             std::function<void(int result)> closed)
+{
     if (fields.empty() || settingsWindow(pluginId)) {
         return false;
     }
@@ -373,27 +405,82 @@ bool EditorPlugins::editSettings(const std::string& pluginId,
     }
     auto* dialog = new PluginSettingsDialog(QString::fromStdString(title),
                                             QString::fromStdString(acceptLabel),
-                                            std::move(fields), values, m_window.parent);
+                                            std::move(fields), values, m_window.parent,
+                                            extraButtons);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    m_settings[pluginId] = Settings{dialog, std::move(done)};
+    m_settings[pluginId] = Settings{dialog, live, std::move(closed)};
     QObject::connect(dialog, &QDialog::finished, [this, pluginId](int result) {
         const auto settings = m_settings.find(pluginId);
         if (settings == m_settings.end()) {
             return;
         }
-        const bool saved = result == QDialog::Accepted && settings->second.dialog;
-        if (saved) {
-            for (const auto& [key, value] : settings->second.dialog->values()) {
+        QPointer<PluginSettingsDialog> form = settings->second.dialog;
+        const bool live = settings->second.live;
+        // An extra button keeps the values as the accept button does.
+        if (result != vpx::kFormCancelled && form) {
+            for (const auto& [key, value] : form->values()) {
                 setSetting(pluginId, key, value);
             }
         }
-        std::function<void(bool)> done = std::move(settings->second.done);
+        std::function<void(int)> closed = std::move(settings->second.closed);
         m_settings.erase(settings);
-        if (done) {
-            done(saved);
+        if (live) {
+            m_closingForms[pluginId] = form;
+        }
+        if (closed) {
+            closed(result);
+        }
+        if (live) {
+            m_closingForms.erase(pluginId);
         }
     });
-    dialog->open();
+    if (live) {
+        // Beside the editor: the author can look at frames and change the selection meanwhile.
+        dialog->setModal(false);
+        dialog->show();
+    } else {
+        dialog->open();
+    }
+    return true;
+}
+
+std::optional<std::string> EditorPlugins::formValue(const std::string& pluginId,
+                                                    const std::string& key) const
+{
+    const PluginSettingsDialog* form = nullptr;
+    if (const auto settings = m_settings.find(pluginId);
+        settings != m_settings.end() && settings->second.live) {
+        form = settings->second.dialog;
+    } else if (const auto closing = m_closingForms.find(pluginId);
+               closing != m_closingForms.end()) {
+        form = closing->second;
+    }
+    return form ? form->value(key) : std::nullopt;
+}
+
+bool EditorPlugins::updateFormField(const std::string& pluginId,
+                                    const std::string& key,
+                                    const vpx::FormFieldUpdate& update)
+{
+    const auto settings = m_settings.find(pluginId);
+    if (settings == m_settings.end() || !settings->second.live || !settings->second.dialog) {
+        return false;
+    }
+    return settings->second.dialog->update(key, update);
+}
+
+bool EditorPlugins::closeForm(const std::string& pluginId)
+{
+    const auto settings = m_settings.find(pluginId);
+    if (settings == m_settings.end() || !settings->second.live) {
+        return false;
+    }
+    // Forgotten first, so that closing tells the plugin nothing.
+    QPointer<PluginSettingsDialog> dialog = settings->second.dialog;
+    m_settings.erase(settings);
+    if (dialog) {
+        dialog->close();
+    }
     return true;
 }
 
@@ -426,6 +513,7 @@ void EditorPlugins::closeWindows(const std::string& pluginId)
             dialog->close();
         }
     }
+    m_closingForms.erase(pluginId);
 }
 
 }  // namespace colorizing::app

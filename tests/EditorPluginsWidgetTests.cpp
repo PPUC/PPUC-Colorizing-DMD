@@ -10,6 +10,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QPushButton>
@@ -19,6 +20,7 @@
 #include "EditorPlugins.h"
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
+#include "document/Scene.h"
 #include "edit/EditBatch.h"
 #include "edit/UndoHistories.h"
 #include "vpx/EditorApi.h"
@@ -519,6 +521,314 @@ void testPictures()
     }
     expect(answers.reviews == 2, "is closed without calling back into a plugin that is gone");
 }
+
+// What a plugin with a live form sees: the fields the author changed, and how the form closed.
+struct LiveForm {
+    const ColorizingDMDEditorAPI* api = nullptr;
+    uint32_t plugin = 0;
+    std::vector<std::string> changed;
+    std::vector<uint32_t> closed;
+    // The value of "transition" while the plugin hears that the form closed.
+    std::string closingValue;
+    // Opens the form again when it closes with this result (a wizard's Back).
+    uint32_t reopenOn = CDMDPI_NONE;
+    const ColorizingDMDFormField* fields = nullptr;
+    uint32_t fieldCount = 0;
+};
+
+void MSGPIAPI onFormChanged(void* userData, const char* key);
+void MSGPIAPI onFormClosed(void* userData, uint32_t result);
+
+int openLiveForm(LiveForm& form)
+{
+    const char* const buttons[] = {"Back"};
+    return form.api->ShowLiveForm(form.plugin, "Transition", "Apply", buttons, 1, form.fields,
+                                  form.fieldCount, &onFormChanged, &onFormClosed, &form);
+}
+
+void MSGPIAPI onFormChanged(void* userData, const char* key)
+{
+    auto* form = static_cast<LiveForm*>(userData);
+    form->changed.emplace_back(key);
+    if (std::string(key) != "transition") {
+        return;
+    }
+    // A slide has a direction and at most 5 frames.
+    char value[16] = {};
+    if (form->api->GetFormValue(form->plugin, "transition", value, sizeof(value)) == 6 &&
+        std::string(value) == "slide") {
+        ColorizingDMDFormFieldUpdate option{};
+        option.changes = CDMDPI_FORM_SET_ENABLED;
+        option.enabled = 1;
+        form->api->SetFormField(form->plugin, "option", &option);
+        ColorizingDMDFormFieldUpdate frames{};
+        frames.changes = CDMDPI_FORM_SET_CHOICES | CDMDPI_FORM_SET_HELP;
+        frames.choices = "1\n2\n3\n4\n5";
+        frames.help = "At most 5";
+        form->api->SetFormField(form->plugin, "frames", &frames);
+    }
+}
+
+void MSGPIAPI onFormClosed(void* userData, uint32_t result)
+{
+    auto* form = static_cast<LiveForm*>(userData);
+    form->closed.push_back(result);
+    char value[16] = {};
+    form->api->GetFormValue(form->plugin, "transition", value, sizeof(value));
+    form->closingValue = value;
+    if (result == form->reopenOn) {
+        form->reopenOn = CDMDPI_NONE;
+        openLiveForm(*form);
+    }
+}
+
+// Version 9: a form the plugin changes while it is open, with an extra button and pictures.
+void testLiveForm()
+{
+    document::ProjectDocument document =
+        document::ProjectDocument::createEmpty({"live", 2, false, 16});
+    QMenu menu;
+    app::EditorPlugins::Window window;
+    window.menu = &menu;
+    window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [](std::unique_ptr<edit::EditCommand>) { return true; };
+    window.currentFrame = []() { return std::optional<std::size_t>(0); };
+    window.selectedFrames = []() { return std::vector<std::size_t>{0}; };
+    app::EditorPlugins plugins(std::move(window));
+    const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
+
+    std::vector<uint16_t> pixels(4 * 2, 0xf800);
+    const ColorizingDMDFormImage pictures[] = {
+        {pixels.data(), 4, 2, 3, "Start"},
+        {pixels.data(), 4, 2, 0, nullptr},
+    };
+    const ColorizingDMDFormField fields[] = {
+        {"transition", "Transition", CDMDPI_FIELD_CHOICE, "dissolve", "dissolve=Dissolve\nslide",
+         nullptr, 0, nullptr, 0},
+        {"option", "Direction", CDMDPI_FIELD_CHOICE, nullptr, "up\ndown", nullptr,
+         CDMDPI_FORM_DISABLED, nullptr, 0},
+        {"frames", "Number of frames", CDMDPI_FIELD_CHOICE, "3", "1\n2\n3", nullptr, 0, nullptr,
+         0},
+        {"preview", nullptr, CDMDPI_FIELD_IMAGE, nullptr, nullptr, nullptr, 0, pictures, 1},
+        {"hint", "A hint", CDMDPI_FIELD_NOTE, nullptr, nullptr, nullptr, CDMDPI_FORM_HIDDEN,
+         nullptr, 0},
+    };
+    LiveForm form;
+    form.api = api;
+    form.plugin = 7;
+    form.fields = fields;
+    form.fieldCount = 5;
+
+    // Refused: unknown flags, two fields of one key, a picture too big, too many buttons, an
+    // image in a form of version 4.
+    ColorizingDMDFormField wrong[2] = {fields[0], fields[0]};
+    expect(api->ShowLiveForm(7, "T", "Apply", nullptr, 0, wrong, 2, nullptr, &onFormClosed,
+                             &form) == 0,
+           "two fields of one key are refused");
+    wrong[0].flags = 0x4;
+    expect(api->ShowLiveForm(7, "T", "Apply", nullptr, 0, wrong, 1, nullptr, &onFormClosed,
+                             &form) == 0,
+           "an unknown flag is refused");
+    const ColorizingDMDFormImage huge{pixels.data(), 2000, 2, 1, nullptr};
+    wrong[0] = fields[3];
+    wrong[0].images = &huge;
+    expect(api->ShowLiveForm(7, "T", "Apply", nullptr, 0, wrong, 1, nullptr, &onFormClosed,
+                             &form) == 0,
+           "a picture out of range is refused");
+    const char* const tooMany[] = {"1", "2", "3", "4", "5"};
+    expect(api->ShowLiveForm(7, "T", "Apply", tooMany, 5, fields, 5, nullptr, &onFormClosed,
+                             &form) == 0,
+           "more than four extra buttons are refused");
+    expect(api->ShowLiveForm(7, "T", "Apply", nullptr, 0, fields, 5, nullptr, nullptr, &form) ==
+               0,
+           "a form nobody hears closing is refused");
+    const ColorizingDMDSettingField image{"preview", "Preview", CDMDPI_FIELD_IMAGE, nullptr,
+                                          nullptr, nullptr};
+    expect(api->ShowForm(7, "T", "Apply", &image, 1, &onSettings, nullptr) == 0,
+           "ShowForm takes no image");
+
+    const ColorizingDMDSettingField text{"name", "Name", CDMDPI_FIELD_TEXT, nullptr, nullptr,
+                                         nullptr};
+    expect(openLiveForm(form) == 1 && openLiveForm(form) == 0 &&
+               api->ShowForm(7, "T", "Apply", &text, 1, &onSettings, nullptr) == 0,
+           "the form opens, once, and no other form meanwhile");
+    app::PluginSettingsDialog* dialog = plugins.settingsWindow("");
+    expect(dialog && !dialog->isModal() && dialog->extraButton(0) &&
+               dialog->extraButton(0)->text() == "Back" && !dialog->row("option")->isEnabled() &&
+               dialog->row("hint")->isHidden() && !dialog->row("frames")->isHidden(),
+           "beside the editor, with Back, a disabled and a hidden field");
+    const QList<QLabel*> shown = dialog->row("preview")->findChildren<QLabel*>();
+    expect(shown.size() == 2 && shown[0]->pixmap().size() == QSize(12, 6) &&
+               shown[1]->text() == "Start",
+           "a picture three times its size, with its caption");
+
+    // The author chooses Slide: the plugin enables the direction and gives five frames.
+    auto* transition = qobject_cast<QComboBox*>(dialog->input("transition"));
+    auto* frames = qobject_cast<QComboBox*>(dialog->input("frames"));
+    transition->setCurrentIndex(1);
+    Q_EMIT transition->activated(1);
+    expect(form.changed == std::vector<std::string>{"transition"} &&
+               dialog->row("option")->isEnabled() && frames->count() == 5 &&
+               frames->currentData().toString() == "3" &&
+               dialog->helpLabel("frames")->text() == "At most 5" &&
+               !dialog->helpLabel("frames")->isHidden(),
+           "the plugin changes the form as the author fills it in; the value stays in the list");
+
+    ColorizingDMDFormFieldUpdate update{};
+    update.changes = CDMDPI_FORM_SET_CHOICES;
+    update.choices = "1\n2";
+    expect(api->SetFormField(7, "frames", &update) == 1 &&
+               frames->currentData().toString() == "1" && form.changed.size() == 1,
+           "a value no longer in the list becomes the first, without telling the plugin");
+    update.changes = CDMDPI_FORM_SET_VALUE;
+    update.value = "4";
+    expect(api->SetFormField(7, "frames", &update) == 0, "a value not in the list is refused");
+    update.value = "2";
+    expect(api->SetFormField(7, "frames", &update) == 1 &&
+               frames->currentData().toString() == "2",
+           "one in the list is set");
+    update.changes = CDMDPI_FORM_SET_VALUE;
+    expect(api->SetFormField(7, "preview", &update) == 0 &&
+               api->SetFormField(7, "missing", &update) == 0,
+           "a picture has no value; a field that does not exist is refused");
+    update.changes = 0x80;
+    expect(api->SetFormField(7, "frames", &update) == 0, "an unknown change is refused");
+    update = {};
+    update.changes = CDMDPI_FORM_SET_IMAGES | CDMDPI_FORM_SET_LABEL;
+    update.images = pictures;
+    update.imageCount = 2;
+    update.label = "Preview";
+    expect(api->SetFormField(7, "preview", &update) == 1 &&
+               dialog->row("preview")->findChildren<QLabel*>().size() == 3 &&
+               dialog->rowLabel("preview")->text() == "Preview",
+           "new pictures and a label");
+    update = {};
+    update.changes = CDMDPI_FORM_SET_VISIBLE | CDMDPI_FORM_SET_LABEL;
+    update.visible = 1;
+    update.label = "Another hint";
+    expect(api->SetFormField(7, "hint", &update) == 1 && !dialog->row("hint")->isHidden() &&
+               qobject_cast<QLabel*>(dialog->row("hint"))->text() == "Another hint",
+           "a hidden note is shown with another text");
+
+    char value[16] = {};
+    expect(api->GetFormValue(7, "transition", nullptr, 0) == 6 &&
+               api->GetFormValue(7, "frames", value, sizeof(value)) == 2 &&
+               std::string(value) == "2" && api->GetFormValue(7, "preview", value, 16) == 0,
+           "the values shown, not saved yet");
+    expect(plugins.setting("", "transition").empty(), "nothing is kept before it closes");
+
+    // Back closes the form, keeps the values, and the plugin opens the previous step.
+    form.reopenOn = CDMDPI_FORM_BUTTON;
+    dialog->extraButton(0)->click();
+    expect(form.closed == std::vector<uint32_t>{CDMDPI_FORM_BUTTON} &&
+               form.closingValue == "slide" && plugins.setting("", "transition") == "slide" &&
+               plugins.settingsWindow("") && plugins.settingsWindow("") != dialog,
+           "Back: the values are read and kept, and the next form opens from the callback");
+    dialog = plugins.settingsWindow("");
+    expect(api->GetFormValue(7, "transition", value, sizeof(value)) == 6 &&
+               std::string(value) == "slide",
+           "the new form shows the kept values");
+    qobject_cast<QComboBox*>(dialog->input("frames"))->setCurrentIndex(0);
+    dialog->reject();
+    expect(form.closed.back() == CDMDPI_FORM_CANCELLED && plugins.setting("", "frames") == "2" &&
+               api->GetFormValue(7, "frames", value, sizeof(value)) == 0,
+           "Cancel keeps nothing; the form is gone");
+    expect(openLiveForm(form) == 1 && api->CloseForm(7) == 1 && api->CloseForm(7) == 0 &&
+               form.closed.size() == 2 && !plugins.settingsWindow(""),
+           "the plugin closes its form without hearing of it");
+    expect(openLiveForm(form) == 1, "a form for Apply");
+    plugins.settingsWindow("")->accept();
+    expect(form.closed.back() == CDMDPI_FORM_ACCEPTED, "Apply");
+}
+
+// Version 9: a scene made from frames, and the frame that starts it.
+void testScenes()
+{
+    document::ProjectDocument document =
+        document::ProjectDocument::createEmpty({"scenes", 3, false, 16});
+    document.setColorizedPixel(2, render::Resolution::Sd, 5, 2, 0xf800);
+    edit::UndoHistories histories;
+    std::vector<std::string> recorded;
+    QMenu menu;
+    app::EditorPlugins::Window window;
+    window.menu = &menu;
+    window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
+        const auto* batch = dynamic_cast<const edit::EditBatchCommand*>(command.get());
+        recorded.push_back(batch ? batch->name() : std::string());
+        histories.push(edit::structureHistoryKey(), std::move(command));
+        return true;
+    };
+    window.currentFrame = []() { return std::optional<std::size_t>(0); };
+    window.selectedFrames = []() { return std::vector<std::size_t>{0}; };
+    app::EditorPlugins plugins(std::move(window));
+    const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
+    const uint32_t plugin = 7;
+
+    ColorizingDMDScene scene{};
+    scene.sceneId = CDMDPI_NONE;
+    scene.name = "Wipe";
+    scene.durationMs = 40;
+    scene.finish = CDMDPI_SCENE_BLACK;
+    scene.flags = CDMDPI_SCENE_INTERRUPTABLE | CDMDPI_SCENE_BACK_AND_FORTH;
+    const uint32_t from[] = {1, 2};
+    uint32_t sceneId = 0;
+    uint32_t first = 0;
+    expect(api->CreateScene(plugin, &scene, from, 2, &sceneId, &first) == 0,
+           "no scene without a batch");
+    expect(api->BeginEdit(plugin, "Transition") == 1, "a batch");
+    ColorizingDMDScene wrong = scene;
+    wrong.flags = 0x100;
+    expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0,
+           "an unknown flag is refused");
+    wrong = scene;
+    wrong.groups = 3;
+    expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0 &&
+               document.frameCount() == 3,
+           "frames that do not fill the groups are refused");
+    expect(api->CreateScene(plugin, &scene, from, 2, &sceneId, &first) == 1 &&
+               sceneId == document::kFirstSceneId && first == 3 && document.frameCount() == 5,
+           "the scene gets the lowest free ID and its frames behind the last");
+    const document::SceneDefinition* made =
+        document.colorizationSettings() ? document.colorizationSettings()->scene(50000)
+                                        : nullptr;
+    expect(made && made->name == "Wipe" && made->frameCount == 2 && made->durationMs == 40 &&
+               made->interruptable && !made->immediateStart &&
+               made->options == (document::kSceneBlackWhenFinished |
+                                 document::kSceneBackAndForth) &&
+               document.colorizedPixel(4, render::Resolution::Sd, 5, 2) == 0xf800,
+           "with the settings given, its frames made like the frames given");
+    wrong = scene;
+    wrong.sceneId = 50000;
+    expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0,
+           "an ID taken is refused");
+
+    expect(api->SetFrameScene(plugin, 0, sceneId) == 1 &&
+               document.sceneTriggerId(0) == document::kFirstSceneId,
+           "a frame starts the scene");
+    ColorizingDMDFrameInfo info{};
+    expect(api->GetFrameInfo(0, &info) == 1 && info.triggerId == sceneId,
+           "as the frame's summary says");
+    expect(api->SetFrameScene(plugin, 3, sceneId) == 0 &&
+               api->SetFrameScene(plugin, 1, 50001) == 0 &&
+               api->SetFrameScene(plugin, 9, sceneId) == 0,
+           "not a frame of a scene, not a scene the project lacks, not a frame that is not there");
+    expect(api->EndEdit(plugin, 1) == 1 && recorded == std::vector<std::string>{"Transition"},
+           "one step");
+    expect(histories.undo(edit::structureHistoryKey(), document) && document.frameCount() == 3 &&
+               !document.colorizationSettings() &&
+               document.sceneTriggerId(0) == document::kNoTriggerId,
+           "one undo takes the scene, its frames and the trigger back");
+    expect(api->BeginEdit(plugin, "Again") == 1 &&
+               api->CreateScene(plugin, &scene, from, 2, &sceneId, nullptr) == 1 &&
+               api->SetFrameScene(plugin, 0, sceneId) == 1 &&
+               api->SetFrameScene(plugin, 0, CDMDPI_NONE) == 1 &&
+               document.sceneTriggerId(0) == document::kNoTriggerId &&
+               api->EndEdit(plugin, 1) == 1,
+           "CDMDPI_NONE clears the trigger");
+}
 #endif
 
 }  // namespace
@@ -567,7 +877,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 8, "the API table is version 8");
+    expect(api && api->version == 9, "the API table is version 9");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&
@@ -685,6 +995,8 @@ void runEditorPluginsWidgetTests()
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     testPictures();
     testIdentification();
+    testLiveForm();
+    testScenes();
 #endif
     QSettings().remove(QStringLiteral("plugins"));
     QCoreApplication::setOrganizationName(QString());

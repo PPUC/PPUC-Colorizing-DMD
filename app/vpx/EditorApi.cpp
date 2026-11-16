@@ -5,9 +5,12 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
+#include <functional>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -17,6 +20,7 @@
 #include "edit/EditBatch.h"
 #include "edit/FrameMove.h"
 #include "edit/FrameSettingsCopy.h"
+#include "edit/SceneEdits.h"
 #include "edit/Sections.h"
 #include "edit/StructureCommand.h"
 #include "runtime/RuntimePreview.h"
@@ -714,6 +718,62 @@ std::vector<std::pair<std::string, std::string>> choicesOf(const char* text)
     return choices;
 }
 
+// A field of a form, checked: nothing for a field the form cannot show. live: a field of
+// ShowLiveForm, which may be an image and give a note or an image a key.
+std::optional<SettingField> formField(const char* key, const char* label, uint32_t kind,
+                                      const char* defaultValue, const char* choices,
+                                      const char* help, bool live)
+{
+    if (kind > (live ? CDMDPI_FIELD_IMAGE : CDMDPI_FIELD_CONSENT)) {
+        return std::nullopt;
+    }
+    const bool note = kind == CDMDPI_FIELD_NOTE;
+    const bool image = kind == CDMDPI_FIELD_IMAGE;
+    const bool keyed = key && *key;
+    if (!note && !image && !keyed) {
+        return std::nullopt;
+    }
+    if (note && (!label || !*label)) {
+        return std::nullopt;
+    }
+    SettingField field;
+    field.key = (note || image) && !live ? "" : (keyed ? key : "");
+    field.label = label ? label : (image ? "" : key);
+    field.kind = static_cast<SettingField::Kind>(kind);
+    field.defaultValue = defaultValue ? defaultValue : "";
+    field.choices = choicesOf(choices);
+    field.help = help ? help : "";
+    if (field.kind == SettingField::Kind::Choice && field.choices.empty()) {
+        return std::nullopt;
+    }
+    return field;
+}
+
+// The pictures of an image field, checked: nothing for a picture out of range.
+std::optional<std::vector<FormImage>> formImages(const ColorizingDMDFormImage* images,
+                                                 uint32_t count)
+{
+    if (count > CDMDPI_FORM_MAX_IMAGES || (count > 0 && !images)) {
+        return std::nullopt;
+    }
+    std::vector<FormImage> pictures;
+    for (uint32_t index = 0; index < count; ++index) {
+        const ColorizingDMDFormImage& image = images[index];
+        if (!image.pixels || image.width < 1 || image.width > 1024 || image.height < 1 ||
+            image.height > 512 || image.scale > 8) {
+            return std::nullopt;
+        }
+        FormImage picture;
+        picture.width = image.width;
+        picture.height = image.height;
+        picture.scale = image.scale == 0 ? 1 : image.scale;
+        picture.pixels.assign(image.pixels, image.pixels + std::size_t{image.width} * image.height);
+        picture.caption = image.caption ? image.caption : "";
+        pictures.push_back(std::move(picture));
+    }
+    return pictures;
+}
+
 int MSGPIAPI showForm(uint32_t endpointId, const char* title, const char* acceptLabel,
                       const ColorizingDMDSettingField* fields, uint32_t count,
                       cdmdpi_settings_callback callback, void* userData)
@@ -724,27 +784,13 @@ int MSGPIAPI showForm(uint32_t endpointId, const char* title, const char* accept
     std::vector<SettingField> form;
     for (uint32_t index = 0; index < count; ++index) {
         const ColorizingDMDSettingField& item = fields[index];
-        if (item.kind > CDMDPI_FIELD_CONSENT) {
+        std::optional<SettingField> field = formField(item.key, item.label, item.kind,
+                                                      item.defaultValue, item.choices, item.help,
+                                                      false);
+        if (!field) {
             return 0;
         }
-        const bool note = item.kind == CDMDPI_FIELD_NOTE;
-        if (!note && (!item.key || !*item.key)) {
-            return 0;
-        }
-        if (note && (!item.label || !*item.label)) {
-            return 0;
-        }
-        SettingField field;
-        field.key = note ? "" : item.key;
-        field.label = item.label ? item.label : item.key;
-        field.kind = static_cast<SettingField::Kind>(item.kind);
-        field.defaultValue = item.defaultValue ? item.defaultValue : "";
-        field.choices = choicesOf(item.choices);
-        field.help = item.help ? item.help : "";
-        if (field.kind == SettingField::Kind::Choice && field.choices.empty()) {
-            return 0;
-        }
-        form.push_back(std::move(field));
+        form.push_back(std::move(*field));
     }
     const bool opened = g_backend->editSettings(
         pluginIdOf(endpointId), title ? title : "", acceptLabel ? acceptLabel : "",
@@ -1048,8 +1094,233 @@ int MSGPIAPI deleteSection(uint32_t endpointId, uint32_t section)
     });
 }
 
+// ---- Live forms (version 9) ------------------------------------------------------------------
+
+int MSGPIAPI showLiveForm(uint32_t endpointId, const char* title, const char* acceptLabel,
+                          const char* const* extraButtons, uint32_t extraButtonCount,
+                          const ColorizingDMDFormField* fields, uint32_t count,
+                          cdmdpi_form_changed_callback changed,
+                          cdmdpi_form_closed_callback closed, void* userData)
+{
+    if (!g_backend || !fields || count == 0 || !closed ||
+        extraButtonCount > CDMDPI_FORM_MAX_BUTTONS || (extraButtonCount > 0 && !extraButtons)) {
+        return 0;
+    }
+    std::vector<std::string> buttons;
+    for (uint32_t index = 0; index < extraButtonCount; ++index) {
+        if (!extraButtons[index] || !*extraButtons[index]) {
+            return 0;
+        }
+        buttons.emplace_back(extraButtons[index]);
+    }
+    std::vector<SettingField> form;
+    std::set<std::string> keys;
+    for (uint32_t index = 0; index < count; ++index) {
+        const ColorizingDMDFormField& item = fields[index];
+        std::optional<SettingField> field = formField(item.key, item.label, item.kind,
+                                                      item.defaultValue, item.choices, item.help,
+                                                      true);
+        if (!field || (item.flags & ~uint32_t{CDMDPI_FORM_DISABLED | CDMDPI_FORM_HIDDEN})) {
+            return 0;
+        }
+        // SetFormField finds a field by its key.
+        if (!field->key.empty() && !keys.insert(field->key).second) {
+            return 0;
+        }
+        if (item.kind == CDMDPI_FIELD_IMAGE) {
+            std::optional<std::vector<FormImage>> images =
+                formImages(item.images, item.imageCount);
+            if (!images) {
+                return 0;
+            }
+            field->images = std::move(*images);
+        }
+        field->enabled = (item.flags & CDMDPI_FORM_DISABLED) == 0;
+        field->visible = (item.flags & CDMDPI_FORM_HIDDEN) == 0;
+        form.push_back(std::move(*field));
+    }
+    std::function<void(const std::string&)> onChanged;
+    if (changed) {
+        onChanged = [changed, userData](const std::string& key) { changed(userData, key.c_str()); };
+    }
+    const bool opened = g_backend->showLiveForm(
+        pluginIdOf(endpointId), title ? title : "", acceptLabel ? acceptLabel : "",
+        std::move(buttons), std::move(form), std::move(onChanged),
+        [closed, userData](int result) { closed(userData, static_cast<uint32_t>(result)); });
+    return opened ? 1 : 0;
+}
+
+uint32_t MSGPIAPI getFormValue(uint32_t endpointId, const char* key, char* value,
+                               uint32_t capacity)
+{
+    if (!g_backend || !key) {
+        return 0;
+    }
+    const std::optional<std::string> text = g_backend->formValue(pluginIdOf(endpointId), key);
+    if (!text) {
+        return 0;
+    }
+    const uint32_t size = static_cast<uint32_t>(text->size() + 1);
+    if (value && capacity >= size) {
+        std::memcpy(value, text->c_str(), size);
+    }
+    return size;
+}
+
+int MSGPIAPI setFormField(uint32_t endpointId, const char* key,
+                          const ColorizingDMDFormFieldUpdate* update)
+{
+    constexpr uint32_t kAllChanges = CDMDPI_FORM_SET_ENABLED | CDMDPI_FORM_SET_VISIBLE |
+                                     CDMDPI_FORM_SET_VALUE | CDMDPI_FORM_SET_LABEL |
+                                     CDMDPI_FORM_SET_CHOICES | CDMDPI_FORM_SET_HELP |
+                                     CDMDPI_FORM_SET_IMAGES;
+    if (!g_backend || !key || !*key || !update || (update->changes & ~kAllChanges)) {
+        return 0;
+    }
+    const uint32_t changes = update->changes;
+    FormFieldUpdate change;
+    if (changes & CDMDPI_FORM_SET_ENABLED) {
+        if (update->enabled > 1) {
+            return 0;
+        }
+        change.enabled = update->enabled == 1;
+    }
+    if (changes & CDMDPI_FORM_SET_VISIBLE) {
+        if (update->visible > 1) {
+            return 0;
+        }
+        change.visible = update->visible == 1;
+    }
+    if (changes & CDMDPI_FORM_SET_VALUE) {
+        change.value = std::string(update->value ? update->value : "");
+    }
+    if (changes & CDMDPI_FORM_SET_LABEL) {
+        change.label = std::string(update->label ? update->label : "");
+    }
+    if (changes & CDMDPI_FORM_SET_CHOICES) {
+        change.choices = choicesOf(update->choices);
+    }
+    if (changes & CDMDPI_FORM_SET_HELP) {
+        change.help = std::string(update->help ? update->help : "");
+    }
+    if (changes & CDMDPI_FORM_SET_IMAGES) {
+        change.images = formImages(update->images, update->imageCount);
+        if (!change.images) {
+            return 0;
+        }
+    }
+    return g_backend->updateFormField(pluginIdOf(endpointId), key, change) ? 1 : 0;
+}
+
+int MSGPIAPI closeForm(uint32_t endpointId)
+{
+    return g_backend && g_backend->closeForm(pluginIdOf(endpointId)) ? 1 : 0;
+}
+
+// ---- Scenes (version 9) ----------------------------------------------------------------------
+
+int MSGPIAPI createScene(uint32_t endpointId, const ColorizingDMDScene* scene,
+                         const uint32_t* frames, uint32_t count, uint32_t* sceneId,
+                         uint32_t* firstFrame)
+{
+    constexpr uint32_t kAllFlags = CDMDPI_SCENE_INTERRUPTABLE | CDMDPI_SCENE_IMMEDIATE_START |
+                                   CDMDPI_SCENE_RANDOM_GROUP | CDMDPI_SCENE_BACKGROUND |
+                                   CDMDPI_SCENE_ONLY_DYNAMIC | CDMDPI_SCENE_REPLACE_BLACK |
+                                   CDMDPI_SCENE_RESUME | CDMDPI_SCENE_BACK_AND_FORTH;
+    if (!scene || !frames || !count || scene->groups > 255 || scene->durationMs > 65535 ||
+        scene->repeat > 255 || scene->finish > CDMDPI_SCENE_PREVIOUS ||
+        scene->autoStartSeconds > 255 || (scene->flags & ~kAllFlags) ||
+        (scene->sceneId != CDMDPI_NONE && scene->sceneId > 65535)) {
+        return 0;
+    }
+    document::SceneDefinition definition;
+    definition.frameGroups = static_cast<uint8_t>(scene->groups == 0 ? 1 : scene->groups);
+    definition.durationMs = static_cast<uint16_t>(scene->durationMs == 0 ? 33 : scene->durationMs);
+    definition.repeat = static_cast<uint8_t>(scene->repeat);
+    definition.autoStartSeconds = static_cast<uint8_t>(scene->autoStartSeconds);
+    definition.name = scene->name ? scene->name : "";
+    const uint32_t flags = scene->flags;
+    definition.interruptable = (flags & CDMDPI_SCENE_INTERRUPTABLE) != 0;
+    definition.immediateStart = (flags & CDMDPI_SCENE_IMMEDIATE_START) != 0;
+    definition.random = (flags & CDMDPI_SCENE_RANDOM_GROUP) != 0;
+    uint8_t options = 0;
+    if (scene->finish == CDMDPI_SCENE_BLACK) {
+        options |= document::kSceneBlackWhenFinished;
+    } else if (scene->finish == CDMDPI_SCENE_PREVIOUS) {
+        options |= document::kSceneShowPreviousFrameWhenFinished;
+    }
+    if (flags & CDMDPI_SCENE_BACKGROUND) {
+        options |= document::kSceneAsBackground;
+    }
+    if (flags & CDMDPI_SCENE_ONLY_DYNAMIC) {
+        options |= document::kSceneOnlyDynamicContent;
+    }
+    if (flags & CDMDPI_SCENE_RESUME) {
+        options |= document::kSceneResumeIfRetriggered;
+    }
+    if (flags & CDMDPI_SCENE_REPLACE_BLACK) {
+        options |= document::kSceneReplaceDynamicBlack;
+    }
+    if (flags & CDMDPI_SCENE_BACK_AND_FORTH) {
+        options |= document::kSceneBackAndForth;
+    }
+    definition.options = options;
+    const std::vector<std::size_t> like = framesOf(frames, count);
+    std::size_t first = 0;
+    const int done = change(endpointId, [&](document::ProjectDocument& document) {
+        if (scene->sceneId == CDMDPI_NONE) {
+            const std::optional<uint16_t> free = edit::nextFreeSceneId(document);
+            if (!free) {
+                throw std::invalid_argument("every scene ID is taken");
+            }
+            definition.sceneId = *free;
+        } else {
+            definition.sceneId = static_cast<uint16_t>(scene->sceneId);
+        }
+        return edit::addSceneLike(document, definition, like, &first);
+    });
+    if (done) {
+        if (sceneId) {
+            *sceneId = definition.sceneId;
+        }
+        if (firstFrame) {
+            *firstFrame = static_cast<uint32_t>(first);
+        }
+    }
+    return done;
+}
+
+int MSGPIAPI setFrameScene(uint32_t endpointId, uint32_t frame, uint32_t scene)
+{
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        if (frame >= document.frameCount()) {
+            throw std::out_of_range("frame index out of range");
+        }
+        if (document.sceneFrame(frame)) {
+            throw std::invalid_argument("a frame of a scene starts no scene");
+        }
+        uint32_t triggerId = document::kNoTriggerId;
+        if (scene != CDMDPI_NONE) {
+            const std::optional<document::ColorizationSettings>& settings =
+                document.colorizationSettings();
+            if (scene > 65535 || !settings || !settings->scene(static_cast<uint16_t>(scene))) {
+                throw std::out_of_range("no such scene");
+            }
+            triggerId = scene;
+        }
+        const uint32_t before = document.sceneTriggerId(frame);
+        if (before == triggerId) {
+            return std::unique_ptr<edit::EditCommand>();
+        }
+        auto command = std::make_unique<edit::FrameAttributeEditCommand>(
+            frame, edit::FrameAttribute::SceneTriggerId, before, triggerId);
+        command->apply(document);
+        return std::unique_ptr<edit::EditCommand>(std::move(command));
+    });
+}
+
 const ColorizingDMDEditorAPI kApi{
-    8,
+    9,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -1101,6 +1372,12 @@ const ColorizingDMDEditorAPI kApi{
     &deleteFrames,
     &setSection,
     &deleteSection,
+    &showLiveForm,
+    &getFormValue,
+    &setFormField,
+    &closeForm,
+    &createScene,
+    &setFrameScene,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

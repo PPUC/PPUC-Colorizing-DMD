@@ -1,11 +1,11 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 8 (version 7 without Create HD, deleting frames
-// and sections, version 6 without CopyFrameSettings either, version 5 without AddFrame,
-// MoveFrames and EndEdit's refusal either, version 4 without identification
-// and the runtime either, version 3 without ShowForm and the file, note and consent fields
-// either, version 2 without the pictures and the author's windows either, version 1 without the
-// editing part either).
+// ColorizingDMD editor API for plugins, version 9 (version 8 without live forms and scenes,
+// version 7 without Create HD, deleting frames and sections either, version 6 without
+// CopyFrameSettings either, version 5 without AddFrame, MoveFrames and EndEdit's refusal
+// either, version 4 without identification and the runtime either, version 3 without ShowForm
+// and the file, note and consent fields either, version 2 without the pictures and the
+// author's windows either, version 1 without the editing part either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -180,9 +180,111 @@ typedef struct ColorizingDMDRuntimeResult
 #define CDMDPI_HD_BACKGROUND_MASK 0x1  // the frames' background masks, doubled
 #define CDMDPI_HD_BACKGROUND_IMAGE 0x2 // the assigned backgrounds' pictures, each once
 
+// ---- Live forms (version 9) -------------------------------------------------------------------
+// A field kind of ColorizingDMDFormField only: a row of pictures (images), shown, without a
+// value. Its label, if any, stands beside the row.
+#define CDMDPI_FIELD_IMAGE 7
+
+// A picture of a CDMDPI_FIELD_IMAGE field.
+typedef struct ColorizingDMDFormImage
+{
+   const uint16_t* pixels; // RGB565, row-major, width * height
+   uint32_t width;         // 1 .. 1024
+   uint32_t height;        // 1 .. 512
+   uint32_t scale;         // each pixel drawn as scale x scale square, unsmoothed; 1 .. 8, 0 for 1
+   const char* caption;    // a line under the picture; null for none
+} ColorizingDMDFormImage;
+// A CDMDPI_FIELD_IMAGE field has at most this many pictures.
+#define CDMDPI_FORM_MAX_IMAGES 16
+
+// How a field of ShowLiveForm starts (ColorizingDMDFormField.flags); or them together.
+#define CDMDPI_FORM_DISABLED 0x1 // shown, but the author cannot change it
+#define CDMDPI_FORM_HIDDEN 0x2   // not shown, with its label and help
+
+// A field of ShowLiveForm: a ColorizingDMDSettingField with flags and pictures. A note or an
+// image needs a key only to be changed with SetFormField.
+typedef struct ColorizingDMDFormField
+{
+   const char* key;
+   const char* label;
+   uint32_t kind;            // CDMDPI_FIELD_..., CDMDPI_FIELD_IMAGE included
+   const char* defaultValue; // null for ""
+   const char* choices;      // as in ColorizingDMDSettingField
+   const char* help;         // null for none
+   uint32_t flags;           // CDMDPI_FORM_DISABLED, CDMDPI_FORM_HIDDEN
+   const ColorizingDMDFormImage* images; // CDMDPI_FIELD_IMAGE: the pictures, left to right
+   uint32_t imageCount;
+} ColorizingDMDFormField;
+
+// What SetFormField changes (ColorizingDMDFormFieldUpdate.changes); or them together.
+#define CDMDPI_FORM_SET_ENABLED 0x01
+#define CDMDPI_FORM_SET_VISIBLE 0x02
+#define CDMDPI_FORM_SET_VALUE 0x04   // not of a note, an image or a consent box
+#define CDMDPI_FORM_SET_LABEL 0x08   // a note's text, a checkbox's text, else the row's label
+#define CDMDPI_FORM_SET_CHOICES 0x10 // a choice's list or a file's name filters
+#define CDMDPI_FORM_SET_HELP 0x20
+#define CDMDPI_FORM_SET_IMAGES 0x40  // an image field's pictures
+typedef struct ColorizingDMDFormFieldUpdate
+{
+   uint32_t changes;  // CDMDPI_FORM_SET_...: which of the following apply
+   uint32_t enabled;  // 1 or 0
+   uint32_t visible;  // 1 or 0
+   // A text, a file, "1" or "0" for a checkbox, one of the choices for a choice.
+   const char* value;
+   const char* label;
+   // A choice keeps its value while it is in the new list, else it takes the first entry
+   // (which does not run the changed callback). Null or "" is refused for a choice.
+   const char* choices;
+   const char* help;  // null or "" for none
+   const ColorizingDMDFormImage* images;
+   uint32_t imageCount;
+} ColorizingDMDFormFieldUpdate;
+
+// key: the field whose value the author changed (a text field at every change of its text).
+typedef void(MSGPIAPI* cdmdpi_form_changed_callback)(void* userData, const char* key);
+// How the author closed a live form (cdmdpi_form_closed_callback's result).
+#define CDMDPI_FORM_CANCELLED 0 // Cancel, Escape or the window's close button
+#define CDMDPI_FORM_ACCEPTED 1  // the accept button
+#define CDMDPI_FORM_BUTTON 2    // plus n: the extra button n
+// At most this many extra buttons.
+#define CDMDPI_FORM_MAX_BUTTONS 4
+typedef void(MSGPIAPI* cdmdpi_form_closed_callback)(void* userData, uint32_t result);
+
+// ---- Scenes (version 9) -----------------------------------------------------------------------
+// What libserum shows when a scene has played (ColorizingDMDScene.finish).
+#define CDMDPI_SCENE_KEEP_LAST 0 // its last frame
+#define CDMDPI_SCENE_BLACK 1
+#define CDMDPI_SCENE_PREVIOUS 2  // the frame shown before the scene
+// How a scene plays (ColorizingDMDScene.flags); or them together.
+#define CDMDPI_SCENE_INTERRUPTABLE 0x01   // a frame of the game identified meanwhile ends it
+#define CDMDPI_SCENE_IMMEDIATE_START 0x02 // its first frame shows when the trigger fires
+#define CDMDPI_SCENE_RANDOM_GROUP 0x04    // a group at random, else the groups in turn
+#define CDMDPI_SCENE_BACKGROUND 0x08      // behind the game's frames, through their background mask
+#define CDMDPI_SCENE_ONLY_DYNAMIC 0x10    // of the game's frames only dynamic content in front
+#define CDMDPI_SCENE_REPLACE_BLACK 0x20   // black dynamic pixels show the background scene
+#define CDMDPI_SCENE_RESUME 0x40          // a trigger soon after it stopped continues it
+#define CDMDPI_SCENE_BACK_AND_FORTH 0x80  // to the last frame and back (libserum 2.99.7)
+
+// A scene as the editor's scene window sets it (see the handbook, "Scenes and Scaling"). Its
+// frames are frames of the project; the duration is the scene's, the same for all of them.
+typedef struct ColorizingDMDScene
+{
+   uint32_t sceneId;          // its PUP trigger: 50000 .. 61999, not taken; CDMDPI_NONE for
+                              // the lowest free one
+   const char* name;          // null or "" for none
+   uint32_t groups;           // sets of frames, one played each time; 0 for 1, at most 255
+   uint32_t durationMs;       // how long each frame shows, 1 .. 65535; 0 for 33
+   uint32_t repeat;           // 0 plays once, 1 loops, 2 .. 255 that many times
+   uint32_t finish;           // CDMDPI_SCENE_KEEP_LAST, _BLACK, _PREVIOUS
+   uint32_t autoStartSeconds; // 0 .. 255: start after this many seconds without a new frame;
+                              // for a scene that cannot be interrupted and keeps its last frame,
+                              // how long that frame stays. 0 for neither
+   uint32_t flags;            // CDMDPI_SCENE_...
+} ColorizingDMDScene;
+
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 8
+   int version; // 9
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -210,7 +312,10 @@ typedef struct ColorizingDMDEditorAPI
                              uint32_t* firstFrame);
 
    // ---- What the author looks at ---------------------------------------------------------
-   // The current frame; CDMDPI_NONE without one.
+   // The current frame; CDMDPI_NONE without one. It is the frame the author clicked last in
+   // the frame list (or went to with the keys), normally one of the selected frames; but a
+   // frame unselected with Ctrl+click (Cmd+click on macOS) stays current, so with several
+   // frames selected it need not be among them.
    uint32_t(MSGPIAPI* GetCurrentFrame)();
    // The selected frames, ascending (the current one when no other is selected).
    uint32_t(MSGPIAPI* GetSelectedFrames)(uint32_t* frames, uint32_t capacity);
@@ -416,5 +521,65 @@ typedef struct ColorizingDMDEditorAPI
    int(MSGPIAPI* SetSection)(uint32_t endpointId, uint32_t frame, const char* name);
    // Deletes the section (its index, see GetSection); its frames belong to the one before.
    int(MSGPIAPI* DeleteSection)(uint32_t endpointId, uint32_t section);
+
+   // ---- Live forms (version 9) -------------------------------------------------------------
+   // A form as ShowForm shows it that does not block the editor and that the plugin changes
+   // while it is open: fields enabled, hidden, given other values, choices or pictures as the
+   // author fills it in. The author can work in the editor meanwhile (OnSelectionChanged and
+   // OnProjectChanged still come), so the project may have changed when the form closes.
+   //
+   // extraButtons: extraButtonCount names (at most CDMDPI_FORM_MAX_BUTTONS, null for none) of
+   // buttons beside the accept button and Cancel, such as "Back". Each closes the form, as the
+   // accept button does. changed (null for none) runs when the author changes a field's value,
+   // not when the plugin does. closed runs once the author closes the form, with
+   // CDMDPI_FORM_...; GetFormValue still answers during it. The values are kept as settings
+   // (GetSetting) when the form closes with the accept button or an extra button, as with
+   // ShowForm, and not with Cancel. Consent boxes count for the accept button only.
+   //
+   // Returns 0 when it cannot open: no or invalid fields or buttons, or the plugin has a form
+   // open (this one or that of EditSettings or ShowForm). Both callbacks run on the main
+   // thread, not after the plugin unloaded (the form then closes without them).
+   int(MSGPIAPI* ShowLiveForm)(uint32_t endpointId, const char* title, const char* acceptLabel,
+                               const char* const* extraButtons, uint32_t extraButtonCount,
+                               const ColorizingDMDFormField* fields, uint32_t count,
+                               cdmdpi_form_changed_callback changed,
+                               cdmdpi_form_closed_callback closed, void* userData);
+   // The value the field of the open live form shows, saved or not, as GetSetting gives a
+   // setting: its size with the NUL, the value filled in when it fits. 0 without an open live
+   // form or such a field with a value.
+   uint32_t(MSGPIAPI* GetFormValue)(uint32_t endpointId, const char* key, char* value,
+                                    uint32_t capacity);
+   // Changes a field of the open live form (any time on the main thread, also from the changed
+   // callback). Returns 0, changing nothing, without an open live form, for no such field and
+   // for a change the field cannot take.
+   int(MSGPIAPI* SetFormField)(uint32_t endpointId, const char* key,
+                               const ColorizingDMDFormFieldUpdate* update);
+   // Closes the plugin's live form without calling closed, keeping no settings. Returns 0
+   // without one.
+   int(MSGPIAPI* CloseForm)(uint32_t endpointId);
+
+   // ---- Scenes (version 9) -----------------------------------------------------------------
+   // Changes of an edit batch, as those of version 2. Scenes need a project whose ROM frames are
+   // 128x32: libserum plays them in no other.
+   //
+   // Adds a scene with a frame for each of the frames given (count of them, given group by
+   // group: a multiple of the groups, at most 65535 per group), behind the last frame of the
+   // project as the Scenes section's New adds them, the others following the first group by
+   // group. Each is made like the frame given for it, as AddFrame makes a frame: its colorized
+   // pictures and its settings as Edit -> Copy Frame Settings copies them, without its trigger,
+   // DOF events and duration (the scene's), and without what a frame of a scene cannot have
+   // (dynamic zones, sprites, its identification). Its original is the scene marker. The frames
+   // given stay: delete them with DeleteFrames when they are not needed any more. Where a
+   // scene's frames lie in the project does not matter to libserum; MoveFrames moves them.
+   // *sceneId and *firstFrame (each unless null) get the scene's ID and its first frame.
+   // Refused for a scene the scene window refuses (an ID taken or out of range, values out of
+   // range) and in a project of other ROM frames.
+   int(MSGPIAPI* CreateScene)(uint32_t endpointId, const ColorizingDMDScene* scene,
+                              const uint32_t* frames, uint32_t count, uint32_t* sceneId,
+                              uint32_t* firstFrame);
+   // The scene the frame starts, as the Frame section's Scene field sets it (ColorizingDMDFrameInfo
+   // .triggerId); CDMDPI_NONE for none. Its PUP trigger and monochrome trigger stay. Refused for
+   // a frame of a scene and for a scene the project does not have.
+   int(MSGPIAPI* SetFrameScene)(uint32_t endpointId, uint32_t frame, uint32_t scene);
 
 } ColorizingDMDEditorAPI;

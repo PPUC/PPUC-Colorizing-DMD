@@ -16,6 +16,7 @@
 
 #include "RuntimeFixtures.h"
 #include "edit/AssetUse.h"
+#include "edit/EditBatch.h"
 #include "edit/SpriteAssignment.h"
 #include "edit/StructureCommand.h"
 #include "platform/Utf8Path.h"
@@ -827,6 +828,65 @@ void testVariantsInFileAndLibserum()
     preview.close();
 }
 
+// A scene made from frames (the editor API's CreateScene): its frames are made like them.
+void testAddSceneLike()
+{
+    document::ProjectSnapshot snapshot =
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3);
+    runtime_fixtures::addDynamicData(snapshot, 1);
+    snapshot.frames[1].dynamicData->maskSd.pixels[3] = 2;
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(snapshot);
+    document.setColorizedPixel(2, render::Resolution::Sd, 5, 2, 0xf800);
+    document.setColorizedPixel(1, render::Resolution::Sd, 6, 3, 0x07e0);
+    const document::IndexedFrame original = document.originalFrame(2);
+
+    document::SceneDefinition scene = makeScene(50600, 1, 2);
+    scene.durationMs = 50;
+    std::size_t first = 0;
+    // Group 1 like frames 2 and 0, group 2 like frames 1 and 0.
+    const auto command = edit::addSceneLike(document, scene, {2, 0, 1, 0}, &first);
+    const document::SceneDefinition* added =
+        document.colorizationSettings() ? document.colorizationSettings()->scene(50600)
+                                        : nullptr;
+    expect(command && added && added->frameCount == 2 && added->frameGroups == 2 &&
+               document.frameCount() == 7 && first == 3 &&
+               edit::sceneFrames(document, 50600) == std::vector<std::size_t>{3, 4, 5, 6},
+           "a scene of two groups of two frames, behind the last frame");
+    expect(markersMatch(document, 50600) && document.frameDurationMs(4) == 50,
+           "its frames have the markers as originals and the scene's duration");
+    expect(document.colorizedPixel(3, render::Resolution::Sd, 5, 2) == 0xf800 &&
+               document.colorizedPixel(5, render::Resolution::Sd, 6, 3) == 0x07e0 &&
+               document.colorizedPixel(4, render::Resolution::Sd, 5, 2) ==
+                   document.colorizedPixel(0, render::Resolution::Sd, 5, 2),
+           "each with the picture of the frame given for it, group by group");
+    expect(document.hasDynamicPixels(1) && !document.hasDynamicPixels(5),
+           "without what a frame of a scene cannot have (dynamic zones)");
+    expect(sameFrame(document.originalFrame(2), original) && !document.sceneFrame(2),
+           "the frames given stay as they are");
+    command->revert(document);
+    expect(document.frameCount() == 3 && !document.colorizationSettings(),
+           "one undo takes it all back");
+
+    const auto refused = [&](const document::SceneDefinition& candidate,
+                             const std::vector<std::size_t>& like) {
+        try {
+            (void)edit::addSceneLike(document, candidate, like, nullptr);
+        } catch (const std::invalid_argument&) {
+            return document.frameCount() == 3;
+        } catch (const std::out_of_range&) {
+            return document.frameCount() == 3;
+        }
+        return false;
+    };
+    document::SceneDefinition variant = makeScene(50601, 1, 1);
+    variant.baseSceneId = 50600;
+    expect(refused(scene, {0, 1, 2}) && refused(scene, {}) &&
+               refused(makeScene(50601, 1, 1), {7}) && refused(makeScene(40000, 1, 1), {0}) &&
+               refused(variant, {0}),
+           "refused for groups the frames do not fill, no frames, a frame that does not exist, "
+           "an ID outside the scenes' range and a variant");
+}
+
 void runSceneEditTests()
 {
     testAddAndUndo();
@@ -847,4 +907,5 @@ void runSceneEditTests()
     testSceneFramesTakeNoGameSettings();
     testVariants();
     testVariantsInFileAndLibserum();
+    testAddSceneLike();
 }

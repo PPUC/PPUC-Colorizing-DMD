@@ -113,6 +113,19 @@ public:
                       const std::string& acceptLabel,
                       std::vector<vpx::SettingField> fields,
                       std::function<void(bool saved)> done) override;
+    bool showLiveForm(const std::string& pluginId,
+                      const std::string& title,
+                      const std::string& acceptLabel,
+                      std::vector<std::string> extraButtons,
+                      std::vector<vpx::SettingField> fields,
+                      std::function<void(const std::string& key)> changed,
+                      std::function<void(int result)> closed) override;
+    [[nodiscard]] std::optional<std::string> formValue(const std::string& pluginId,
+                                                       const std::string& key) const override;
+    bool updateFormField(const std::string& pluginId,
+                         const std::string& key,
+                         const vpx::FormFieldUpdate& update) override;
+    bool closeForm(const std::string& pluginId) override;
 
     // The plugin's open windows, for tests; nullptr without one.
     [[nodiscard]] PictureReviewDialog* reviewWindow(const std::string& pluginId) const;
@@ -130,6 +143,14 @@ private:
     void updateMenu();
     // Closes the plugin's windows without telling it (it is unloading).
     void closeWindows(const std::string& pluginId);
+    // Opens the plugin's form; false when it has one open.
+    bool openForm(const std::string& pluginId,
+                  const std::string& title,
+                  const std::string& acceptLabel,
+                  std::vector<std::string> extraButtons,
+                  std::vector<vpx::SettingField> fields,
+                  bool live,
+                  std::function<void(int result)> closed);
 
     Window m_window;
     QStringList m_loaded;
@@ -145,11 +166,17 @@ private:
         std::function<void(std::size_t)> done;
     };
     std::map<std::string, Review> m_reviews;
+    // A plugin's open form (EditSettings, ShowForm, ShowLiveForm) and what to tell the plugin
+    // when it closes.
     struct Settings {
         QPointer<PluginSettingsDialog> dialog;
-        std::function<void(bool)> done;
+        bool live = false;
+        std::function<void(int)> closed;
     };
     std::map<std::string, Settings> m_settings;
+    // A live form while the plugin hears that it closed: its values can still be read, and the
+    // plugin can open the next form.
+    std::map<std::string, QPointer<PluginSettingsDialog>> m_closingForms;
     // What the plugins were last told about.
     const document::ProjectDocument* m_toldDocument = nullptr;
     uint64_t m_toldRevision = 0;

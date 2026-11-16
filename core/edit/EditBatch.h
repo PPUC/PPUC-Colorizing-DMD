@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "document/Scene.h"
 #include "edit/EditCommand.h"
 
 namespace colorizing::document {
@@ -126,6 +127,20 @@ private:
                                                         const std::vector<uint8_t>& original,
                                                         std::size_t like,
                                                         std::size_t* added);
+// Adds the scene (no variant) as addScene() does, with a frame for each frame of `like`: its
+// frameGroups as given, its frameCount like.size() / frameGroups (the frames given group by
+// group). Each of its frames is made like the frame given for it: its colorized pictures, and
+// its settings as Edit -> Copy Frame Settings copies them, except the trigger, the DOF events
+// and the duration (a scene frame lasts the scene's frame duration) and what a frame of a
+// scene cannot have. The frames given stay as they are. *first (unless null) gets the index
+// of the scene's first frame; the others follow it, group by group. Throws
+// std::invalid_argument for a scene sceneProblem() objects to, a variant, no frames, or a
+// count the groups do not divide or that is too many for a scene, and std::out_of_range for a
+// frame that does not exist.
+[[nodiscard]] std::unique_ptr<EditCommand> addSceneLike(document::ProjectDocument& document,
+                                                        document::SceneDefinition scene,
+                                                        const std::vector<std::size_t>& like,
+                                                        std::size_t* first);
 
 // The pictures (RGB565, the plane's or the sprite's size, row-major) written where write is
 // not 0; an empty write mask writes every pixel. A frame, background or sprite without HD gets

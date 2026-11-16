@@ -7,116 +7,183 @@
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QImage>
 #include <QLabel>
+#include <QLayoutItem>
 #include <QLineEdit>
+#include <QPixmap>
 #include <QPushButton>
 #include <QStringList>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <utility>
 
+#include "edit/ColorModel.h"
+
 namespace colorizing::app {
+
+namespace {
+
+using Kind = vpx::SettingField::Kind;
+
+QImage formImage(const vpx::FormImage& picture)
+{
+    const int width = static_cast<int>(picture.width);
+    const int height = static_cast<int>(picture.height);
+    QImage image(width, height, QImage::Format_RGB32);
+    for (int y = 0; y < height; ++y) {
+        auto* line = reinterpret_cast<QRgb*>(image.scanLine(y));
+        for (int x = 0; x < width; ++x) {
+            const edit::Rgb888 color = edit::rgb565ToRgb888(
+                picture.pixels[static_cast<std::size_t>(y) * picture.width +
+                               static_cast<std::size_t>(x)]);
+            line[x] = qRgb(color.red, color.green, color.blue);
+        }
+    }
+    // Unsmoothed, so that pixel art stays sharp.
+    const int scale = static_cast<int>(std::max<uint32_t>(1, picture.scale));
+    return image.scaled(width * scale, height * scale, Qt::IgnoreAspectRatio,
+                        Qt::FastTransformation);
+}
+
+void fillChoices(QComboBox* combo,
+                 const std::vector<std::pair<std::string, std::string>>& choices,
+                 const std::string& value)
+{
+    combo->clear();
+    for (const auto& [choice, text] : choices) {
+        combo->addItem(QString::fromStdString(text), QString::fromStdString(choice));
+    }
+    const int index = combo->findData(QString::fromStdString(value));
+    combo->setCurrentIndex(index < 0 ? 0 : index);
+}
+
+bool hasChoice(const std::vector<std::pair<std::string, std::string>>& choices,
+               const std::string& value)
+{
+    return std::any_of(choices.begin(), choices.end(),
+                       [&value](const auto& choice) { return choice.first == value; });
+}
+
+}  // namespace
 
 PluginSettingsDialog::PluginSettingsDialog(const QString& title,
                                            const QString& acceptLabel,
                                            std::vector<vpx::SettingField> fields,
                                            const std::map<std::string, std::string>& values,
-                                           QWidget* parent)
+                                           QWidget* parent,
+                                           const std::vector<std::string>& extraButtons)
     : QDialog(parent)
     , m_fields(std::move(fields))
 {
     setWindowTitle(title.isEmpty() ? tr("Plugin settings") : title);
     auto* form = new QFormLayout;
-    for (const vpx::SettingField& field : m_fields) {
-        if (field.kind == vpx::SettingField::Kind::Note) {
-            auto* note = new QLabel(QString::fromStdString(field.label), this);
+    for (std::size_t index = 0; index < m_fields.size(); ++index) {
+        const vpx::SettingField& field = m_fields[index];
+        Row row;
+        const QString label = QString::fromStdString(field.label);
+        if (field.kind == Kind::Note) {
+            auto* note = new QLabel(label, this);
             note->setWordWrap(true);
             note->setTextInteractionFlags(Qt::TextSelectableByMouse);
             note->setMinimumWidth(420);
             form->addRow(note);
-            m_inputs.push_back(nullptr);
-            continue;
-        }
-        const auto stored = values.find(field.key);
-        const std::string& value =
-            stored != values.end() && !stored->second.empty() ? stored->second
-                                                               : field.defaultValue;
-        const QString label = QString::fromStdString(field.label);
-        QWidget* input = nullptr;
-        switch (field.kind) {
-        case vpx::SettingField::Kind::Text:
-        case vpx::SettingField::Kind::Password: {
-            auto* edit = new QLineEdit(QString::fromStdString(value), this);
-            if (field.kind == vpx::SettingField::Kind::Password) {
-                edit->setEchoMode(QLineEdit::Password);
-            }
-            edit->setMinimumWidth(320);
-            input = edit;
-            form->addRow(label, edit);
-            break;
-        }
-        case vpx::SettingField::Kind::Checkbox: {
-            auto* box = new QCheckBox(label, this);
-            box->setChecked(value == "1");
-            input = box;
-            form->addRow(QString(), box);
-            break;
-        }
-        case vpx::SettingField::Kind::Consent: {
-            auto* box = new QCheckBox(label, this);
-            box->setChecked(false);
-            connect(box, &QCheckBox::toggled, this, &PluginSettingsDialog::updateAccept);
-            m_consents.push_back(box);
-            input = box;
-            form->addRow(QString(), box);
-            break;
-        }
-        case vpx::SettingField::Kind::File: {
-            auto* edit = new QLineEdit(QString::fromStdString(value), this);
-            edit->setMinimumWidth(320);
-            auto* choose = new QPushButton(tr("Choose..."), this);
-            QStringList filters;
-            for (const auto& [filter, text] : field.choices) {
-                filters << QString::fromStdString(filter);
-            }
-            connect(choose, &QPushButton::clicked, this, [this, edit, label, filters]() {
-                const QString path = QFileDialog::getOpenFileName(
-                    this, label, QFileInfo(edit->text()).absolutePath(),
-                    filters.join(QStringLiteral(";;")));
-                if (!path.isEmpty()) {
-                    edit->setText(path);
+            row.field = note;
+        } else {
+            const auto stored = values.find(field.key);
+            const std::string& value =
+                stored != values.end() && !stored->second.empty() ? stored->second
+                                                                   : field.defaultValue;
+            const std::string key = field.key;
+            row.label = new QLabel(this);
+            switch (field.kind) {
+            case Kind::Text:
+            case Kind::Password: {
+                auto* edit = new QLineEdit(QString::fromStdString(value), this);
+                if (field.kind == Kind::Password) {
+                    edit->setEchoMode(QLineEdit::Password);
                 }
-            });
-            auto* row = new QHBoxLayout;
-            row->addWidget(edit, 1);
-            row->addWidget(choose);
-            input = edit;
-            form->addRow(label, row);
-            break;
-        }
-        case vpx::SettingField::Kind::Note:
-            break;
-        case vpx::SettingField::Kind::Choice: {
-            auto* combo = new QComboBox(this);
-            for (const auto& [choice, text] : field.choices) {
-                combo->addItem(QString::fromStdString(text), QString::fromStdString(choice));
+                edit->setMinimumWidth(320);
+                connect(edit, &QLineEdit::textEdited, this, [this, key]() { changed(key); });
+                row.label->setText(label);
+                row.input = row.field = edit;
+                break;
             }
-            const int index = combo->findData(QString::fromStdString(value));
-            combo->setCurrentIndex(index < 0 ? 0 : index);
-            input = combo;
-            form->addRow(label, combo);
-            break;
+            case Kind::Checkbox:
+            case Kind::Consent: {
+                auto* box = new QCheckBox(label, this);
+                // A consent box shows unchecked every time.
+                box->setChecked(field.kind == Kind::Checkbox && value == "1");
+                if (field.kind == Kind::Consent) {
+                    connect(box, &QCheckBox::toggled, this, &PluginSettingsDialog::updateAccept);
+                    m_consents.push_back(box);
+                }
+                connect(box, &QCheckBox::clicked, this, [this, key]() { changed(key); });
+                row.input = row.field = box;
+                break;
+            }
+            case Kind::File: {
+                auto* container = new QWidget(this);
+                auto* edit = new QLineEdit(QString::fromStdString(value), container);
+                edit->setMinimumWidth(320);
+                auto* choose = new QPushButton(tr("Choose..."), container);
+                connect(edit, &QLineEdit::textEdited, this, [this, key]() { changed(key); });
+                connect(choose, &QPushButton::clicked, this, [this, index, edit, key]() {
+                    QStringList filters;
+                    for (const auto& [filter, text] : m_fields[index].choices) {
+                        filters << QString::fromStdString(filter);
+                    }
+                    const QString path = QFileDialog::getOpenFileName(
+                        this, m_rows[index].label->text(),
+                        QFileInfo(edit->text()).absolutePath(),
+                        filters.join(QStringLiteral(";;")));
+                    if (!path.isEmpty()) {
+                        edit->setText(path);
+                        changed(key);
+                    }
+                });
+                auto* layout = new QHBoxLayout(container);
+                layout->setContentsMargins(0, 0, 0, 0);
+                layout->addWidget(edit, 1);
+                layout->addWidget(choose);
+                row.label->setText(label);
+                row.field = container;
+                row.input = edit;
+                break;
+            }
+            case Kind::Choice: {
+                auto* combo = new QComboBox(this);
+                fillChoices(combo, field.choices, value);
+                connect(combo, &QComboBox::activated, this, [this, key]() { changed(key); });
+                row.label->setText(label);
+                row.input = row.field = combo;
+                break;
+            }
+            case Kind::Image: {
+                row.label->setText(label);
+                row.field = new QWidget(this);
+                auto* layout = new QHBoxLayout(row.field);
+                layout->setContentsMargins(0, 0, 0, 0);
+                break;
+            }
+            case Kind::Note:
+                break;
+            }
+            form->addRow(row.label, row.field);
         }
+        // Always there, so that a live form can give a field help later.
+        row.help = new QLabel(QString::fromStdString(field.help), this);
+        row.help->setWordWrap(true);
+        QFont font = row.help->font();
+        font.setPointSizeF(font.pointSizeF() * 0.9);
+        row.help->setFont(font);
+        form->addRow(QString(), row.help);
+        m_rows.push_back(row);
+        if (field.kind == Kind::Image) {
+            fillImages(index);
         }
-        m_inputs.push_back(input);
-        if (!field.help.empty()) {
-            auto* help = new QLabel(QString::fromStdString(field.help), this);
-            help->setWordWrap(true);
-            QFont font = help->font();
-            font.setPointSizeF(font.pointSizeF() * 0.9);
-            help->setFont(font);
-            form->addRow(QString(), help);
-        }
+        showRow(index);
     }
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     if (acceptLabel.isEmpty()) {
@@ -125,6 +192,13 @@ PluginSettingsDialog::PluginSettingsDialog(const QString& title,
         m_accept = buttons->addButton(acceptLabel, QDialogButtonBox::AcceptRole);
     }
     m_accept->setDefault(true);
+    for (std::size_t index = 0; index < extraButtons.size(); ++index) {
+        QPushButton* button = buttons->addButton(QString::fromStdString(extraButtons[index]),
+                                                 QDialogButtonBox::ActionRole);
+        const int result = vpx::kFormButton + static_cast<int>(index);
+        connect(button, &QPushButton::clicked, this, [this, result]() { done(result); });
+        m_extraButtons.push_back(button);
+    }
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     auto* layout = new QVBoxLayout(this);
@@ -157,35 +231,216 @@ void PluginSettingsDialog::updateAccept()
     }
 }
 
+void PluginSettingsDialog::setChangedAction(std::function<void(const std::string& key)> changed)
+{
+    m_changed = std::move(changed);
+}
+
+void PluginSettingsDialog::changed(const std::string& key)
+{
+    if (m_changed) {
+        m_changed(key);
+    }
+}
+
+std::optional<std::size_t> PluginSettingsDialog::indexOf(const std::string& key) const
+{
+    if (key.empty()) {
+        return std::nullopt;
+    }
+    for (std::size_t index = 0; index < m_fields.size(); ++index) {
+        if (m_fields[index].key == key) {
+            return index;
+        }
+    }
+    return std::nullopt;
+}
+
+void PluginSettingsDialog::showRow(std::size_t index)
+{
+    const vpx::SettingField& field = m_fields[index];
+    const Row& row = m_rows[index];
+    for (QWidget* widget : {static_cast<QWidget*>(row.label), row.field}) {
+        if (widget) {
+            widget->setHidden(!field.visible);
+            widget->setEnabled(field.enabled);
+        }
+    }
+    row.help->setText(QString::fromStdString(field.help));
+    row.help->setHidden(!field.visible || field.help.empty());
+    row.help->setEnabled(field.enabled);
+}
+
+void PluginSettingsDialog::fillImages(std::size_t index)
+{
+    QWidget* container = m_rows[index].field;
+    QLayout* layout = container->layout();
+    while (QLayoutItem* item = layout->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    for (const vpx::FormImage& picture : m_fields[index].images) {
+        auto* cell = new QWidget(container);
+        auto* cellLayout = new QVBoxLayout(cell);
+        cellLayout->setContentsMargins(0, 0, 0, 0);
+        auto* image = new QLabel(cell);
+        image->setPixmap(QPixmap::fromImage(formImage(picture)));
+        cellLayout->addWidget(image);
+        if (!picture.caption.empty()) {
+            auto* caption = new QLabel(QString::fromStdString(picture.caption), cell);
+            caption->setAlignment(Qt::AlignHCenter);
+            cellLayout->addWidget(caption);
+        }
+        layout->addWidget(cell);
+    }
+    if (auto* box = qobject_cast<QHBoxLayout*>(layout)) {
+        box->addStretch(1);
+    }
+}
+
+bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUpdate& update)
+{
+    const std::optional<std::size_t> found = indexOf(key);
+    if (!found) {
+        return false;
+    }
+    const std::size_t index = *found;
+    vpx::SettingField& field = m_fields[index];
+    const Row& row = m_rows[index];
+    // Checked first, so that a refused update changes nothing.
+    if (update.choices && field.kind != Kind::Choice && field.kind != Kind::File) {
+        return false;
+    }
+    if (update.choices && field.kind == Kind::Choice && update.choices->empty()) {
+        return false;
+    }
+    if (update.images && field.kind != Kind::Image) {
+        return false;
+    }
+    if (update.value) {
+        switch (field.kind) {
+        case Kind::Note:
+        case Kind::Image:
+        case Kind::Consent:
+            return false;
+        case Kind::Checkbox:
+            if (*update.value != "0" && *update.value != "1") {
+                return false;
+            }
+            break;
+        case Kind::Choice:
+            if (!hasChoice(update.choices ? *update.choices : field.choices, *update.value)) {
+                return false;
+            }
+            break;
+        case Kind::Text:
+        case Kind::Password:
+        case Kind::File:
+            break;
+        }
+    }
+
+    if (update.label) {
+        const QString text = QString::fromStdString(*update.label);
+        field.label = *update.label;
+        if (field.kind == Kind::Note) {
+            qobject_cast<QLabel*>(row.field)->setText(text);
+        } else if (auto* box = qobject_cast<QCheckBox*>(row.input)) {
+            box->setText(text);
+        } else {
+            row.label->setText(text);
+        }
+    }
+    if (update.choices) {
+        field.choices = *update.choices;
+        if (auto* combo = qobject_cast<QComboBox*>(row.input)) {
+            fillChoices(combo, field.choices, combo->currentData().toString().toStdString());
+        }
+    }
+    if (update.value) {
+        const QString text = QString::fromStdString(*update.value);
+        if (auto* edit = qobject_cast<QLineEdit*>(row.input)) {
+            edit->setText(text);
+        } else if (auto* box = qobject_cast<QCheckBox*>(row.input)) {
+            box->setChecked(*update.value == "1");
+        } else if (auto* combo = qobject_cast<QComboBox*>(row.input)) {
+            combo->setCurrentIndex(combo->findData(text));
+        }
+    }
+    if (update.images) {
+        field.images = *update.images;
+        fillImages(index);
+    }
+    if (update.help) {
+        field.help = *update.help;
+    }
+    if (update.enabled) {
+        field.enabled = *update.enabled;
+    }
+    if (update.visible) {
+        field.visible = *update.visible;
+    }
+    showRow(index);
+    return true;
+}
+
+std::optional<std::string> PluginSettingsDialog::value(const std::string& key) const
+{
+    const std::optional<std::size_t> index = indexOf(key);
+    if (!index) {
+        return std::nullopt;
+    }
+    QWidget* input = m_rows[*index].input;
+    if (const auto* edit = qobject_cast<QLineEdit*>(input)) {
+        return edit->text().toStdString();
+    }
+    if (const auto* box = qobject_cast<QCheckBox*>(input)) {
+        return std::string(box->isChecked() ? "1" : "0");
+    }
+    if (const auto* combo = qobject_cast<QComboBox*>(input)) {
+        return combo->currentData().toString().toStdString();
+    }
+    return std::nullopt;
+}
+
 std::map<std::string, std::string> PluginSettingsDialog::values() const
 {
     std::map<std::string, std::string> result;
-    for (std::size_t index = 0; index < m_fields.size(); ++index) {
-        QWidget* input = m_inputs[index];
-        if (!input) {
-            continue;
+    for (const vpx::SettingField& field : m_fields) {
+        if (std::optional<std::string> fieldValue = value(field.key)) {
+            result[field.key] = std::move(*fieldValue);
         }
-        std::string value;
-        if (const auto* edit = qobject_cast<QLineEdit*>(input)) {
-            value = edit->text().toStdString();
-        } else if (const auto* box = qobject_cast<QCheckBox*>(input)) {
-            value = box->isChecked() ? "1" : "0";
-        } else if (const auto* combo = qobject_cast<QComboBox*>(input)) {
-            value = combo->currentData().toString().toStdString();
-        }
-        result[m_fields[index].key] = value;
     }
     return result;
 }
 
 QWidget* PluginSettingsDialog::input(const std::string& key) const
 {
-    for (std::size_t index = 0; index < m_fields.size(); ++index) {
-        if (m_inputs[index] && m_fields[index].key == key) {
-            return m_inputs[index];
-        }
-    }
-    return nullptr;
+    const std::optional<std::size_t> index = indexOf(key);
+    return index ? m_rows[*index].input : nullptr;
+}
+
+QWidget* PluginSettingsDialog::row(const std::string& key) const
+{
+    const std::optional<std::size_t> index = indexOf(key);
+    return index ? m_rows[*index].field : nullptr;
+}
+
+QLabel* PluginSettingsDialog::rowLabel(const std::string& key) const
+{
+    const std::optional<std::size_t> index = indexOf(key);
+    return index ? m_rows[*index].label : nullptr;
+}
+
+QLabel* PluginSettingsDialog::helpLabel(const std::string& key) const
+{
+    const std::optional<std::size_t> index = indexOf(key);
+    return index ? m_rows[*index].help : nullptr;
+}
+
+QPushButton* PluginSettingsDialog::extraButton(std::size_t index) const
+{
+    return index < m_extraButtons.size() ? m_extraButtons[index] : nullptr;
 }
 
 }  // namespace colorizing::app

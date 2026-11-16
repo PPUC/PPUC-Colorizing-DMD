@@ -1241,6 +1241,20 @@ v8: CreateFrameHd is `edit::createFramesHd` (the Create HD dialog's loop: frames
 skipped, each background upscaled once; refused in the native layouts), CreateSpriteHd
 `edit::createSpriteHd`, DeleteFrames `edit::deleteFrames`, SetSection
 `edit::addOrRenameSection`, DeleteSection `edit::deleteSection`.
+v9 (2026-11-16, for the Transition Builder plugin,
+https://github.com/Kraken74/PPUC-CDMD-TransitionBuilder, by an outside author): ShowLiveForm is
+`PluginSettingsDialog` not modal, with the author's changes reported (user-only signals:
+textEdited, clicked, activated, so SetFormField never calls back), `update()` for
+SetFormField, extra buttons closing with `done(kFormButton + n)`, and the field kind Image
+(RGB565, nearest-neighbour). One form per plugin of any kind; a live form being closed stays
+readable (`m_closingForms`) while its closed callback runs, so the plugin can open its next form
+from there. CreateScene is `edit::addSceneLike` (`addScene`, then each frame made like the
+given one as `addFrameLike` does, without Trigger, DofEvents and Duration); SetFrameScene a
+`FrameAttributeEditCommand` on SceneTriggerId. Requests 1 to 5 of the author's API request are
+covered; per-frame durations do not exist in a scene (one duration for all frames).
+The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
+`COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
+`EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.
 The AI assistant plugin that uses it lives in its own repository
 (`../ColorizingDMD-AI-Assist`, PPUC/PPUC-Colorizing-DMD-AI-Assist-Plugin) for a closed tester
 group; never ship it in the editor's packages.
