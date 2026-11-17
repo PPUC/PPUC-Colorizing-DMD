@@ -702,6 +702,28 @@ void testVariantFields()
         }
     }
     expect(ownFrames && !ownFrames->isEnabled(), "a scene with frames of its own keeps them");
+
+    // The scene that follows: any other scene of the project; it replaces the finish.
+    QComboBox* next = nullptr;
+    QComboBox* finish = nullptr;
+    for (QComboBox* box : form.findChildren<QComboBox*>()) {
+        if (box->itemText(0) == QStringLiteral("No other scene")) {
+            next = box;
+        } else if (box->itemText(0) == QStringLiteral("Keep its last frame")) {
+            finish = box;
+        }
+    }
+    expect(next && finish && next->count() == 2 && next->currentIndex() == 0 &&
+               next->itemText(1) == QStringLiteral("Scene 50801 Jackpot, behind") &&
+               finish->isEnabled() && !form.scene().nextSceneId,
+           "no follow-up at first; the other scenes can follow");
+    next->setCurrentIndex(1);
+    expect(form.scene().nextSceneId == std::optional<uint16_t>(50801) && !finish->isEnabled(),
+           "a follow-up replaces what shows when the scene has played");
+    document::SceneDefinition followed = base;
+    followed.nextSceneId = 50801;
+    form.setScene(followed, nullptr, {followed, chosen});
+    expect(next->currentData().toInt() == 50801, "the form shows the scene's follow-up");
 }
 
 void runScenesWidgetTests()

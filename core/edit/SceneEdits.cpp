@@ -298,6 +298,15 @@ std::string sceneProblem(const document::ProjectDocument& document,
     const auto& settings = document.colorizationSettings();
     const document::SceneDefinition* replaced =
         replacing && settings ? settings->scene(*replacing) : nullptr;
+    if (scene.nextSceneId) {
+        if (*scene.nextSceneId == scene.sceneId ||
+            (replacing && *scene.nextSceneId == *replacing)) {
+            return "a scene cannot follow itself; repeat it instead";
+        }
+        if (!settings || !settings->scene(*scene.nextSceneId)) {
+            return "the scene that is to follow is not a scene of the project";
+        }
+    }
     if (scene.baseSceneId) {
         const document::SceneDefinition* base =
             settings ? settings->scene(*scene.baseSceneId) : nullptr;
@@ -515,6 +524,10 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
             // Its variants follow it to another ID.
             definition.baseSceneId = scene.sceneId;
         }
+        if (definition.sceneId != scene.sceneId && definition.nextSceneId == sceneId) {
+            // So do the scenes it follows.
+            definition.nextSceneId = scene.sceneId;
+        }
     }
     steps.add(settingsStep(document, std::move(settings)));
     return steps.finish(SceneEditCommand::Kind::ChangeScene, scene.sceneId);
@@ -666,6 +679,12 @@ std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& documen
                                                     scene.baseSceneId == sceneId;
                                          }),
                           settings.scenes.end());
+    // A scene that one of them followed ends as scenes end.
+    for (document::SceneDefinition& scene : settings.scenes) {
+        if (scene.nextSceneId && !settings.scene(*scene.nextSceneId)) {
+            scene.nextSceneId.reset();
+        }
+    }
     steps.add(settingsStep(document, std::move(settings)));
     return steps.finish(SceneEditCommand::Kind::RemoveScene, sceneId);
 }

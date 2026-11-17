@@ -95,7 +95,8 @@ What one line of a `<rom>.pup.csv` says, and the scene's name and frames:
 | Back and forth | Each time, the frames play to the last and back: 1 to 100, 99 to 2, then 1 to 100 again, so no frame shows twice in a row. The last time ends on the first frame; a scene with several groups picks its group each time it starts at the first frame. The canvas plays a background scene this way too. Needs libserum 2.99.7. |
 | Can be interrupted | A frame of the game identified while the scene plays ends it. |
 | Start immediately | The first frame shows when the trigger fires, without waiting for the next frame of the game. |
-| When it has played | Keep its last frame, black, or the frame shown before the scene. |
+| Then plays | `No other scene`, or another scene of the project that starts when this one has played (see "One scene after another" below). |
+| When it has played | Keep its last frame, black, or the frame shown before the scene. Off while another scene follows. |
 | Hold the last frame for / Start by itself after | For a scene that cannot be interrupted and keeps its last frame: how long that frame stays. Otherwise: the scene starts by itself after this many seconds without a new frame. `Off` for neither. |
 | Play as a background | The scene shows behind the frames of the game, where their background mask lets it through. The frame that starts it needs no background of its own; the canvas shows the scene's first frame through its mask (see "Backgrounds"). |
 | Keep only dynamic content in front | Of the game's frames only dynamic zones, sprites and shadows show over the scene. |
@@ -126,6 +127,30 @@ its base: its `Frame duration` is its own.
 
 Variants need libserum 2.99.10 or later; a `pup.csv` cannot describe them, the project and the
 `.cROMc` keep them.
+
+## One scene after another
+
+A scene has one frame duration. For an animation that plays slowly and then ends fast, for
+example a picture at 90 ms per frame that then dissolves to black at 16 ms per frame, make two
+scenes and set `Then plays` of the first to the second. When the first scene has played (all
+its repeats), its last frame shows for its frame duration (or for `Hold the last frame for`,
+when set), then the second scene starts and shows its first frame at once, with its own
+settings. No frame of the game has to start the second scene, so a frame that shows several
+times in an animation does not start it too early.
+
+- The scene that follows replaces `When it has played`; what shows after the second scene is
+  the second scene's choice, and it can be followed by a third.
+- A scene cannot follow itself (use `Plays`: in a loop or several times). Scenes may follow each
+  other in a circle; such scenes play until a frame of the game interrupts one that can be
+  interrupted.
+- A scene that a frame of the game interrupts starts no scene after it.
+- A variant can follow a scene, and be followed.
+- In the `Scenes` section a scene with a follow-up says `then 50088`. The follow-up given
+  another ID still follows; deleting it leaves the scene before it without one.
+
+The scene that follows needs libserum 2.99.18 or later; an earlier libserum ends the first scene
+as `When it has played` says. A `pup.csv` cannot describe it; the project and the `.cROMc` keep
+it.
 
 ## What a frame of a scene can have
 

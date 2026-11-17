@@ -11,6 +11,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   fill them in, with pictures and extra buttons such as Back; plugins create scenes from frames
   and set the scene a frame starts.
 - Editor API version 10 for plugins: a choice shown as radio buttons, chosen with one click.
+- A scene can start another scene when it has played (`Then plays` in the scene window), so that
+  an animation can end with a faster one, such as a dissolve to black; needs libserum 2.99.18.
 - Holding `W` to select non-black pixels only also works with the mouse over the frame canvas
   while the frame strip has the focus, for example right after a click on a frame.
 - A double click on a recent or a palette color in the color picker takes it and closes the

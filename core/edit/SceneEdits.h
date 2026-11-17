@@ -57,7 +57,8 @@ private:
 // has, at least one frame and one group, and a project with a 128x32 ROM frame. A variant
 // (SceneDefinition::baseSceneId) needs a base that is a scene of the project and no variant;
 // a scene keeps being a variant or not (frames of its own are neither added nor taken away),
-// and a scene that is the base of others becomes no variant. A new ID
+// and a scene that is the base of others becomes no variant. The scene that is to follow it
+// (SceneDefinition::nextSceneId) is another scene of the project. A new ID
 // (a new scene, or another ID for a scene) is one of kFirstSceneId to kLastSceneId; a scene
 // keeps the ID it has, also one outside them.
 [[nodiscard]] std::string sceneProblem(const document::ProjectDocument& document,

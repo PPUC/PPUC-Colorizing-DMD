@@ -532,6 +532,9 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
             if (scene.baseSceneId) {
                 item.set("framesOf", *scene.baseSceneId);
             }
+            if (scene.nextSceneId) {
+                item.set("then", *scene.nextSceneId);
+            }
             scenes.push(std::move(item));
         }
         colorization.set("scenes", std::move(scenes));
@@ -1576,6 +1579,10 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
             if (scene.has("framesOf")) {
                 definition.baseSceneId =
                     static_cast<uint16_t>(scene.integer("framesOf", 0, UINT16_MAX));
+            }
+            if (scene.has("then")) {
+                definition.nextSceneId =
+                    static_cast<uint16_t>(scene.integer("then", 0, UINT16_MAX));
             }
             settings.scenes.push_back(definition);
         }

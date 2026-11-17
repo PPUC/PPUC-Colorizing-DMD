@@ -8322,6 +8322,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Ce qui s&apos;affiche une fois la scène jouée</translation>
     </message>
     <message>
+        <source>Another scene that starts when this one has played, in place of what shows then: the last frame shows for its frame duration, then the other scene starts with its own settings, e.g. an animation followed by a fast dissolve</source>
+        <translation>Une autre scène qui démarre une fois celle-ci jouée, à la place de ce qui s’affiche alors : la dernière frame reste affichée pendant sa durée, puis l’autre scène démarre avec ses propres réglages, p. ex. une animation suivie d’un fondu rapide</translation>
+    </message>
+    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8390,6 +8394,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <translation>Lecture</translation>
     </message>
     <message>
+        <source>Then plays</source>
+        <translation>Puis joue</translation>
+    </message>
+    <message>
         <source>When it has played</source>
         <translation>Une fois jouée</translation>
     </message>
@@ -8408,6 +8416,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Scene %1</source>
         <translation>Scène %1</translation>
+    </message>
+    <message>
+        <source>No other scene</source>
+        <translation>Aucune autre scène</translation>
     </message>
     <message>
         <source>Hold the last frame for</source>
@@ -8557,6 +8569,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>, the frames of %1</source>
         <translation>, les frames de %1</translation>
+    </message>
+    <message>
+        <source>, then %1</source>
+        <translation>, puis %1</translation>
     </message>
     <message>
         <source>, back and forth</source>

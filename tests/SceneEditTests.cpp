@@ -828,6 +828,93 @@ void testVariantsInFileAndLibserum()
     preview.close();
 }
 
+// A scene can name the scene that starts when it has played: the follow-up must be another
+// scene of the project, follows it to another ID and is dropped with it; the project file
+// keeps it, and libserum plays the second scene after the first.
+void testFollowUpScenes()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::SceneDefinition first = makeScene(50730, 2, 1);
+    first.immediateStart = true;
+    const auto addedFirst = edit::addScene(document, first);
+    document::SceneDefinition second = makeScene(50731, 2, 1);
+    second.durationMs = 20;
+    const auto addedSecond = edit::addScene(document, second);
+
+    document::SceneDefinition itself = first;
+    itself.nextSceneId = 50730;
+    document::SceneDefinition missing = first;
+    missing.nextSceneId = 50799;
+    document::SceneDefinition followed = first;
+    followed.nextSceneId = 50731;
+    expect(!edit::sceneProblem(document, itself, 50730).empty() &&
+               !edit::sceneProblem(document, missing, 50730).empty() &&
+               edit::sceneProblem(document, followed, 50730).empty(),
+           "the follow-up is another scene of the project");
+    const auto changed = edit::changeScene(document, 50730, followed);
+    expect(changed && document.colorizationSettings()->scene(50730)->nextSceneId ==
+                          std::optional<uint16_t>(50731),
+           "the scene names its follow-up");
+
+    // Another ID for the follow-up: the scene follows it.
+    document::SceneDefinition renamed = *document.colorizationSettings()->scene(50731);
+    renamed.sceneId = 50741;
+    const auto renamedCommand = edit::changeScene(document, 50731, renamed);
+    expect(document.colorizationSettings()->scene(50730)->nextSceneId ==
+               std::optional<uint16_t>(50741),
+           "the scene follows its follow-up to another ID");
+
+    const std::filesystem::path path =
+        std::filesystem::temp_directory_path() /
+        ("colorizing_follow_ups_" +
+         std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".cdmd");
+    expect(project::saveProjectFile(platform::utf8FromPath(path), document.toSnapshot(),
+                                    {"test"})
+               .ok,
+           "the project is saved");
+    const legacy::LegacyLoadResult loaded =
+        project::loadProjectFile(platform::utf8FromPath(path));
+    std::filesystem::remove(path);
+    expect(loaded.ok && loaded.snapshot.colorizationSettings &&
+               loaded.snapshot.colorizationSettings->scenes ==
+                   document.colorizationSettings()->scenes,
+           "the project file keeps the follow-up");
+
+    // libserum: the first scene's two frames, then the second scene's.
+    document.setSceneTriggerId(0, 50730);
+    const std::vector<std::size_t> firstFrames = edit::sceneFrames(document, 50730);
+    const std::vector<std::size_t> secondFrames = edit::sceneFrames(document, 50741);
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openProject(document, runtime::PlaneRequest::Both, &error),
+           "the project loads: " + error);
+    std::vector<std::size_t> shown;
+    const runtime::RuntimeFrame started = preview.colorize(document.originalFrame(0));
+    if (started.shownFrameIndex) {
+        shown.push_back(*started.shownFrameIndex);
+    }
+    for (int step = 0; step < 8; ++step) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(first.durationMs + 5));
+        const runtime::RuntimeFrame rotated = preview.rotate();
+        if (rotated.shownFrameIndex &&
+            (shown.empty() || shown.back() != *rotated.shownFrameIndex)) {
+            shown.push_back(*rotated.shownFrameIndex);
+        }
+    }
+    preview.close();
+    const std::vector<std::size_t> expected{firstFrames[0], firstFrames[1], secondFrames[0],
+                                            secondFrames[1]};
+    expect(shown.size() >= 4 && std::equal(expected.begin(), expected.end(), shown.begin()),
+           "libserum plays the follow-up after the scene");
+
+    // Removing the follow-up: the scene ends as scenes end.
+    const auto removed = edit::removeScene(document, 50741, false);
+    expect(document.colorizationSettings()->scene(50730) &&
+               !document.colorizationSettings()->scene(50730)->nextSceneId,
+           "a removed follow-up is no longer named");
+}
+
 // A scene made from frames (the editor API's CreateScene): its frames are made like them.
 void testAddSceneLike()
 {
@@ -907,5 +994,6 @@ void runSceneEditTests()
     testSceneFramesTakeNoGameSettings();
     testVariants();
     testVariantsInFileAndLibserum();
+    testFollowUpScenes();
     testAddSceneLike();
 }

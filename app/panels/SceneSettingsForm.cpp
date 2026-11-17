@@ -81,6 +81,11 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_finishComboBox->addItem(tr("The frame before the scene"),
                               document::kSceneShowPreviousFrameWhenFinished);
     m_finishComboBox->setToolTip(tr("What shows when the scene has played"));
+    m_nextComboBox = new QComboBox(this);
+    m_nextComboBox->setToolTip(
+        tr("Another scene that starts when this one has played, in place of what shows then: "
+           "the last frame shows for its frame duration, then the other scene starts with its "
+           "own settings, e.g. an animation followed by a fast dissolve"));
     m_autoStartSpinBox = new QSpinBox(this);
     m_autoStartSpinBox->setRange(0, 255);
     m_autoStartSpinBox->setSuffix(tr(" s"));
@@ -118,6 +123,7 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     QFormLayout* playback = makeInspectorForm();
     playback->addRow(QString(), m_interruptableCheckBox);
     playback->addRow(QString(), m_immediateCheckBox);
+    playback->addRow(tr("Then plays"), m_nextComboBox);
     playback->addRow(tr("When it has played"), m_finishComboBox);
     playback->addRow(m_autoStartLabel, m_autoStartSpinBox);
     auto* playbackBox = new QGroupBox(tr("Playback"), this);
@@ -156,7 +162,8 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
                 changed);
     }
     connect(m_nameEdit, &QLineEdit::textEdited, this, changed);
-    for (QComboBox* comboBox : {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox}) {
+    for (QComboBox* comboBox :
+         {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox, m_nextComboBox}) {
         connect(comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
                 this, changed);
     }
@@ -197,6 +204,21 @@ void SceneSettingsForm::setScene(
         0, m_framesOfComboBox->findData(scene.baseSceneId ? static_cast<int>(*scene.baseSceneId)
                                                           : -1)));
     m_framesOfComboBox->setEnabled(newScene || scene.isVariant());
+    m_nextComboBox->clear();
+    m_nextComboBox->addItem(tr("No other scene"), -1);
+    for (const document::SceneDefinition& candidate : projectScenes) {
+        if (candidate.sceneId != scene.sceneId) {
+            m_nextComboBox->addItem(tr("Scene %1").arg(sceneText(candidate)),
+                                    static_cast<int>(candidate.sceneId));
+        }
+    }
+    if (scene.nextSceneId && m_nextComboBox->findData(static_cast<int>(*scene.nextSceneId)) < 0) {
+        m_nextComboBox->addItem(tr("Scene %1").arg(*scene.nextSceneId),
+                                static_cast<int>(*scene.nextSceneId));
+    }
+    m_nextComboBox->setCurrentIndex(std::max(
+        0, m_nextComboBox->findData(scene.nextSceneId ? static_cast<int>(*scene.nextSceneId)
+                                                      : -1)));
     // A scene of an imported pup.csv may have an ID outside the range for new IDs; it keeps it.
     const bool inRange =
         scene.sceneId >= document::kFirstSceneId && scene.sceneId <= document::kLastSceneId;
@@ -243,6 +265,8 @@ void SceneSettingsForm::updateState()
     m_randomCheckBox->setEnabled(m_groupsSpinBox->value() > 1);
     m_backAndForthCheckBox->setEnabled(m_framesSpinBox->value() > 1);
     m_replaceBlackCheckBox->setEnabled(m_backgroundCheckBox->isChecked());
+    // A scene that another follows shows no finish: the other scene starts instead.
+    m_finishComboBox->setEnabled(m_nextComboBox->currentData().toInt() < 0);
     // libserum reads the column as an end hold for a scene that cannot be interrupted and
     // keeps its last frame, and as the inactivity before an automatic start otherwise.
     const bool endHold = !m_interruptableCheckBox->isChecked() &&
@@ -280,6 +304,9 @@ document::SceneDefinition SceneSettingsForm::scene() const
     const int base = m_framesOfComboBox->currentData().toInt();
     scene.baseSceneId =
         base >= 0 ? std::optional<uint16_t>(static_cast<uint16_t>(base)) : std::nullopt;
+    const int next = m_nextComboBox->currentData().toInt();
+    scene.nextSceneId =
+        next >= 0 ? std::optional<uint16_t>(static_cast<uint16_t>(next)) : std::nullopt;
     switch (m_repeatComboBox->currentData().toInt()) {
         case kRepeatLoop:
             scene.repeat = 1;

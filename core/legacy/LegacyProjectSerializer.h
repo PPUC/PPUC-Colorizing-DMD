@@ -155,7 +155,9 @@ private:
 // with their bases (kCromSettingsSceneVariants, libserum 2.99.10), then the sprite slots'
 // offsets (kCromSettingsSpriteOffsets, libserum 2.99.11) and the signing notice
 // (kCromSettingsNoticeFrame, libserum 2.99.14: its frame ID and its original), which libserum
-// never identifies; the notice gives no PUP or monochrome trigger.
+// never identifies; the notice gives no PUP or monochrome trigger. The follow-up scenes
+// (kCromSettingsSceneFollowUps, libserum 2.99.18: a scene and the scene that starts when it has
+// played) come last, after the colorization text.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;
@@ -171,6 +173,7 @@ inline constexpr uint32_t kCromSettingsNoticeFrame = 512;
 // (kCromSettingsColorizationText, libserum 2.99.15), which the cROMc keeps readable: what the
 // export gives libserum.
 inline constexpr uint32_t kCromSettingsColorizationText = 1024;
+inline constexpr uint32_t kCromSettingsSceneFollowUps = 2048;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(
     const document::ProjectSnapshot& snapshot,
     const std::string* colorizationText = nullptr);

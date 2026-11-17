@@ -61,6 +61,7 @@ private:
     QCheckBox* m_interruptableCheckBox = nullptr;
     QCheckBox* m_immediateCheckBox = nullptr;
     QComboBox* m_finishComboBox = nullptr;
+    QComboBox* m_nextComboBox = nullptr;
     QSpinBox* m_autoStartSpinBox = nullptr;
     QLabel* m_autoStartLabel = nullptr;
     QCheckBox* m_backgroundCheckBox = nullptr;

@@ -787,6 +787,15 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         }
     }
     const bool withVariants = !variants.empty();
+    std::vector<std::pair<uint16_t, uint16_t>> followUps;
+    if (withScenes) {
+        for (const document::SceneDefinition& scene : snapshot.colorizationSettings->scenes) {
+            if (scene.nextSceneId) {
+                followUps.emplace_back(scene.sceneId, *scene.nextSceneId);
+            }
+        }
+    }
+    const bool withFollowUps = !followUps.empty();
     put(kCromSettingsMagic, 4);
     put(0, 4);  // the payload size, set below
     put((withScenes ? kCromSettingsScenes | kCromSettingsSceneFrames : 0) |
@@ -797,7 +806,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             (withVariants ? kCromSettingsSceneVariants : 0) |
             (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0) |
             (noticeFrame ? kCromSettingsNoticeFrame : 0) |
-            (colorizationText ? kCromSettingsColorizationText : 0),
+            (colorizationText ? kCromSettingsColorizationText : 0) |
+            (withFollowUps ? kCromSettingsSceneFollowUps : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -942,6 +952,13 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
     if (colorizationText) {
         put(colorizationText->size(), 4);
         block.insert(block.end(), colorizationText->begin(), colorizationText->end());
+    }
+    if (withFollowUps) {
+        put(followUps.size(), 4);
+        for (const auto& [sceneId, nextSceneId] : followUps) {
+            put(sceneId, 2);
+            put(nextSceneId, 2);
+        }
     }
     const uint64_t payload = block.size() - 8;
     for (std::size_t i = 0; i < 4; ++i) {

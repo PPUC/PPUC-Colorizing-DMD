@@ -975,6 +975,13 @@ its own and its frame count and groups are the base's (`document::normalizeScene
 frames are never added to a variant or taken from a scene to make one: the author adds a new
 scene. Deleting a base deletes its variants. Scenes have a name (the project only).
 
+Follow-up scenes (owner decision 2026-11-17, asked for by a colorizer): a scene can name the
+scene that starts when it has played (`SceneDefinition::nextSceneId`, manifest `then`, settings
+block part `kCromSettingsSceneFollowUps`, libserum 2.99.18, concentrate version 21). It replaces
+the finish mode; libserum holds the last frame for its duration (or the end hold), then starts
+the follow-up. Per-frame durations within one scene were the alternative and were not taken.
+The plugin API does not expose it yet.
+
 Sprite offsets (owner decision 2026-10-28): a frame's sprite slot has an x and y offset
 (`FrameSpriteReference::offsetX/offsetY`, frame field `SPRO`, settings block part
 `kCromSettingsSpriteOffsets`, libserum 2.99.11, concentrate version 17). Detection stays in the

@@ -160,6 +160,9 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
         if (scene.baseSceneId) {
             text += tr(", the frames of %1").arg(*scene.baseSceneId);
         }
+        if (scene.nextSceneId) {
+            text += tr(", then %1").arg(*scene.nextSceneId);
+        }
         if (scene.options & document::kSceneBackAndForth) {
             text += tr(", back and forth");
         }

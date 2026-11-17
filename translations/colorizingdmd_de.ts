@@ -8322,6 +8322,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Was nach dem Ende der Szene zu sehen ist</translation>
     </message>
     <message>
+        <source>Another scene that starts when this one has played, in place of what shows then: the last frame shows for its frame duration, then the other scene starts with its own settings, e.g. an animation followed by a fast dissolve</source>
+        <translation>Eine andere Szene, die startet, wenn diese abgespielt ist, statt dessen, was dann zu sehen ist: Der letzte Frame bleibt für seine Frame-Dauer stehen, dann startet die andere Szene mit ihren eigenen Einstellungen, z. B. eine Animation, auf die ein schnelles Auflösen folgt</translation>
+    </message>
+    <message>
         <source> s</source>
         <translation> s</translation>
     </message>
@@ -8390,6 +8394,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <translation>Abspielen</translation>
     </message>
     <message>
+        <source>Then plays</source>
+        <translation>Danach spielt</translation>
+    </message>
+    <message>
         <source>When it has played</source>
         <translation>Nach dem Abspielen</translation>
     </message>
@@ -8408,6 +8416,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Scene %1</source>
         <translation>Szene %1</translation>
+    </message>
+    <message>
+        <source>No other scene</source>
+        <translation>Keine andere Szene</translation>
     </message>
     <message>
         <source>Hold the last frame for</source>
@@ -8557,6 +8569,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>, the frames of %1</source>
         <translation>, die Frames von %1</translation>
+    </message>
+    <message>
+        <source>, then %1</source>
+        <translation>, danach %1</translation>
     </message>
     <message>
         <source>, back and forth</source>

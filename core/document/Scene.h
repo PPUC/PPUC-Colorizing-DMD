@@ -56,6 +56,10 @@ struct SceneDefinition {
     // duration included (libserum 2.99.10); it has no frames of its own, and its frameCount
     // and frameGroups are the base's. The base is a scene that is no variant.
     std::optional<uint16_t> baseSceneId;
+    // The scene that starts when this one has played, in place of its finish mode (libserum
+    // 2.99.18): its last frame shows for its duration, then the other scene starts. Another
+    // scene of the project; a chain may come back to a scene it started from.
+    std::optional<uint16_t> nextSceneId;
 
     [[nodiscard]] bool isVariant() const { return baseSceneId.has_value(); }
 
@@ -71,7 +75,8 @@ struct SceneDefinition {
                a.immediateStart == b.immediateStart && a.repeat == b.repeat &&
                a.frameGroups == b.frameGroups && a.random == b.random &&
                a.autoStartSeconds == b.autoStartSeconds && a.options == b.options &&
-               a.name == b.name && a.baseSceneId == b.baseSceneId;
+               a.name == b.name && a.baseSceneId == b.baseSceneId &&
+               a.nextSceneId == b.nextSceneId;
     }
     friend bool operator!=(const SceneDefinition& a, const SceneDefinition& b)
     {
@@ -151,9 +156,16 @@ struct ColorizationSettings {
 };
 
 // Gives each variant its base's frame count and groups; a variant whose base is missing, is
-// itself or is a variant plays frames of its own instead.
+// itself or is a variant plays frames of its own instead. A scene that is to follow a scene
+// that is missing or itself follows none.
 inline void normalizeSceneVariants(ColorizationSettings& settings)
 {
+    for (SceneDefinition& scene : settings.scenes) {
+        if (scene.nextSceneId &&
+            (*scene.nextSceneId == scene.sceneId || !settings.scene(*scene.nextSceneId))) {
+            scene.nextSceneId.reset();
+        }
+    }
     for (SceneDefinition& scene : settings.scenes) {
         if (!scene.baseSceneId) {
             continue;

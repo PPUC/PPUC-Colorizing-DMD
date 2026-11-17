@@ -29,7 +29,8 @@ namespace colorizing::project {
 //                    commercialWithPpucDmd and realMachinesOnlyPpucDmd when set),
 //                    colorization (the cROM's settings: scalingAlgorithm, shadowOffset,
 //                    sign (false when the exported cROMc is not signed), scenes, each with
-//                    the pup.csv columns, its name and framesOf, the base of a variant) when
+//                    the pup.csv columns, its name, framesOf, the base of a variant, and
+//                    then, the scene that starts when it has played) when
 //                    the project has them,
 //                    unsupported (names of entries unsupported/<n>.bin).
 //   order.json       the UUIDs of the frames, comparison masks, backgrounds and sprites in
