@@ -51,7 +51,8 @@ by one of the same id in your folder.
 - A plugin can also show a form that stays open beside the editor and changes as you fill it
   in: choosing one entry can enable another field, hide it or give it other choices, and the
   form can show pictures, such as a preview of what the plugin will make from the current
-  frame. You can work in the editor while it is open, for example select other frames. Besides
+  frame. A short list of entries can be shown as radio buttons instead of a drop-down list, so
+  that one click chooses an entry. You can work in the editor while it is open, for example select other frames. Besides
   its own button and `Cancel` such a form can have further buttons, such as `Back` to go to a
   plugin's previous step; like the plugin's own button they keep what you entered for the next
   time, `Cancel` does not.
@@ -96,4 +97,6 @@ settings of the scene window, and `SetFrameScene` sets the scene a frame starts.
 frame (`GetCurrentFrame`) is the frame clicked last, normally one of the selected frames; a
 frame unselected with Ctrl+click (Cmd+click on macOS) stays current, so a plugin that takes two
 selected frames as "from" and "to" checks that the current one is among them.
+Version 10 adds a field kind for every form: a choice shown as radio buttons, all its entries
+at once, up to four on a line (`CDMDPI_FIELD_RADIO`).
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

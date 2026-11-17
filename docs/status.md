@@ -1252,6 +1252,9 @@ from there. CreateScene is `edit::addSceneLike` (`addScene`, then each frame mad
 given one as `addFrameLike` does, without Trigger, DofEvents and Duration); SetFrameScene a
 `FrameAttributeEditCommand` on SceneTriggerId. Requests 1 to 5 of the author's API request are
 covered; per-frame durations do not exist in a scene (one duration for all frames).
+v10 (2026-11-17, asked for by the same author): the field kind Radio in every form, a
+`QButtonGroup` of `QRadioButton`s (value in the property "choice") in a grid of four per line,
+rebuilt when SetFormField changes the choices; `buttonClicked` is the user-only signal.
 The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
 `COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.

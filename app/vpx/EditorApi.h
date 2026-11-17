@@ -54,12 +54,14 @@ struct SettingField {
         Consent,
         // A row of pictures, without a value (live forms only).
         Image,
+        // A choice shown as radio buttons.
+        Radio,
     };
     std::string key;
     std::string label;
     Kind kind = Kind::Text;
     std::string defaultValue;
-    // Choice: the values and their labels; File: the name filters, each as value and label.
+    // Choice, Radio: the values and their labels; File: the name filters, each as value and label.
     std::vector<std::pair<std::string, std::string>> choices;
     std::string help;
     // How it starts in a live form.

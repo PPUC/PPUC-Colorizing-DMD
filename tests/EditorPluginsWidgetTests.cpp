@@ -10,10 +10,12 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QSettings>
 #include <QTemporaryDir>
 
@@ -478,7 +480,7 @@ void testPictures()
         expect(api->ShowForm(plugin, "VNI", "Start", &emptyNote, 1, &onSettings, &answers) == 0,
                "a note without text is refused");
         ColorizingDMDSettingField unknown = runFields[1];
-        unknown.kind = CDMDPI_FIELD_CONSENT + 1;
+        unknown.kind = CDMDPI_FIELD_RADIO + 1;
         expect(api->ShowForm(plugin, "VNI", "Start", &unknown, 1, &onSettings, &answers) == 0,
                "a field of an unknown kind is refused");
         plugins.setSetting("", "pal", "/colorizations/game/pin2dmd.pal");
@@ -742,6 +744,117 @@ void testLiveForm()
     expect(form.closed.back() == CDMDPI_FORM_ACCEPTED, "Apply");
 }
 
+// A radio field's buttons by their value.
+std::map<std::string, QRadioButton*> radioButtons(app::PluginSettingsDialog* dialog,
+                                                  const std::string& key)
+{
+    std::map<std::string, QRadioButton*> buttons;
+    for (QRadioButton* button : dialog->input(key)->findChildren<QRadioButton*>()) {
+        buttons[button->property("choice").toString().toStdString()] = button;
+    }
+    return buttons;
+}
+
+// Version 10: a choice shown as radio buttons, in a settings form and in a live form.
+void testRadioButtons()
+{
+    document::ProjectDocument document =
+        document::ProjectDocument::createEmpty({"radio", 1, false, 16});
+    QMenu menu;
+    app::EditorPlugins::Window window;
+    window.menu = &menu;
+    window.document = [&document]() { return &document; };
+    window.editableDocument = [&document]() { return &document; };
+    window.recordEdit = [](std::unique_ptr<edit::EditCommand>) { return true; };
+    window.currentFrame = []() { return std::optional<std::size_t>(0); };
+    window.selectedFrames = []() { return std::vector<std::size_t>{0}; };
+    app::EditorPlugins plugins(std::move(window));
+    const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
+
+    ColorizingDMDSettingField setting{"place", "Place", CDMDPI_FIELD_RADIO, "end",
+                                      "after=After it\nend=At the end", nullptr};
+    ColorizingDMDSettingField empty = setting;
+    empty.choices = "";
+    Answers answers;
+    expect(api->ShowForm(7, "T", "Start", &empty, 1, &onSettings, &answers) == 0,
+           "radio buttons without choices are refused");
+    expect(api->ShowForm(7, "T", "Start", &setting, 1, &onSettings, &answers) == 1,
+           "a form of version 4 takes radio buttons");
+    app::PluginSettingsDialog* dialog = plugins.settingsWindow("");
+    std::map<std::string, QRadioButton*> place = radioButtons(dialog, "place");
+    expect(place.size() == 2 && place["after"]->text() == "After it" &&
+               !place["after"]->isChecked() && place["end"]->isChecked() &&
+               dialog->value("place") == "end",
+           "a button per choice, the default checked");
+    place["after"]->click();
+    expect(dialog->value("place") == "after" && !place["end"]->isChecked(), "one at a time");
+    dialog->accept();
+    expect(answers.saved == 1 && plugins.setting("", "place") == "after",
+           "the value is kept as a setting");
+    expect(api->EditSettings(7, "T", &setting, 1, &onSettings, &answers) == 1 &&
+               radioButtons(plugins.settingsWindow(""), "place")["after"]->isChecked(),
+           "and shown the next time");
+    plugins.settingsWindow("")->reject();
+
+    const ColorizingDMDFormField fields[] = {
+        {"effect", "Effect", CDMDPI_FIELD_RADIO, "dissolve",
+         "dissolve=Dissolve\nfade=Fade\nslide=Slide\nsplit=Split\nwipe=Wipe", nullptr, 0,
+         nullptr, 0},
+    };
+    LiveForm form;
+    form.api = api;
+    form.plugin = 7;
+    form.fields = fields;
+    form.fieldCount = 1;
+    expect(openLiveForm(form) == 1, "a live form takes radio buttons");
+    dialog = plugins.settingsWindow("");
+    std::map<std::string, QRadioButton*> effect = radioButtons(dialog, "effect");
+    expect(effect.size() == 5 && effect["dissolve"]->isChecked(),
+           "five buttons, the default checked");
+    const auto* grid = qobject_cast<QGridLayout*>(dialog->input("effect")->layout());
+    const auto line = [grid](QWidget* button) {
+        int row = -1, column = -1, rows = 0, columns = 0;
+        grid->getItemPosition(grid->indexOf(button), &row, &column, &rows, &columns);
+        return row;
+    };
+    expect(grid && line(effect["split"]) == 0 && line(effect["wipe"]) == 1,
+           "four on a line, the fifth on the next");
+
+    // The author clicks Slide: the plugin hears of it.
+    effect["slide"]->click();
+    char value[16] = {};
+    expect(form.changed == std::vector<std::string>{"effect"} &&
+               api->GetFormValue(7, "effect", value, sizeof(value)) == 6 &&
+               std::string(value) == "slide",
+           "a click tells the plugin");
+
+    ColorizingDMDFormFieldUpdate update{};
+    update.changes = CDMDPI_FORM_SET_VALUE;
+    update.value = "none";
+    expect(api->SetFormField(7, "effect", &update) == 0, "a value not in the list is refused");
+    update.value = "fade";
+    expect(api->SetFormField(7, "effect", &update) == 1 && effect["fade"]->isChecked() &&
+               !effect["slide"]->isChecked() && form.changed.size() == 1,
+           "the plugin sets one in the list, without hearing of it");
+    update.changes = CDMDPI_FORM_SET_CHOICES;
+    update.choices = "";
+    expect(api->SetFormField(7, "effect", &update) == 0, "no choices are refused");
+    update.choices = "fade=Fade\nwipe=Wipe";
+    expect(api->SetFormField(7, "effect", &update) == 1, "other choices");
+    effect = radioButtons(dialog, "effect");
+    expect(effect.size() == 2 && effect["fade"]->isChecked(),
+           "the buttons of the new choices; the value stays in the list");
+    update.choices = "split=Split\nwipe=Wipe";
+    expect(api->SetFormField(7, "effect", &update) == 1 &&
+               dialog->value("effect") == "split" && form.changed.size() == 1,
+           "a value no longer in the list becomes the first");
+    radioButtons(dialog, "effect")["wipe"]->click();
+    expect(form.changed.size() == 2 && dialog->value("effect") == "wipe",
+           "the new buttons tell the plugin too");
+    dialog->accept();
+    expect(plugins.setting("", "effect") == "wipe", "kept when the form closes");
+}
+
 // Version 9: a scene made from frames, and the frame that starts it.
 void testScenes()
 {
@@ -877,7 +990,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 9, "the API table is version 9");
+    expect(api && api->version == 10, "the API table is version 10");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&
@@ -996,6 +1109,7 @@ void runEditorPluginsWidgetTests()
     testPictures();
     testIdentification();
     testLiveForm();
+    testRadioButtons();
     testScenes();
 #endif
     QSettings().remove(QStringLiteral("plugins"));

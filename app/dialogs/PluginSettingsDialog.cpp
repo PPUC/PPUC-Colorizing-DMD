@@ -1,11 +1,14 @@
 #include "dialogs/PluginSettingsDialog.h"
 
+#include <QAbstractButton>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QLabel>
@@ -13,6 +16,7 @@
 #include <QLineEdit>
 #include <QPixmap>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QStringList>
 #include <QVBoxLayout>
 
@@ -26,6 +30,9 @@ namespace colorizing::app {
 namespace {
 
 using Kind = vpx::SettingField::Kind;
+
+// A radio field's buttons per line before it wraps.
+constexpr int kRadiosPerLine = 4;
 
 QImage formImage(const vpx::FormImage& picture)
 {
@@ -64,6 +71,13 @@ bool hasChoice(const std::vector<std::pair<std::string, std::string>>& choices,
 {
     return std::any_of(choices.begin(), choices.end(),
                        [&value](const auto& choice) { return choice.first == value; });
+}
+
+// The value of the checked radio button.
+std::string radioValue(const QButtonGroup* radios)
+{
+    const QAbstractButton* checked = radios->checkedButton();
+    return checked ? checked->property("choice").toString().toStdString() : std::string();
 }
 
 }  // namespace
@@ -160,6 +174,17 @@ PluginSettingsDialog::PluginSettingsDialog(const QString& title,
                 row.input = row.field = combo;
                 break;
             }
+            case Kind::Radio: {
+                row.label->setText(label);
+                row.input = row.field = new QWidget(this);
+                auto* layout = new QGridLayout(row.input);
+                layout->setContentsMargins(0, 0, 0, 0);
+                row.radios = new QButtonGroup(row.input);
+                // Clicked by the author only, not when the plugin sets the value.
+                connect(row.radios, &QButtonGroup::buttonClicked, this,
+                        [this, key]() { changed(key); });
+                break;
+            }
             case Kind::Image: {
                 row.label->setText(label);
                 row.field = new QWidget(this);
@@ -182,6 +207,12 @@ PluginSettingsDialog::PluginSettingsDialog(const QString& title,
         m_rows.push_back(row);
         if (field.kind == Kind::Image) {
             fillImages(index);
+        }
+        if (field.kind == Kind::Radio) {
+            const auto stored = values.find(field.key);
+            fillRadios(index, stored != values.end() && !stored->second.empty()
+                                  ? stored->second
+                                  : field.defaultValue);
         }
         showRow(index);
     }
@@ -298,6 +329,31 @@ void PluginSettingsDialog::fillImages(std::size_t index)
     }
 }
 
+void PluginSettingsDialog::fillRadios(std::size_t index, const std::string& value)
+{
+    const Row& row = m_rows[index];
+    for (QAbstractButton* button : row.radios->buttons()) {
+        row.radios->removeButton(button);
+        delete button;
+    }
+    auto* layout = static_cast<QGridLayout*>(row.input->layout());
+    const auto& choices = m_fields[index].choices;
+    const std::string checked = hasChoice(choices, value) ? value : choices.front().first;
+    int position = 0;
+    for (const auto& [choice, text] : choices) {
+        auto* button = new QRadioButton(QString::fromStdString(text), row.input);
+        button->setProperty("choice", QString::fromStdString(choice));
+        button->setChecked(choice == checked);
+        row.radios->addButton(button);
+        layout->addWidget(button, position / kRadiosPerLine, position % kRadiosPerLine);
+        ++position;
+    }
+    // The buttons stay at the left, however few there are.
+    for (int column = 0; column <= kRadiosPerLine; ++column) {
+        layout->setColumnStretch(column, column == kRadiosPerLine ? 1 : 0);
+    }
+}
+
 bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUpdate& update)
 {
     const std::optional<std::size_t> found = indexOf(key);
@@ -308,10 +364,11 @@ bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUp
     vpx::SettingField& field = m_fields[index];
     const Row& row = m_rows[index];
     // Checked first, so that a refused update changes nothing.
-    if (update.choices && field.kind != Kind::Choice && field.kind != Kind::File) {
+    const bool choice = field.kind == Kind::Choice || field.kind == Kind::Radio;
+    if (update.choices && !choice && field.kind != Kind::File) {
         return false;
     }
-    if (update.choices && field.kind == Kind::Choice && update.choices->empty()) {
+    if (update.choices && choice && update.choices->empty()) {
         return false;
     }
     if (update.images && field.kind != Kind::Image) {
@@ -329,6 +386,7 @@ bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUp
             }
             break;
         case Kind::Choice:
+        case Kind::Radio:
             if (!hasChoice(update.choices ? *update.choices : field.choices, *update.value)) {
                 return false;
             }
@@ -355,6 +413,8 @@ bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUp
         field.choices = *update.choices;
         if (auto* combo = qobject_cast<QComboBox*>(row.input)) {
             fillChoices(combo, field.choices, combo->currentData().toString().toStdString());
+        } else if (row.radios) {
+            fillRadios(index, radioValue(row.radios));
         }
     }
     if (update.value) {
@@ -365,6 +425,10 @@ bool PluginSettingsDialog::update(const std::string& key, const vpx::FormFieldUp
             box->setChecked(*update.value == "1");
         } else if (auto* combo = qobject_cast<QComboBox*>(row.input)) {
             combo->setCurrentIndex(combo->findData(text));
+        } else if (row.radios) {
+            for (QAbstractButton* button : row.radios->buttons()) {
+                button->setChecked(button->property("choice").toString() == text);
+            }
         }
     }
     if (update.images) {
@@ -389,6 +453,9 @@ std::optional<std::string> PluginSettingsDialog::value(const std::string& key) c
     const std::optional<std::size_t> index = indexOf(key);
     if (!index) {
         return std::nullopt;
+    }
+    if (const QButtonGroup* radios = m_rows[*index].radios) {
+        return radioValue(radios);
     }
     QWidget* input = m_rows[*index].input;
     if (const auto* edit = qobject_cast<QLineEdit*>(input)) {

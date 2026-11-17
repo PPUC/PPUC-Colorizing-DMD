@@ -718,13 +718,16 @@ std::vector<std::pair<std::string, std::string>> choicesOf(const char* text)
     return choices;
 }
 
+static_assert(static_cast<uint32_t>(SettingField::Kind::Image) == CDMDPI_FIELD_IMAGE &&
+              static_cast<uint32_t>(SettingField::Kind::Radio) == CDMDPI_FIELD_RADIO);
+
 // A field of a form, checked: nothing for a field the form cannot show. live: a field of
 // ShowLiveForm, which may be an image and give a note or an image a key.
 std::optional<SettingField> formField(const char* key, const char* label, uint32_t kind,
                                       const char* defaultValue, const char* choices,
                                       const char* help, bool live)
 {
-    if (kind > (live ? CDMDPI_FIELD_IMAGE : CDMDPI_FIELD_CONSENT)) {
+    if (kind > CDMDPI_FIELD_RADIO || (kind == CDMDPI_FIELD_IMAGE && !live)) {
         return std::nullopt;
     }
     const bool note = kind == CDMDPI_FIELD_NOTE;
@@ -743,7 +746,8 @@ std::optional<SettingField> formField(const char* key, const char* label, uint32
     field.defaultValue = defaultValue ? defaultValue : "";
     field.choices = choicesOf(choices);
     field.help = help ? help : "";
-    if (field.kind == SettingField::Kind::Choice && field.choices.empty()) {
+    if ((field.kind == SettingField::Kind::Choice || field.kind == SettingField::Kind::Radio) &&
+        field.choices.empty()) {
         return std::nullopt;
     }
     return field;
@@ -1320,7 +1324,7 @@ int MSGPIAPI setFrameScene(uint32_t endpointId, uint32_t frame, uint32_t scene)
 }
 
 const ColorizingDMDEditorAPI kApi{
-    9,
+    10,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,

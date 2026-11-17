@@ -1,7 +1,7 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 9 (version 8 without live forms and scenes,
-// version 7 without Create HD, deleting frames and sections either, version 6 without
+// ColorizingDMD editor API for plugins, version 10 (version 9 without radio buttons, version 8
+// without live forms and scenes either, version 7 without Create HD, deleting frames and sections either, version 6 without
 // CopyFrameSettings either, version 5 without AddFrame, MoveFrames and EndEdit's refusal
 // either, version 4 without identification and the runtime either, version 3 without ShowForm
 // and the file, note and consent fields either, version 2 without the pictures and the
@@ -68,6 +68,8 @@
 #define CDMDPI_FIELD_NOTE 5     // a paragraph of text (the label); it has no value
 #define CDMDPI_FIELD_CONSENT 6  // a checkbox shown unchecked every time; the form can be
                                 // accepted only while it is checked; kept as "1"
+// Version 10, in every form:
+#define CDMDPI_FIELD_RADIO 8    // a choice shown as radio buttons, all its choices at once
 
 typedef struct ColorizingDMDProjectInfo
 {
@@ -130,7 +132,8 @@ typedef struct ColorizingDMDSettingField
    const char* label;
    uint32_t kind;            // CDMDPI_FIELD_...
    const char* defaultValue; // null for ""
-   // CDMDPI_FIELD_CHOICE: the choices, one per line, each "value" or "value=label".
+   // CDMDPI_FIELD_CHOICE, CDMDPI_FIELD_RADIO: the choices, one per line, each "value" or
+   // "value=label".
    // CDMDPI_FIELD_FILE: the files to choose from, as name filters ("PAL files (*.pal)"), one
    // per line; null for any file.
    const char* choices;
@@ -221,7 +224,7 @@ typedef struct ColorizingDMDFormField
 #define CDMDPI_FORM_SET_VISIBLE 0x02
 #define CDMDPI_FORM_SET_VALUE 0x04   // not of a note, an image or a consent box
 #define CDMDPI_FORM_SET_LABEL 0x08   // a note's text, a checkbox's text, else the row's label
-#define CDMDPI_FORM_SET_CHOICES 0x10 // a choice's list or a file's name filters
+#define CDMDPI_FORM_SET_CHOICES 0x10 // a choice's or a radio field's list, a file's name filters
 #define CDMDPI_FORM_SET_HELP 0x20
 #define CDMDPI_FORM_SET_IMAGES 0x40  // an image field's pictures
 typedef struct ColorizingDMDFormFieldUpdate
@@ -229,11 +232,12 @@ typedef struct ColorizingDMDFormFieldUpdate
    uint32_t changes;  // CDMDPI_FORM_SET_...: which of the following apply
    uint32_t enabled;  // 1 or 0
    uint32_t visible;  // 1 or 0
-   // A text, a file, "1" or "0" for a checkbox, one of the choices for a choice.
+   // A text, a file, "1" or "0" for a checkbox, one of the choices for a choice or a radio
+   // field.
    const char* value;
    const char* label;
-   // A choice keeps its value while it is in the new list, else it takes the first entry
-   // (which does not run the changed callback). Null or "" is refused for a choice.
+   // A choice (or radio field) keeps its value while it is in the new list, else it takes the
+   // first entry (which does not run the changed callback). Null or "" is refused for a choice.
    const char* choices;
    const char* help;  // null or "" for none
    const ColorizingDMDFormImage* images;

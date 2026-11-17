@@ -10,6 +10,7 @@ tagged; the changes since the last tag are listed under *Next version*.
 - Editor API version 9 for plugins: forms that stay open beside the editor and change as you
   fill them in, with pictures and extra buttons such as Back; plugins create scenes from frames
   and set the scene a frame starts.
+- Editor API version 10 for plugins: a choice shown as radio buttons, chosen with one click.
 - Holding `W` to select non-black pixels only also works with the mouse over the frame canvas
   while the frame strip has the focus, for example right after a click on a frame.
 - A double click on a recent or a palette color in the color picker takes it and closes the

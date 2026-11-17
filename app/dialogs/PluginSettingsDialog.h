@@ -12,6 +12,7 @@
 
 #include "vpx/EditorApi.h"
 
+class QButtonGroup;
 class QCheckBox;
 class QLabel;
 class QPushButton;
@@ -44,7 +45,7 @@ public:
     // The value of one field; nothing for no such field with a value.
     [[nodiscard]] std::optional<std::string> value(const std::string& key) const;
     // For tests: the field's input (QLineEdit, QCheckBox or QComboBox; a file field's
-    // QLineEdit).
+    // QLineEdit; a radio field's buttons, each with its value as the property "choice").
     [[nodiscard]] QWidget* input(const std::string& key) const;
     // For tests: the field's row (the input, a file field's row with its button, a note's text,
     // an image field's pictures), its label and its help line.
@@ -73,6 +74,8 @@ private:
         QWidget* field = nullptr;
         // Where the value is: nullptr for a note and an image.
         QWidget* input = nullptr;
+        // A radio field's buttons, in input.
+        QButtonGroup* radios = nullptr;
         QLabel* help = nullptr;
     };
 
@@ -81,6 +84,7 @@ private:
     [[nodiscard]] std::optional<std::size_t> indexOf(const std::string& key) const;
     void showRow(std::size_t index);
     void fillImages(std::size_t index);
+    void fillRadios(std::size_t index, const std::string& value);
 
     std::vector<vpx::SettingField> m_fields;
     std::vector<Row> m_rows;
