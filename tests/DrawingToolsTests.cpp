@@ -789,6 +789,30 @@ void testPaletteGradientColorIndex()
     }
 }
 
+// Issue #77: Shift+drag across a color row blends the colors between the two ends.
+void testBlendColorsBetween()
+{
+    const std::vector<uint16_t> row{0x1111, 0x0000, 0x2222, 0x3333, 0xffff, 0x4444};
+    const std::vector<uint16_t> blended = edit::blendColorsBetween(row, 1, 4);
+    expect(blended == std::vector<uint16_t>{0x1111, 0x0000,
+                                            edit::interpolateRgb565(0, 0xffff, 1, 3),
+                                            edit::interpolateRgb565(0, 0xffff, 2, 3), 0xffff,
+                                            0x4444},
+           "the colors between the ends blend from the first to the last, the rest stay");
+    expect(edit::blendColorsBetween(row, 4, 1) ==
+               std::vector<uint16_t>{0x1111, 0x0000, edit::interpolateRgb565(0xffff, 0, 2, 3),
+                                     edit::interpolateRgb565(0xffff, 0, 1, 3), 0xffff, 0x4444},
+           "dragged the other way the blend starts at the dragged color");
+    expect(edit::blendColorsBetween(row, 2, 3) == row, "neighbours have nothing between them");
+    bool thrown = false;
+    try {
+        (void)edit::blendColorsBetween(row, 0, 6);
+    } catch (const std::out_of_range&) {
+        thrown = true;
+    }
+    expect(thrown, "an end beyond the row is refused");
+}
+
 void testInterpolateRgb565()
 {
     expect(edit::interpolateRgb565(0x1234, 0xffff, 3, 0) == 0x1234,
@@ -1246,6 +1270,7 @@ void runDrawingToolsTests()
     testRadialGradientRatio();
     testPaletteGradientColorIndex();
     testInterpolateRgb565();
+    testBlendColorsBetween();
     testInterpolateRgb565KeepsEndpoints();
     testPaletteRampChanges();
     testPixelChangesDedupeAndSkipNoOps();

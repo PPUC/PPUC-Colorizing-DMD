@@ -287,6 +287,25 @@ uint16_t interpolateRgb565(uint16_t startColor,
     return static_cast<uint16_t>(blend(11, 0x1f) | blend(5, 0x3f) | blend(0, 0x1f));
 }
 
+std::vector<uint16_t> blendColorsBetween(std::vector<uint16_t> colors,
+                                         std::size_t from,
+                                         std::size_t to)
+{
+    if (from >= colors.size() || to >= colors.size()) {
+        throw std::out_of_range("the color is beyond the row");
+    }
+    const std::size_t first = std::min(from, to);
+    const std::size_t last = std::max(from, to);
+    const uint16_t startColor = colors[from];
+    const uint16_t endColor = colors[to];
+    const std::size_t maxStep = last - first;
+    for (std::size_t index = first + 1; index < last; ++index) {
+        const std::size_t step = from < to ? index - from : from - index;
+        colors[index] = interpolateRgb565(startColor, endColor, step, maxStep);
+    }
+    return colors;
+}
+
 std::vector<PaletteColorChange> makePaletteRampChanges(const document::ProjectDocument& document,
                                                        std::size_t paletteIndex,
                                                        int startIndex,

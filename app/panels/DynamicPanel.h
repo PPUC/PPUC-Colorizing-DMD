@@ -59,6 +59,8 @@ public:
     std::function<void(std::size_t originalColorIndex, uint16_t rgb565)> onColorDropped;
     // A dynamic color dragged onto another one of the set: the two swap (issue #45).
     std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
+    // Shift+drag of a color onto another one: the colors between blend (issue #77).
+    std::function<void(std::size_t from, std::size_t to)> onColorsGradient;
     // bit is the direction's bit in the shadow direction mask.
     std::function<void(uint8_t bit, bool enabled)> onShadowDirectionToggled;
     std::function<void()> onShadowColorClicked;

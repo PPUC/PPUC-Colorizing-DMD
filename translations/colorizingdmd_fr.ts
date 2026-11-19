@@ -6279,17 +6279,36 @@ Utiliser Créer la frame %1.</translation>
             <numerusform>Couleurs dynamiques %1 et %2 échangées dans %n frames</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Blended dynamic colors %1 to %2 in %n frame(s)</source>
+        <translation>
+            <numerusform>Dégradé des couleurs dynamiques %1 à %2 dans %n frame</numerusform>
+            <numerusform>Dégradé des couleurs dynamiques %1 à %2 dans %n frames</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Swapped sprite set %1 colors %2 and %3</source>
         <translation>Couleurs %2 et %3 du jeu de sprite %1 échangées</translation>
+    </message>
+    <message>
+        <source>Blended sprite set %1 colors %2 to %3</source>
+        <translation>Dégradé des couleurs %2 à %3 du jeu de sprite %1</translation>
     </message>
     <message>
         <source>Swapped rotation colors %1 and %2 on %3 frame(s)</source>
         <translation>Couleurs de rotation %1 et %2 échangées sur %3 frame(s)</translation>
     </message>
     <message>
+        <source>Blended rotation colors %1 to %2 on %3 frame(s)</source>
+        <translation>Dégradé des couleurs de rotation %1 à %2 sur %3 frame(s)</translation>
+    </message>
+    <message>
         <source>Swapped palette %1 colors %2 and %3</source>
         <translation>Couleurs %2 et %3 de la palette %1 échangées</translation>
+    </message>
+    <message>
+        <source>Blended palette %1 colors %2 to %3</source>
+        <translation>Dégradé des couleurs %2 à %3 de la palette %1</translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>
@@ -6313,6 +6332,10 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Swapped edit colors %1 and %2</source>
         <translation>Couleurs d&apos;édition %1 et %2 échangées</translation>
+    </message>
+    <message>
+        <source>Blended edit colors %1 to %2</source>
+        <translation>Dégradé des couleurs d&apos;édition %1 à %2</translation>
     </message>
     <message>
         <source>Delete Sprites</source>

@@ -483,6 +483,14 @@ private:
     void swapCurrentColorRotationColors(std::size_t slotIndex, std::size_t from, std::size_t to);
     void swapCurrentPaletteColors(std::size_t from, std::size_t to);
     void swapEditColors(std::size_t from, std::size_t to);
+    // Issue #77: Shift+drag of a color onto another one blends the colors between the two,
+    // from the dragged one to the other (edit::blendColorsBetween()), in the same places and
+    // steps as a swap; each frame blends between its own two colors.
+    void blendDynamicColors(std::size_t from, std::size_t to);
+    void blendSpriteDynamicColors(std::size_t from, std::size_t to);
+    void blendCurrentColorRotationColors(std::size_t slotIndex, std::size_t from, std::size_t to);
+    void blendCurrentPaletteColors(std::size_t from, std::size_t to);
+    void blendEditColors(std::size_t from, std::size_t to);
     void setDynamicSetOriginalOnly(bool originalOnly);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
     void editDynamicShadowColor();

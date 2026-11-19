@@ -6279,17 +6279,36 @@ Use Create %1 Frame.</source>
             <numerusform>Dynamische Farben %1 und %2 in %n Frames getauscht</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <source>Blended dynamic colors %1 to %2 in %n frame(s)</source>
+        <translation>
+            <numerusform>Dynamische Farben %1 bis %2 in %n Frame als Verlauf gefüllt</numerusform>
+            <numerusform>Dynamische Farben %1 bis %2 in %n Frames als Verlauf gefüllt</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Swapped sprite set %1 colors %2 and %3</source>
         <translation>Farben %2 und %3 von Sprite-Set %1 getauscht</translation>
+    </message>
+    <message>
+        <source>Blended sprite set %1 colors %2 to %3</source>
+        <translation>Farben %2 bis %3 von Sprite-Set %1 als Verlauf gefüllt</translation>
     </message>
     <message>
         <source>Swapped rotation colors %1 and %2 on %3 frame(s)</source>
         <translation>Rotationsfarben %1 und %2 auf %3 Frame(s) getauscht</translation>
     </message>
     <message>
+        <source>Blended rotation colors %1 to %2 on %3 frame(s)</source>
+        <translation>Rotationsfarben %1 bis %2 auf %3 Frame(s) als Verlauf gefüllt</translation>
+    </message>
+    <message>
         <source>Swapped palette %1 colors %2 and %3</source>
         <translation>Farben %2 und %3 von Palette %1 getauscht</translation>
+    </message>
+    <message>
+        <source>Blended palette %1 colors %2 to %3</source>
+        <translation>Farben %2 bis %3 von Palette %1 als Verlauf gefüllt</translation>
     </message>
     <message numerus="yes">
         <source>%n shared change(s) from the partners to merge</source>
@@ -6313,6 +6332,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Swapped edit colors %1 and %2</source>
         <translation>Bearbeitungsfarben %1 und %2 getauscht</translation>
+    </message>
+    <message>
+        <source>Blended edit colors %1 to %2</source>
+        <translation>Bearbeitungsfarben %1 bis %2 als Verlauf gefüllt</translation>
     </message>
     <message>
         <source>Delete Sprites</source>

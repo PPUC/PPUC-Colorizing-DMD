@@ -142,6 +142,11 @@ EditColorBar::EditColorBar(QWidget* parent)
                 onColorsSwapped(from, to);
             }
         };
+        swatch->onSlotsGradient = [this](std::size_t from, std::size_t to) {
+            if (onColorsGradient) {
+                onColorsGradient(from, to);
+            }
+        };
         swatch->onColorDropped = [this](std::size_t index, uint16_t rgb565) {
             if (onColorDropped) {
                 onColorDropped(index, rgb565);

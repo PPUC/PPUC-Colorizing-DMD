@@ -91,6 +91,14 @@ struct PaletteGradient {
                                          std::size_t step,
                                          std::size_t maxStep);
 
+// The colors with those strictly between from and to replaced by a blend from the color at
+// from to the color at to (interpolateRgb565()), as Shift+drag across a color row does: the
+// Win32 editor's palette gradient (issue #77). The two ends keep their colors. Throws
+// std::out_of_range for an index beyond the colors.
+[[nodiscard]] std::vector<uint16_t> blendColorsBetween(std::vector<uint16_t> colors,
+                                                      std::size_t from,
+                                                      std::size_t to);
+
 // Replaces the palette colors between the two indices by a blend from the start color to the
 // end color. Colors that already have the blended value are left out.
 [[nodiscard]] std::vector<PaletteColorChange> makePaletteRampChanges(

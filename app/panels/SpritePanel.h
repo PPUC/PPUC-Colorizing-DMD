@@ -134,6 +134,8 @@ public:
     std::function<void(std::size_t originalColorIndex)> onDynamicColorClicked;
     // A dynamic color dragged onto another one of the set: the two swap (issue #45).
     std::function<void(std::size_t from, std::size_t to)> onDynamicColorsSwapped;
+    // Shift+drag of a color onto another one: the colors between blend (issue #77).
+    std::function<void(std::size_t from, std::size_t to)> onDynamicColorsGradient;
     std::function<void()> onEditColorsToDynamicSet;
     std::function<void()> onDynamicSetToEditColors;
     // The Set field changed; read it with dynamicSet().

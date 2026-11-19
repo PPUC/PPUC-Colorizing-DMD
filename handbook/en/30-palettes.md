@@ -14,6 +14,9 @@ The Inspector's `Palette` section provides a palette selector, the selected pale
   or onto an edit color swatch under the toolbar to set that edit color (undoable).
 - Double-click any palette color to open a color picker for that RGB565 palette entry.
 - Drag a palette color onto another color of the palette to swap the two, one undo step.
+- With `Shift` held at the press the drag makes a gradient instead, as in the Win32 editor:
+  the colors between the two blend from the dragged color to the one it is dropped on, as
+  `Apply Gradient` does from `From` to `To`; one undo step.
 - Drop a color from elsewhere onto a palette color to make it that color, one undo step: the
   active draw color (for example one the `Pick` tool took), an edit color or a dynamic color.
 - Palette color cells and `From`/`To` controls are displayed as `1` through `64`.

@@ -43,6 +43,8 @@ public:
     std::function<void(std::size_t slot, uint16_t rgb565)> onColorDropped;
     // An edit color dragged onto another one: the two swap (issue #45).
     std::function<void(std::size_t from, std::size_t to)> onColorsSwapped;
+    // Shift+drag of a color onto another one: the colors between blend (issue #77).
+    std::function<void(std::size_t from, std::size_t to)> onColorsGradient;
     std::function<void(edit::DrawColorMode mode)> onDrawColorModeChanged;
     std::function<void()> onEditColorsToDynamicRequested;
     std::function<void()> onDynamicToEditColorsRequested;

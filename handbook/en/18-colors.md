@@ -23,7 +23,10 @@ color picker.
     color (favorite, palette, `Pick`) leaves no swatch selected.
   - Double-click a swatch, or use its context menu `Edit Color...`, to change the edit color in
     the color picker. Drag a palette color onto a swatch to set it. Drag a swatch onto another
-    one to swap the two edit colors, one undo step. A swatch dragged elsewhere (a favorite, a
+    one to swap the two edit colors, one undo step. With `Shift` held at the press the drag
+    makes a gradient instead, as in the Win32 editor: the edit colors between the two blend
+    from the dragged color to the one it is dropped on, which both keep their colors; one
+    undo step. A swatch dragged elsewhere (a favorite, a
     dynamic color) gives its color as a palette color does.
   - The tool tip names the color, the shade it replaces and its key.
 - Edit colors are project data: they are saved in the project file, and every change is undoable (see

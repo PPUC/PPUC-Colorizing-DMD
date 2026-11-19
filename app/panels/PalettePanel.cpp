@@ -150,6 +150,11 @@ PalettePanel::PalettePanel(QWidget* parent)
             onColorsSwapped(from, to);
         }
     });
+    m_grid->setColorsGradientHandler([this](std::size_t from, std::size_t to) {
+        if (onColorsGradient) {
+            onColorsGradient(from, to);
+        }
+    });
     m_grid->setColorDroppedHandler([this](std::size_t colorIndex, uint16_t rgb565) {
         if (onColorDropped) {
             onColorDropped(colorIndex, rgb565);

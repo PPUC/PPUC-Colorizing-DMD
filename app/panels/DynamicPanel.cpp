@@ -96,6 +96,11 @@ DynamicPanel::DynamicPanel(QWidget* parent)
                 onColorsSwapped(from, to);
             }
         };
+        button->onSlotsGradient = [this](std::size_t from, std::size_t to) {
+            if (onColorsGradient) {
+                onColorsGradient(from, to);
+            }
+        };
         button->setText(QString::number(colorIndex));
         button->setToolTip(tr("Dynamic color for original color %1").arg(colorIndex));
         button->setFixedSize(32, 24);

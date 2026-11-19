@@ -146,6 +146,16 @@ void ColorGridWidget::setColorsSwappedHandler(
     }
 }
 
+void ColorGridWidget::setColorsGradientHandler(
+    std::function<void(std::size_t, std::size_t)> handler)
+{
+    for (QToolButton* button : m_buttons) {
+        if (auto* gridButton = dynamic_cast<ColorGridButton*>(button)) {
+            gridButton->onSlotsGradient = handler;
+        }
+    }
+}
+
 void ColorGridWidget::setColorDroppedHandler(
     std::function<void(std::size_t index, uint16_t rgb565)> handler)
 {

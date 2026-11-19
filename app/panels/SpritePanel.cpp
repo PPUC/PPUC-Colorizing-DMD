@@ -371,6 +371,11 @@ SpritePanel::SpritePanel(QWidget* parent)
             onDynamicColorsSwapped(from, to);
         }
     });
+    m_dynamicColorGrid->setColorsGradientHandler([this](std::size_t from, std::size_t to) {
+        if (onDynamicColorsGradient) {
+            onDynamicColorsGradient(from, to);
+        }
+    });
     m_dynamicColorGrid->setColorClickedHandler([this](std::size_t colorIndex) {
         if (onDynamicColorClicked) {
             onDynamicColorClicked(colorIndex);

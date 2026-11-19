@@ -12,6 +12,9 @@ The Inspector's `Rotation` topic edits the active frame's rotation slots for the
   open a color picker; colors outside the active length remain visible but disabled.
 - Drag an active color onto another one to swap the two, for example to change the order the
   rotation runs through them. Each selected frame whose slot holds both colors swaps its own two.
+- With `Shift` held at the press the drag makes a gradient instead (Win32): the colors between
+  the two blend from the dragged color to the one it is dropped on. Each selected frame whose
+  slot holds both colors blends between its own two.
 - `Clear Slot` resets the selected slot to all zeros.
 - Below the colors a line says how many of the frame's colored pixels the selected slot moves,
   for example `288 of the frame's 2102 colored pixels have a color of this slot and rotate`, or

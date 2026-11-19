@@ -722,6 +722,30 @@ void testColorSwapDrop()
     expect(drop(swatch, app::colorDragMimeData(&grid, 0, 0x07e0)) && barSwaps.size() == 1 &&
                barDrops == std::vector<std::pair<std::size_t, uint16_t>>{{3, 0x07e0}},
            "a palette color dropped on an edit color is taken");
+
+    // Issue #77: a drag started with Shift blends the colors between the two instead.
+    std::vector<std::pair<std::size_t, std::size_t>> gradients;
+    expect(drop(buttons[7], app::colorDragMimeData(&grid, 2, 0x1234, true)) &&
+               swaps.size() == 2 && gradients.empty(),
+           "without a gradient handler a Shift drag swaps");
+    grid.setColorsGradientHandler([&gradients](std::size_t from, std::size_t to) {
+        gradients.emplace_back(from, to);
+    });
+    expect(drop(buttons[7], app::colorDragMimeData(&grid, 2, 0x1234, true)) &&
+               gradients == std::vector<std::pair<std::size_t, std::size_t>>{{2, 7}} &&
+               swaps.size() == 2,
+           "with one a Shift drag onto another color of the grid blends");
+    expect(drop(buttons[7], app::colorDragMimeData(&grid, 2, 0x1234)) && swaps.size() == 3 &&
+               gradients.size() == 1,
+           "a plain drag still swaps");
+    std::vector<std::pair<std::size_t, std::size_t>> barGradients;
+    bar.onColorsGradient = [&](std::size_t from, std::size_t to) {
+        barGradients.emplace_back(from, to);
+    };
+    expect(drop(swatch, app::colorDragMimeData(&bar, 0, 0x0000, true)) &&
+               barGradients == std::vector<std::pair<std::size_t, std::size_t>>{{0, 3}} &&
+               barSwaps.size() == 1,
+           "a Shift drag across the edit colors blends them");
 }
 
 // A favorite draw color of the toolbar is edited with a double click, as the palette's colors

@@ -12,6 +12,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Import Package` with no project open makes a new project of the package (issue #75).
 - Dynamic zones that touch only at a corner are one area with one set number, on the frame and
   the sprite canvas (issue #76).
+- `Shift` + drag of a color onto another one makes a gradient, as in the Win32 editor: in the
+  edit colors, the palette, the color rotations and the dynamic colors of frames and sprites
+  the colors between the two blend from one to the other (issue #77).
 
 ## 3.99.42
 

@@ -123,7 +123,10 @@ Rules:
   dynamic data, also where their sets differ: only that one color changes, the other colors of
   each frame's set stay as they are. The status bar says in how many frames it changed.
 - Drag a swatch onto another one to swap the two colors. Each selected frame with dynamic data
-  swaps its own two colors of the set, one undo step per frame.
+  swaps its own two colors of the set, one undo step per frame. With `Shift` held at the press
+  the drag makes a gradient instead (Win32): the colors between the two blend from the dragged
+  color to the one it is dropped on, in each selected frame with dynamic data between its own
+  two.
 - The dynamic mask is rendered over the colorized frame of its plane.
 - `Mask` and `Dynamic` are one at a time, unless the left button paints colors (see above).
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.

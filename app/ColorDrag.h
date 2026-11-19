@@ -16,13 +16,24 @@ namespace colorizing::app {
 
 // What the color grids, the dynamic colors and the edit colors drag: the color, and the slot
 // it comes from with the widget that shows the slot. A drop on another place takes the color;
-// a drop on another slot of the same widget swaps the two colors (issue #45).
+// a drop on another slot of the same widget swaps the two colors (issue #45). A drag started
+// with Shift held is a gradient drag: on another slot of the same widget it blends the colors
+// between the two, as the Win32 editor's palette did (issue #77).
 inline constexpr char kRgb565MimeType[] = "application/x-colorizing-rgb565";
 
 // What the drag of a slot's color carries.
-[[nodiscard]] QMimeData* colorDragMimeData(const QObject* owner, std::size_t slot, uint16_t rgb565);
+[[nodiscard]] QMimeData* colorDragMimeData(const QObject* owner,
+                                           std::size_t slot,
+                                           uint16_t rgb565,
+                                           bool gradient = false);
 // Runs the drag of a slot's color from the source widget, for the owner that shows the slots.
-void execColorDrag(QWidget* source, const QObject* owner, std::size_t slot, uint16_t rgb565);
+void execColorDrag(QWidget* source,
+                   const QObject* owner,
+                   std::size_t slot,
+                   uint16_t rgb565,
+                   bool gradient = false);
+// Whether the drag was started with Shift held.
+[[nodiscard]] bool isGradientDrag(const QMimeData* mimeData);
 
 // The color a drag carries.
 [[nodiscard]] std::optional<uint16_t> draggedColor(const QMimeData* mimeData);
@@ -44,6 +55,9 @@ public:
     std::function<void(std::size_t from, std::size_t to)> onSlotDropped;
     // A color from elsewhere dropped on this slot.
     std::function<void(std::size_t slot, uint16_t rgb565)> onColorDropped;
+    // Another slot of the owner dragged here with Shift held at the press: the colors between
+    // the two blend from the dragged one to this one. Without a handler it swaps as any drop.
+    std::function<void(std::size_t from, std::size_t to)> onSlotsGradient;
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;
@@ -58,6 +72,7 @@ private:
     const QObject* m_owner;
     std::optional<uint16_t> m_rgb565;
     QPoint m_dragStartPosition;
+    bool m_gradientDrag = false;
 };
 
 // The toolbar's active draw color (issue #68): it drags the color onto a palette color, a

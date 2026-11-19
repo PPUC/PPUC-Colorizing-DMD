@@ -130,7 +130,8 @@ The controls:
     button the zones (see "Dynamic Masks").
   - The color grid shows the set's color for each original shade, 4 in a project with 4
     colors and 16 in one with 16; a click changes one, and a color dragged onto another one
-    swaps the two.
+    swaps the two (with `Shift` held at the press, the colors between them blend from one
+    to the other).
     `Edit Colors > Set` copies the edit colors into the set, `Set > Edit Colors` the set's
     colors into the edit colors (an edit color step).
   - Each stroke and each color change is one undo step of the sprite; the sprite's pixel

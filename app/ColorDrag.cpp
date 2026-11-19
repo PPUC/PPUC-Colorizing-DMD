@@ -18,6 +18,8 @@ namespace {
 
 // "<owner>:<slot>", the owner as its address: only a drop in the same process compares it.
 constexpr char kColorSlotMimeType[] = "application/x-colorizing-color-slot";
+// Present on a drag started with Shift held.
+constexpr char kColorGradientMimeType[] = "application/x-colorizing-color-gradient";
 
 QByteArray ownerKey(const QObject* owner)
 {
@@ -26,24 +28,39 @@ QByteArray ownerKey(const QObject* owner)
 
 }  // namespace
 
-QMimeData* colorDragMimeData(const QObject* owner, std::size_t slot, uint16_t rgb565)
+QMimeData* colorDragMimeData(const QObject* owner,
+                             std::size_t slot,
+                             uint16_t rgb565,
+                             bool gradient)
 {
     auto* mimeData = new QMimeData();
     mimeData->setData(kRgb565MimeType, QByteArray::number(rgb565));
     mimeData->setData(kColorSlotMimeType,
                       ownerKey(owner) + ':' + QByteArray::number(static_cast<qulonglong>(slot)));
     mimeData->setColorData(rgb565ToColor(rgb565));
+    if (gradient) {
+        mimeData->setData(kColorGradientMimeType, QByteArray("1"));
+    }
     return mimeData;
 }
 
-void execColorDrag(QWidget* source, const QObject* owner, std::size_t slot, uint16_t rgb565)
+void execColorDrag(QWidget* source,
+                   const QObject* owner,
+                   std::size_t slot,
+                   uint16_t rgb565,
+                   bool gradient)
 {
     auto* drag = new QDrag(source);
-    drag->setMimeData(colorDragMimeData(owner, slot, rgb565));
+    drag->setMimeData(colorDragMimeData(owner, slot, rgb565, gradient));
     QPixmap pixmap(24, 20);
     pixmap.fill(rgb565ToColor(rgb565));
     drag->setPixmap(pixmap);
     drag->exec(Qt::CopyAction | Qt::MoveAction, Qt::CopyAction);
+}
+
+bool isGradientDrag(const QMimeData* mimeData)
+{
+    return mimeData && mimeData->hasFormat(kColorGradientMimeType);
 }
 
 std::optional<uint16_t> draggedColor(const QMimeData* mimeData)
@@ -93,6 +110,9 @@ void ColorSlotButton::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton) {
         m_dragStartPosition = event->pos();
+        // Ctrl with Shift is the palette's reversed range pick, no gradient.
+        m_gradientDrag = event->modifiers().testFlag(Qt::ShiftModifier) &&
+                         !event->modifiers().testFlag(Qt::ControlModifier);
     }
     QToolButton::mousePressEvent(event);
 }
@@ -107,7 +127,7 @@ void ColorSlotButton::mouseMoveEvent(QMouseEvent* event)
     }
     // The press does not become a click once the color is dragged away.
     setDown(false);
-    execColorDrag(this, m_owner, m_slot, *m_rgb565);
+    execColorDrag(this, m_owner, m_slot, *m_rgb565, m_gradientDrag);
 }
 
 bool ColorSlotButton::takes(const QMimeData* mimeData) const
@@ -116,7 +136,8 @@ bool ColorSlotButton::takes(const QMimeData* mimeData) const
         return false;
     }
     if (const std::optional<std::size_t> from = draggedSlotOf(mimeData, m_owner)) {
-        return *from != m_slot && onSlotDropped;
+        return *from != m_slot &&
+               ((isGradientDrag(mimeData) && onSlotsGradient) || onSlotDropped);
     }
     return draggedColor(mimeData) && onColorDropped;
 }
@@ -139,7 +160,11 @@ void ColorSlotButton::dropEvent(QDropEvent* event)
     }
     event->acceptProposedAction();
     if (const std::optional<std::size_t> from = draggedSlotOf(mimeData, m_owner)) {
-        onSlotDropped(*from, m_slot);
+        if (isGradientDrag(mimeData) && onSlotsGradient) {
+            onSlotsGradient(*from, m_slot);
+        } else {
+            onSlotDropped(*from, m_slot);
+        }
     } else {
         onColorDropped(m_slot, *draggedColor(mimeData));
     }

@@ -30,6 +30,9 @@ public:
     // A color dragged onto another color of the grid: the handler swaps the two (issue #45).
     // Without a handler the colors are only dragged elsewhere.
     void setColorsSwappedHandler(std::function<void(std::size_t from, std::size_t to)> handler);
+    // Shift+drag of a color onto another one: the handler blends the colors between them
+    // (issue #77). Without a handler the drag swaps as any drag.
+    void setColorsGradientHandler(std::function<void(std::size_t from, std::size_t to)> handler);
     // A color from elsewhere (an edit color, the draw color, ...) dropped on a color of the
     // grid. Without a handler the grid takes none.
     void setColorDroppedHandler(std::function<void(std::size_t index, uint16_t rgb565)> handler);

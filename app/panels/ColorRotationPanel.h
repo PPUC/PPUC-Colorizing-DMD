@@ -37,6 +37,8 @@ public:
     std::function<void(std::size_t slotIndex, std::size_t colorIndex)> onColorClicked;
     // A color dragged onto another one of the rotation: the two swap (issue #45).
     std::function<void(std::size_t slotIndex, std::size_t from, std::size_t to)> onColorsSwapped;
+    // Shift+drag of a color onto another one: the colors between blend (issue #77).
+    std::function<void(std::size_t slotIndex, std::size_t from, std::size_t to)> onColorsGradient;
     std::function<void(std::size_t slotIndex)> onClearSlotRequested;
 
 private:
