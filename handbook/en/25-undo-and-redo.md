@@ -1,7 +1,27 @@
 # Undo And Redo
 
-Every edited object has its own undo/redo history. Undo and Redo act on the histories that belong
-to the current editing context; a new edit clears redo only in the history it is recorded in.
+The `Edit` menu has two pairs:
+
+- `Undo` (`Ctrl/Cmd+Z`) and `Redo` (`Ctrl/Cmd+Shift+Z`, also `Ctrl+Y` on Windows) go through the
+  whole project: `Undo` takes back the most recent edit, whichever frame, record or mode it was
+  made in, the way the Win32 editor's one undo list does. When it belongs to a frame, the editor
+  goes to that frame first (and, for a pixel edit, to its SD or HD plane), so the change can be
+  seen. Repeated, it goes back through the project's edits in the order they were made: after
+  pasting into another frame, for instance, it undoes the paste and then the edits made before
+  it on the frame copied from. `Redo` redoes the edit undone most recently anywhere. A
+  comparison mask, a background, a sprite or a palette is not selected for it; its edit is
+  undone where it is.
+- `Undo Here` (`Ctrl/Cmd+Alt+Z`) and `Redo Here` (`Ctrl/Cmd+Alt+Shift+Z`) keep to what is shown:
+  the histories of the current editing context (see below). Edits made on other frames or in
+  other modes stay as they are, so the work on one frame can be taken back without taking back
+  the work done on another one since.
+
+Before version 3.99.43, `Ctrl/Cmd+Z` was `Undo Here` and `Ctrl/Cmd+Alt+Z` the undo of the whole
+project. Both keys can be given to either entry in `Settings -> Keyboard Shortcuts`.
+
+Every edited object has its own undo/redo history. `Undo Here` and `Redo Here` act on the
+histories that belong to the current editing context; a new edit clears redo only in the
+history it is recorded in.
 
 Histories:
 
@@ -25,8 +45,8 @@ Histories:
   dropped colors, `Dyn > Edit`) and `Store`, `Load`, renaming and `Deactivate` of color sets.
   Each step restores the edit colors and the color sets as a whole, so Undo puts back every byte.
 
-Which histories Undo and Redo use, by context. The record history belongs to every one of
-them:
+Which histories `Undo Here` and `Redo Here` use, by context. The record history belongs to
+every one of them:
 
 1. `Edit Sprite` active with a sprite selected: the selected sprite's color image history for the
    active resolution (its SD history when the sprite has no HD data), its sprite HD history and
@@ -43,26 +63,17 @@ them:
    active resolution and the edit color history. This is the same whether the frame or a background is edited, so a
    `Frame -> Background` copy or a background image import can be undone without `Edit Background`.
 
-Within a context, Undo reverts the edit that was made most recently among all of the context's
-histories, whichever history it is in. For example, after a frame pixel edit followed by a palette
-edit, Undo reverts the palette edit first and the pixel edit second. Redo reapplies the edit that
-was undone most recently, so Undo followed by Redo changes nothing and repeated Redo replays the
-edits in the order in which they were originally made. An edit that has just been redone counts as
-the most recent edit again.
+Within a context, `Undo Here` reverts the edit that was made most recently among all of the
+context's histories, whichever history it is in. For example, after a frame pixel edit followed
+by a palette edit, `Undo Here` reverts the palette edit first and the pixel edit second. `Redo
+Here` reapplies the edit that was undone most recently, so an undo followed by a redo changes
+nothing and repeated redos replay the edits in the order in which they were originally made. An
+edit that has just been redone counts as the most recent edit again.
 
 Only the histories of the current context take part. Edits made in other contexts, on other frames,
 or in the other SD/HD mode stay in their own histories and are skipped; switch to that context to
-undo them. Switching frame, SD/HD mode, edit mode, or selected background or palette updates
-whether Undo and Redo are available.
-
-`Edit -> Undo Last Edit Anywhere` (`Ctrl/Cmd+Alt+Z`) undoes the most recent edit of the whole
-project instead, whichever frame, record or mode it was made in, the way the Win32 editor's one
-undo list does. When it belongs to a frame, the editor goes to that frame first (and, for a
-pixel edit, to its SD or HD plane), so the change can be seen. Repeated, it goes back through the
-project's edits in the order they were made: after pasting into another frame, for instance, it
-undoes the paste and then the edits made before it on the frame copied from. `Redo Last Edit
-Anywhere` (`Ctrl/Cmd+Alt+Shift+Z`) redoes the edit undone most recently anywhere. A comparison
-mask, a background, a sprite or a palette is not selected for it; its edit is undone where it is.
+undo them with `Undo Here`, or use `Undo`. Switching frame, SD/HD mode, edit mode, or selected
+background or palette updates whether `Undo Here` and `Redo Here` are available.
 
 **One action is one step.** An action that changes several frames, or several kinds of data,
 is undone and redone as a whole: drawing on several selected frames (also in `Set Replace`
@@ -74,7 +85,7 @@ back; the status bar says how many changes the step held.
 
 Each frame still records its part in its own history (its pixel history of the plane the action
 was made on, or, in the `Dynamic` mode, its dynamic mask history), so `Undo` reaches the action
-from any of the frames it changed, and `Undo Last Edit Anywhere` reaches it as the latest edit.
+from any of the frames it changed with `Undo Here`, and `Undo` reaches it as the latest edit.
 A frame edited again after the action keeps that later edit: `Undo` of the action then leaves
 this frame's part alone, and it is undone with the frame's own steps later, after the later edit.
 Nothing made after the action is ever undone with it. The selection itself is not part of Undo;

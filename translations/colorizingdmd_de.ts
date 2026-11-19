@@ -3321,7 +3321,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Undo Last Edit &amp;Anywhere</source>
-        <translation>Letzte Änderung über&amp;all rückgängig</translation>
+        <translation type="vanished">Letzte Änderung über&amp;all rückgängig</translation>
     </message>
     <message>
         <source>Undo the most recent edit of the project, on whichever frame or record it was made, and go to that frame</source>
@@ -3329,7 +3329,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Redo Last Edit A&amp;nywhere</source>
-        <translation>Letzte Änderung überall wie&amp;derholen</translation>
+        <translation type="vanished">Letzte Änderung überall wie&amp;derholen</translation>
     </message>
     <message>
         <source>Redo the edit undone most recently anywhere in the project, and go to its frame</source>
@@ -4404,6 +4404,22 @@ Use Create %1 Frame.</source>
     <message>
         <source>Draw Color</source>
         <translation>Zeichenfarbe</translation>
+    </message>
+    <message>
+        <source>Undo &amp;Here</source>
+        <translation>&amp;Hier rückgängig</translation>
+    </message>
+    <message>
+        <source>Undo the most recent edit of the frame, plane and mode shown (or of the sprite edited), leaving the edits made elsewhere</source>
+        <translation>Die letzte Änderung des gezeigten Frames, der Ebene und des Modus (oder des bearbeiteten Sprites) rückgängig machen; Änderungen an anderer Stelle bleiben</translation>
+    </message>
+    <message>
+        <source>Redo H&amp;ere</source>
+        <translation>Hier wi&amp;ederholen</translation>
+    </message>
+    <message>
+        <source>Redo the edit undone most recently in the frame, plane and mode shown</source>
+        <translation>Die zuletzt rückgängig gemachte Änderung des gezeigten Frames, der Ebene und des Modus wiederholen</translation>
     </message>
     <message>
         <source>Fixed Duration</source>

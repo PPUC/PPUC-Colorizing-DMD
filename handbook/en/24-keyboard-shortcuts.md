@@ -29,8 +29,10 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Ctrl/Cmd+Shift+O` | Black original to black | `Ctrl+O` |
 | `Ctrl/Cmd+E`, `Alt+D` | Remove dynamic zones | same |
 | `Alt+A` | Assign the dynamic set | same |
-| `Ctrl/Cmd+Alt+Z` | Undo the most recent edit anywhere in the project | `Ctrl+Z` |
-| `Ctrl/Cmd+Alt+Shift+Z` | Redo the edit undone most recently anywhere | - |
+| `Ctrl/Cmd+Z` | Undo the most recent edit anywhere in the project | `Ctrl+Z` |
+| `Ctrl/Cmd+Shift+Z` (`Ctrl+Y` too on Windows) | Redo the edit undone most recently anywhere | - |
+| `Ctrl/Cmd+Alt+Z` | Undo Here: the most recent edit of the frame, plane and mode shown | - |
+| `Ctrl/Cmd+Alt+Shift+Z` | Redo Here | - |
 | `Ctrl/Cmd+Shift+H` | Show or hide all helper lines | - |
 | `Ctrl/Cmd+X` | Switch between SD and HD (`View -> Switch SD/HD`) | same |
 | `Ctrl/Cmd+Shift+B` | Set or remove the current frame's bookmark | - |
@@ -46,8 +48,8 @@ With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `C
 letter cannot be a menu shortcut (a native macOS menu bar takes it from every widget), so `Invert
 Selection` is not `I`; `K` and `L` act only while the frame canvas has the focus, `W` also while the
 mouse is over it (as `Space` for moving the view). Other
-shortcuts of the editor: the platform's keys for Open (`Ctrl/Cmd+O`), Save, Save As, Quit, Undo and
-Redo, the platform's help key for `Help -> Handbook` (`F1`; `Cmd+?` on macOS), `Ctrl/Cmd+R` Runtime
+shortcuts of the editor: the platform's keys for Open (`Ctrl/Cmd+O`), Save, Save As and
+Quit, the platform's help key for `Help -> Handbook` (`F1`; `Cmd+?` on macOS), `Ctrl/Cmd+R` Runtime
 view, `Ctrl/Cmd+3` / `Ctrl/Cmd+6` its planes, `Delete` / `Backspace` delete frames in the frame
 list, and the edit color keys on the canvas (see "Keys for the edit colors"). No two actions share a
 key (`tools/ui_dump` prints every shortcut of the window and the shared ones).

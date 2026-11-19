@@ -1020,8 +1020,8 @@ one is removed.
      the monochrome trigger, not other triggers. Right?
    - Undoing `Create 256x64 Frame` or `Remove 256x64 Frame` also discards the HD pixel edits made
      after it. Acceptable?
-   - With `Dynamic` active, Undo does not reach the frame settings; `Undo Last Edit Anywhere`
-     (`Ctrl/Cmd+Alt+Z`) does. Enough, or should the `Dynamic` context include them?
+   - With `Dynamic` active, `Undo Here` does not reach the frame settings; `Undo`
+     (`Ctrl/Cmd+Z`, the whole project) does. Enough, or should the `Dynamic` context include them?
 8. **Records:**
    - Deleting a comparison mask that frames use asks first, naming the frames, which are then
      compared without a mask. Since `Using the selected asset` lists those frames, the deletion

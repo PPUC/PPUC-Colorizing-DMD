@@ -3321,7 +3321,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Undo Last Edit &amp;Anywhere</source>
-        <translation>Annuler la dernière modification &amp;partout</translation>
+        <translation type="vanished">Annuler la dernière modification &amp;partout</translation>
     </message>
     <message>
         <source>Undo the most recent edit of the project, on whichever frame or record it was made, and go to that frame</source>
@@ -3329,7 +3329,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Redo Last Edit A&amp;nywhere</source>
-        <translation>Rétablir la dernière modification pa&amp;rtout</translation>
+        <translation type="vanished">Rétablir la dernière modification pa&amp;rtout</translation>
     </message>
     <message>
         <source>Redo the edit undone most recently anywhere in the project, and go to its frame</source>
@@ -4404,6 +4404,22 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Draw Color</source>
         <translation>Couleur de dessin</translation>
+    </message>
+    <message>
+        <source>Undo &amp;Here</source>
+        <translation>Annuler &amp;ici</translation>
+    </message>
+    <message>
+        <source>Undo the most recent edit of the frame, plane and mode shown (or of the sprite edited), leaving the edits made elsewhere</source>
+        <translation>Annuler la dernière modification de la frame, du plan et du mode affichés (ou du sprite édité), sans toucher aux modifications faites ailleurs</translation>
+    </message>
+    <message>
+        <source>Redo H&amp;ere</source>
+        <translation>Rétablir i&amp;ci</translation>
+    </message>
+    <message>
+        <source>Redo the edit undone most recently in the frame, plane and mode shown</source>
+        <translation>Rétablir la modification annulée le plus récemment dans la frame, le plan et le mode affichés</translation>
     </message>
     <message>
         <source>Fixed Duration</source>

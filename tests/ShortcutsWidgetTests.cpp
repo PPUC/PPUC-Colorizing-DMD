@@ -17,7 +17,9 @@
 #include <QToolButton>
 #include <QTreeWidget>
 
+#include "EditMenuActions.h"
 #include "KeyboardShortcuts.h"
+#include "UndoShortcuts.h"
 #include "dialogs/SettingsDialog.h"
 #include "dialogs/ShortcutsSettingsPage.h"
 
@@ -259,8 +261,35 @@ void testPage()
 
 }  // namespace
 
+// Issue #72: Ctrl/Cmd+Z undoes the most recent edit anywhere, as in the Win32 editor; the undo
+// of the frame and mode shown is Ctrl/Cmd+Alt+Z. No two of the four entries, and none of them
+// and the Edit menu's selection entries (Alt+Z undoes the selection), share a key.
+void testUndoKeys()
+{
+    const app::UndoShortcuts keys = app::defaultUndoShortcuts();
+    expect(keys.undo.contains(QKeySequence(Qt::CTRL | Qt::Key_Z)) &&
+               keys.undo == QKeySequence::keyBindings(QKeySequence::Undo) &&
+               keys.redo == QKeySequence::keyBindings(QKeySequence::Redo),
+           "Undo and Redo of the whole project have the standard keys");
+    expect(keys.undoHere == QList<QKeySequence>{QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Z)} &&
+               keys.redoHere ==
+                   QList<QKeySequence>{QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_Z)},
+           "Undo Here and Redo Here have Ctrl/Cmd+Alt(+Shift)+Z");
+    QList<QKeySequence> all = keys.undo + keys.redo + keys.undoHere + keys.redoHere;
+    QMenu menu;
+    app::EditMenuActions editActions(&menu, nullptr);
+    for (const QAction* action : editActions.actions()) {
+        all += action->shortcuts();
+    }
+    for (qsizetype index = 0; index < all.size(); ++index) {
+        expect(all.indexOf(all[index]) == index,
+               "no key is given twice: " + all[index].toString().toStdString());
+    }
+}
+
 void runShortcutsWidgetTests()
 {
+    testUndoKeys();
     QCoreApplication::setOrganizationName(QStringLiteral("ShortcutsWidgetTests"));
     QSettings().clear();
     testRules();

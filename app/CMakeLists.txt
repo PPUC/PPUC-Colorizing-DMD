@@ -185,6 +185,7 @@ add_library(colorizing_qt_v2_widgets STATIC
     SpriteEditorWidget.h
     Translations.cpp
     Translations.h
+    UndoShortcuts.h
     WheelGuard.cpp
     WheelGuard.h
     WindowGeometry.cpp

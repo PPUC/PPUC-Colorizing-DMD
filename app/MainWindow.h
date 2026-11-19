@@ -708,8 +708,9 @@ private:
     [[nodiscard]] bool isBackgroundImageTargetActive() const;
     [[nodiscard]] std::optional<std::size_t> currentSpriteIndex() const;
     [[nodiscard]] bool isSpriteCanvasActive() const;
-    // anywhere: the most recent step of the whole project (Edit -> Undo Last Edit Anywhere),
-    // after going to its frame; otherwise the most recent of the current context's histories.
+    // anywhere: the most recent step of the whole project (Edit -> Undo, Ctrl/Cmd+Z), after
+    // going to its frame; otherwise the most recent of the current context's histories (Edit ->
+    // Undo Here, Ctrl/Cmd+Alt+Z).
     void runUndoRedo(bool anywhere, bool undoing);
     [[nodiscard]] QString undoRedoStatusText(const edit::EditCommand& command,
                                              bool undoing) const;

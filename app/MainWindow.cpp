@@ -157,6 +157,7 @@
 #include "runtime/Scenes.h"
 #include "legacy/LegacyProjectSerializer.h"
 #include "project/ProjectFile.h"
+#include "UndoShortcuts.h"
 #include "WindowGeometry.h"
 
 namespace colorizing::app {
@@ -887,28 +888,13 @@ void MainWindow::createActions()
     quitAction->setShortcut(QKeySequence::Quit);
     connect(quitAction, &QAction::triggered, this, &QWidget::close);
 
-    m_undoAction = withShortcutId(editMenu->addAction(tr("&Undo")), "undo");
-    m_undoAction->setShortcut(QKeySequence::Undo);
-    m_undoAction->setShortcutContext(Qt::ApplicationShortcut);
-    m_undoAction->setEnabled(false);
-    connect(m_undoAction, &QAction::triggered, this, [this]() {
-        undo();
-    });
-
-    m_redoAction = withShortcutId(editMenu->addAction(tr("&Redo")), "redo");
-    m_redoAction->setShortcut(QKeySequence::Redo);
-    m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
-    m_redoAction->setEnabled(false);
-    connect(m_redoAction, &QAction::triggered, this, [this]() {
-        redo();
-    });
-
-    // Undo and Redo above keep to the frame (or record) shown; these go through the whole
-    // project, most recent first, and show the frame they change.
+    // Issue #72: Ctrl/Cmd+Z undoes the most recent edit of the whole project, as the Win32
+    // editor and other programs do, and shows the frame it changes. The undo that keeps to the
+    // frame, plane and mode shown is Ctrl/Cmd+Alt+Z. The IDs stay with their actions, so keys
+    // an author set keep their meaning.
     m_undoAnywhereAction =
-        withShortcutId(editMenu->addAction(tr("Undo Last Edit &Anywhere")),
-                       "undo-last-edit-anywhere");
-    m_undoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Z));
+        withShortcutId(editMenu->addAction(tr("&Undo")), "undo-last-edit-anywhere");
+    m_undoAnywhereAction->setShortcuts(defaultUndoShortcuts().undo);
     m_undoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
     m_undoAnywhereAction->setToolTip(
         tr("Undo the most recent edit of the project, on whichever frame or record it was "
@@ -916,14 +902,33 @@ void MainWindow::createActions()
     m_undoAnywhereAction->setEnabled(false);
     connect(m_undoAnywhereAction, &QAction::triggered, this, [this]() { undo(true); });
     m_redoAnywhereAction =
-        withShortcutId(editMenu->addAction(tr("Redo Last Edit A&nywhere")),
-                       "redo-last-edit-anywhere");
-    m_redoAnywhereAction->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_Z));
+        withShortcutId(editMenu->addAction(tr("&Redo")), "redo-last-edit-anywhere");
+    m_redoAnywhereAction->setShortcuts(defaultUndoShortcuts().redo);
     m_redoAnywhereAction->setShortcutContext(Qt::ApplicationShortcut);
     m_redoAnywhereAction->setToolTip(
         tr("Redo the edit undone most recently anywhere in the project, and go to its frame"));
     m_redoAnywhereAction->setEnabled(false);
     connect(m_redoAnywhereAction, &QAction::triggered, this, [this]() { redo(true); });
+
+    m_undoAction = withShortcutId(editMenu->addAction(tr("Undo &Here")), "undo");
+    m_undoAction->setShortcuts(defaultUndoShortcuts().undoHere);
+    m_undoAction->setShortcutContext(Qt::ApplicationShortcut);
+    m_undoAction->setToolTip(
+        tr("Undo the most recent edit of the frame, plane and mode shown (or of the sprite "
+           "edited), leaving the edits made elsewhere"));
+    m_undoAction->setEnabled(false);
+    connect(m_undoAction, &QAction::triggered, this, [this]() {
+        undo();
+    });
+    m_redoAction = withShortcutId(editMenu->addAction(tr("Redo H&ere")), "redo");
+    m_redoAction->setShortcuts(defaultUndoShortcuts().redoHere);
+    m_redoAction->setShortcutContext(Qt::ApplicationShortcut);
+    m_redoAction->setToolTip(
+        tr("Redo the edit undone most recently in the frame, plane and mode shown"));
+    m_redoAction->setEnabled(false);
+    connect(m_redoAction, &QAction::triggered, this, [this]() {
+        redo();
+    });
 
     editMenu->addSeparator();
     m_deleteFramesAction =
