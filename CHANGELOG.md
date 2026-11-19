@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.44
+
 - `Stern` in the middle of the dynamic shadow directions casts the shadow to the four sides
   without the corners, as Stern draws its shadows, in one click; it replaces the `S` there.
 - `Help -> Tutorial`: a tutorial for new authors, from a frame dump to a published colorization,
