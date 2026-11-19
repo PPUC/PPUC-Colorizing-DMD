@@ -44,7 +44,8 @@ in the editor, saved or not.
   with its duration; it is an undoable step of the project. libserum then loads the project
   again.
 - `Show In Editor` closes the tester and goes to the frame libserum identified (or to the
-  tested project frame).
+  tested project frame). While a scene plays, it goes to the frame of the game that started
+  the scene, not to the scene's frame on display.
 - The Runtime view is switched off while the tester is open and on again afterwards. libserum
   holds the whole project while the tester is open. The project is handed to libserum
   directly, without a `.cROM`; loading takes about a second for

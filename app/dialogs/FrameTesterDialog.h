@@ -50,6 +50,9 @@ public:
     std::function<bool(const runtime::TesterFrame& frame)> onAddFrameRequested;
     // After the dialog closed through Show In Editor: the frame to show.
     [[nodiscard]] std::optional<std::size_t> frameToShow() const;
+    // The frame Show In Editor goes to: the frame libserum identified, or the tested project
+    // frame. While a scene plays, the frame of the game that started it.
+    [[nodiscard]] std::optional<std::size_t> editorFrame() const;
 
     // What the buttons do, also for tests.
     bool loadDumpFile(const QString& path);
@@ -96,6 +99,7 @@ private:
     void setFrames(std::vector<runtime::TesterFrame> frames, const QString& source);
     void feed(std::size_t position);
     void showResult();
+    void noteGameFrame();
     void playStep();
     void rotateStep();
     void updateControls();
@@ -115,6 +119,12 @@ private:
     // 1 forward, -1 backward, 0 paused.
     int m_playDirection = 0;
     std::optional<std::size_t> m_frameToShow;
+    // The frame of the game libserum identified last, not one of a scene: for a fed ROM frame
+    // that starts a scene libserum reports the scene's frame, so the frame is found as libserum
+    // found it (see noteGameFrame()).
+    std::optional<std::size_t> m_gameFrame;
+    // The frame whose picture is on display, also while libserum gives none for the fed frame.
+    std::optional<std::size_t> m_shownFrame;
     QTimer m_playTimer;
     QTimer m_rotationTimer;
 

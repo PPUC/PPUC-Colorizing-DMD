@@ -2201,7 +2201,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Close the tester and show the frame libserum identified, or the tested project frame</source>
-        <translation>Tester schließen und den von libserum erkannten Frame oder den getesteten Projekt-Frame zeigen</translation>
+        <translation type="vanished">Tester schließen und den von libserum erkannten Frame oder den getesteten Projekt-Frame zeigen</translation>
     </message>
     <message>
         <source>Close</source>
@@ -2222,6 +2222,10 @@ Use Create %1 Frame.</source>
     <message>
         <source>Frame dumps (*.txt);;All files (*)</source>
         <translation type="vanished">Frame-Dumps (*.txt);;Alle Dateien (*)</translation>
+    </message>
+    <message>
+        <source>Close the tester and show the frame libserum identified, or the tested project frame; while a scene plays, the frame that started it</source>
+        <translation>Tester schließen und den von libserum erkannten Frame oder den getesteten Projekt-Frame zeigen; während eine Szene läuft, den Frame, der sie gestartet hat</translation>
     </message>
     <message>
         <source>libserum could not load the project: %1</source>

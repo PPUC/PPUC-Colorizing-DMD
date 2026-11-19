@@ -28,6 +28,7 @@
 #include "dialogs/ProjectTaskDialog.h"
 #include "legacy/LegacyProjectIo.h"
 #include "platform/Utf8Path.h"
+#include "runtime/FrameIdentification.h"
 
 namespace colorizing::app {
 
@@ -143,7 +144,8 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_addButton->setToolTip(tr("Add the dump frame behind the project's frames"));
     m_showButton = new QPushButton(tr("Show In Editor"), this);
     m_showButton->setToolTip(
-        tr("Close the tester and show the frame libserum identified, or the tested project frame"));
+        tr("Close the tester and show the frame libserum identified, or the tested project "
+           "frame; while a scene plays, the frame that started it"));
     auto* closeButton = new QPushButton(tr("Close"), this);
 
     auto* sourceRow = new QHBoxLayout();
@@ -264,11 +266,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
         }
     });
     connect(m_showButton, &QPushButton::clicked, this, [this]() {
-        if (m_result.frameIndex) {
-            m_frameToShow = m_result.frameIndex;
-        } else if (!m_frames.empty()) {
-            m_frameToShow = m_frames[m_position].projectFrame;
-        }
+        m_frameToShow = editorFrame();
         accept();
     });
     connect(closeButton, &QPushButton::clicked, this, &QDialog::reject);
@@ -309,11 +307,66 @@ std::optional<std::size_t> FrameTesterDialog::frameToShow() const
     return m_frameToShow;
 }
 
+std::optional<std::size_t> FrameTesterDialog::editorFrame() const
+{
+    if (m_shownFrame && *m_shownFrame < m_document.frameCount() &&
+        m_document.sceneFrame(*m_shownFrame) && m_gameFrame) {
+        return m_gameFrame;
+    }
+    if (m_result.frameIndex) {
+        return m_result.frameIndex;
+    }
+    if (!m_frames.empty()) {
+        return m_frames[m_position].projectFrame;
+    }
+    return std::nullopt;
+}
+
+void FrameTesterDialog::noteGameFrame()
+{
+    if (!m_result.ok() || !m_result.frameIndex ||
+        *m_result.frameIndex >= m_document.frameCount()) {
+        return;
+    }
+    const std::optional<document::SceneFrameRef>& scene =
+        m_document.sceneFrame(*m_result.frameIndex);
+    if (!scene) {
+        m_gameFrame = m_result.frameIndex;
+        return;
+    }
+    // libserum reports the scene's frame for the ROM frame that started the scene, not the
+    // frame it identified the ROM frame as. That is the first frame that triggers the scene
+    // among those the ROM frame matches, from where libserum's search stands.
+    const std::vector<std::size_t> matches =
+        RuntimePreview::instance().identification(m_document)->matches(
+            m_frames[m_position].original);
+    const std::size_t searchStart = m_gameFrame.value_or(0);
+    std::optional<std::size_t> first;
+    std::optional<std::size_t> atOrAfter;
+    for (std::size_t frame : matches) {
+        if (m_document.sceneFrame(frame) || m_document.sceneTriggerId(frame) != scene->sceneId) {
+            continue;
+        }
+        if (!first) {
+            first = frame;
+        }
+        if (!atOrAfter && frame >= searchStart) {
+            atOrAfter = frame;
+        }
+    }
+    // None for a frame of a scene that another one started: the game frame stays.
+    if (atOrAfter || first) {
+        m_gameFrame = atOrAfter ? atOrAfter : first;
+    }
+}
+
 bool FrameTesterDialog::loadProject()
 {
     RuntimePreview& preview = RuntimePreview::instance();
     preview.close();
     m_result = {};
+    m_gameFrame.reset();
+    m_shownFrame.reset();
     m_dofEvents.clear();
     std::string error;
     try {
@@ -445,6 +498,7 @@ void FrameTesterDialog::feed(std::size_t position)
     if (!m_result.dofEvents.empty()) {
         m_dofEvents = m_result.dofEvents;
     }
+    noteGameFrame();
     m_speakerLights->start(m_result.lights);
     m_speakerLightsHd->start(m_result.lights);
     const bool newPicture =
@@ -464,6 +518,11 @@ void FrameTesterDialog::feed(std::size_t position)
     if (m_result.ok() && !m_result.unchanged && !m_result.rows32 && !m_result.rows64) {
         m_result.rows32 = previous.rows32;
         m_result.rows64 = previous.rows64;
+    }
+    if (m_result.shownFrameIndex) {
+        m_shownFrame = m_result.shownFrameIndex;
+    } else if (newPicture) {
+        m_shownFrame.reset();
     }
     showResult();
 }
@@ -486,6 +545,7 @@ void FrameTesterDialog::rotateStep()
         m_result.rows64 = rotated.rows64;
     }
     m_result.shownFrameIndex = rotated.shownFrameIndex;
+    m_shownFrame = rotated.shownFrameIndex;
     if (!rotated.unchanged) {
         // A step drew a new picture, also after libserum kept the one on display for the fed
         // frame: a running background scene puts that frame on top at its next step.

@@ -27,6 +27,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The Import Image and Import Movie Clip window stays open after Import, with its picture, clip
   time, zones and settings, and does not block the editor: undo, select other frames and import
   again; Close ends it.
+- `Show In Editor` in the Frame Tester goes to the frame that started the scene while a scene
+  plays, instead of to the scene's frame (issue #70).
 
 ## 3.99.38
 

@@ -319,6 +319,8 @@ void testScenes()
                dialog.infoText().contains(dialog.sceneText()) &&
                !dialog.infoText().contains(QStringLiteral("identified as")),
            "the trigger plays the scene, which is named: " + dialog.infoText().toStdString());
+    expect(dialog.editorFrame() == 0u,
+           "Show In Editor goes to the frame that started the scene, not to the scene's frame");
 
     QCheckBox* playScenes = nullptr;
     for (QCheckBox* box : dialog.findChildren<QCheckBox*>()) {
@@ -339,6 +341,55 @@ void testScenes()
            "and the trigger plays no scene: " + dialog.infoText().toStdString());
     dialog.setPlayScenes(true);
     expect(playScenes->isChecked(), "switched on again from the dialog");
+}
+
+// A scene that frame 2 starts at once, for which libserum reports the scene's frame and not
+// frame 2, and one that frame 2 starts at the next step and that ROM frames cannot
+// interrupt, so that libserum identifies none while it plays: while a scene plays, Show In
+// Editor goes to frame 2, the frame that started it.
+void testShowTriggerOfScene()
+{
+    for (const bool immediateStart : {true, false}) {
+        const std::string which = immediateStart ? "started at once: " : "started at a step: ";
+        document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+            runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+        document::SceneDefinition definition;
+        definition.sceneId = 50030;
+        definition.frameCount = 50;
+        definition.frameGroups = 1;
+        definition.durationMs = 30;
+        definition.immediateStart = immediateStart;
+        expect(static_cast<bool>(edit::addScene(document, definition)), "the scene is added");
+        document.setSceneTriggerId(2, 50030);
+
+        app::FrameTesterDialog dialog(document, {1, 2});
+        expect(dialog.errorText().isEmpty() && dialog.editorFrame() == 1u,
+               which + "a frame of the game is shown as itself: " +
+                   dialog.infoText().toStdString());
+        dialog.showPosition(1);
+        if (immediateStart) {
+            expect(dialog.lastResult().frameIndex >= 3u,
+                   which + "libserum reports the scene's frame for the trigger: " +
+                       dialog.infoText().toStdString());
+        }
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 200) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+        }
+        expect(dialog.sceneText().startsWith(QStringLiteral("scene 50030 plays")),
+               which + "the trigger plays the scene: " + dialog.infoText().toStdString());
+        expect(dialog.editorFrame() == 2u,
+               which + "Show In Editor goes to the trigger frame: " +
+                   dialog.infoText().toStdString());
+        // Frame 1 again: the scene cannot be interrupted, libserum identifies nothing.
+        dialog.showPosition(0);
+        expect(!dialog.lastResult().identified,
+               which + "the scene goes on: " + dialog.infoText().toStdString());
+        expect(dialog.editorFrame() == 2u,
+               which + "Show In Editor still goes to the trigger frame, not to the tested "
+                       "frame: " + dialog.infoText().toStdString());
+    }
 }
 
 // A background scene that two frames trigger: libserum keeps the picture for the second
@@ -444,5 +495,6 @@ void runFrameTesterWidgetTests()
     testArrowKeysStepFrames();
     testFindUnderMask();
     testScenes();
+    testShowTriggerOfScene();
     testBackgroundScene();
 }
