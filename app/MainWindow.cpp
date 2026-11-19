@@ -861,7 +861,7 @@ void MainWindow::createActions()
         withShortcutId(fileMenu->addAction(tr("Import &Package...")), "import-package");
     importPackageAction->setToolTip(
         tr("Add the frames of a package, with what they use; frames the project has already "
-           "can be updated"));
+           "can be updated. With no project open, the package becomes a new project"));
     connect(importPackageAction, &QAction::triggered, this, [this]() { importPackageFile(); });
     QAction* exportPackageAction =
         withShortcutId(fileMenu->addAction(tr("Export Selected Frames As Pac&kage...")),
@@ -3127,10 +3127,7 @@ QString MainWindow::licenseText(const document::ProjectLicense& license)
 
 void MainWindow::importPackageFile()
 {
-    if (!m_document) {
-        statusBar()->showMessage(tr("No project loaded"), 2500);
-        return;
-    }
+    // With no project open the package becomes a new one (issue #75).
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Import Package"),
         RecentFolders::folder(RecentFolders::kPackages, projectFolder()),
@@ -3212,6 +3209,10 @@ void MainWindow::pasteFramesFromClipboard()
 
 void MainWindow::importPackage(const document::ProjectSnapshot& package)
 {
+    if (!m_document) {
+        newProjectFromPackage(package);
+        return;
+    }
     const edit::PackageImportPlan plan = edit::planPackageImport(*m_document, package);
     if (!plan.problem.empty()) {
         QMessageBox::warning(this, tr("Import Package"),
@@ -3290,6 +3291,22 @@ void MainWindow::importPackage(const document::ProjectSnapshot& package)
                             5000);
 }
 
+void MainWindow::newProjectFromPackage(const document::ProjectSnapshot& package)
+{
+    try {
+        startNewProject(edit::makeProjectFromPackage(package));
+    } catch (const std::exception& ex) {
+        QMessageBox::critical(this, tr("New Project Failed"), QString::fromUtf8(ex.what()));
+        return;
+    }
+    refreshProjectSummary();
+    statusBar()->showMessage(
+        tr("New project %1 of the package's %n frame(s), not saved yet", "",
+           static_cast<int>(m_document->frameCount()))
+            .arg(QString::fromStdString(m_document->romName())),
+        8000);
+}
+
 UnsavedChangesAnswer MainWindow::askAboutUnsavedChanges(const QString& action)
 {
     if (m_unsavedChangesAnswer) {
@@ -3332,6 +3349,32 @@ bool MainWindow::confirmClosingProject(const QString& action)
         [this]() { return saveProject(); });
 }
 
+void MainWindow::startNewProject(document::ProjectSnapshot snapshot)
+{
+    setPlaybackRunning(false);
+    // The Images window writes into the project it was opened for.
+    if (m_importDialog) {
+        m_importDialog->close();
+    }
+    m_document = document::ProjectDocument::fromSnapshot(std::move(snapshot));
+    // A new project keeps its scenes and scaling settings itself.
+    m_document->setColorizationSettings(document::ColorizationSettings{});
+    m_document->markUnsaved();
+    m_projectPath.clear();
+    m_sourcePath.clear();
+    m_team->projectChanged();
+    m_undoHistories.clear();
+    m_canvasHistory.clear();
+    updateHistoryButtons();
+    startProjectClock();
+    updateRuntimeSceneFile();
+    m_pasteMode.clearClipboard();
+    updateUndoRedoActions();
+    if (m_saveAction) {
+        m_saveAction->setEnabled(true);
+    }
+}
+
 void MainWindow::newProjectFromDump()
 {
     if (!confirmClosingProject(tr("New Project From Dump"))) {
@@ -3356,29 +3399,8 @@ void MainWindow::newProjectFromDump()
     importing::DumpImportResult dump = dialog.takeResult();
     const QString summary = dumpCountsText(dump, false);
     try {
-        setPlaybackRunning(false);
-        // The Images window writes into the project it was opened for.
-        if (m_importDialog) {
-            m_importDialog->close();
-        }
-        m_document = document::ProjectDocument::fromSnapshot(
+        startNewProject(
             importing::makeProjectSnapshot(dialog.romName().toStdString(), std::move(dump)));
-        // A new project keeps its scenes and scaling settings itself.
-        m_document->setColorizationSettings(document::ColorizationSettings{});
-        m_document->markUnsaved();
-        m_projectPath.clear();
-        m_sourcePath.clear();
-        m_team->projectChanged();
-        m_undoHistories.clear();
-        m_canvasHistory.clear();
-        updateHistoryButtons();
-        startProjectClock();
-        updateRuntimeSceneFile();
-        m_pasteMode.clearClipboard();
-        updateUndoRedoActions();
-        if (m_saveAction) {
-            m_saveAction->setEnabled(true);
-        }
     } catch (const std::exception& ex) {
         QMessageBox::critical(this,
                               tr("New Project Failed"),

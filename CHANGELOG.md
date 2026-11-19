@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Import Package` with no project open makes a new project of the package (issue #75).
+
 ## 3.99.42
 
 - `Show In Editor` in the Frame Tester goes to the frame that started the scene while a scene

@@ -198,6 +198,10 @@ private:
     void importPackageFrom(const QString& path);
     // Asks what to do with the frames the project has already, then imports.
     void importPackage(const document::ProjectSnapshot& package);
+    // Import Package with no project open: a new, unsaved project of the package (issue #75).
+    void newProjectFromPackage(const document::ProjectSnapshot& package);
+    // Makes the snapshot the open project, a new one that is not saved yet.
+    void startNewProject(document::ProjectSnapshot snapshot);
     // Edit -> Copy Frames and Paste Frames: a package on the clipboard (FramesClipboard.h).
     void copyFramesToClipboard();
     void pasteFramesFromClipboard();

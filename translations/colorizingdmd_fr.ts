@@ -3296,6 +3296,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Ajouter les frames d&apos;un dump de frames que le projet n&apos;a pas encore</translation>
     </message>
     <message>
+        <source>Add the frames of a package, with what they use; frames the project has already can be updated. With no project open, the package becomes a new project</source>
+        <translation>Ajouter les frames d&apos;un paquet avec ce qu&apos;elles utilisent ; les frames que le projet a déjà peuvent être mises à jour. Sans projet ouvert, le paquet devient un nouveau projet</translation>
+    </message>
+    <message>
         <source>Open &amp;Recent</source>
         <translation>Projets &amp;récents</translation>
     </message>
@@ -4412,6 +4416,13 @@ Utiliser Créer la frame %1.</translation>
     <message>
         <source>Transparent pixels are painted with the point and shape tools</source>
         <translation>Les pixels transparents se peignent avec les outils point et forme</translation>
+    </message>
+    <message numerus="yes">
+        <source>New project %1 of the package&apos;s %n frame(s), not saved yet</source>
+        <translation>
+            <numerusform>Nouveau projet %1 de la frame du paquet, pas encore enregistré</numerusform>
+            <numerusform>Nouveau projet %1 des %n frames du paquet, pas encore enregistré</numerusform>
+        </translation>
     </message>
     <message>
         <source>Not signed in to GitHub</source>
@@ -5888,7 +5899,7 @@ Utiliser Créer la frame %1.</translation>
     </message>
     <message>
         <source>Add the frames of a package, with what they use; frames the project has already can be updated</source>
-        <translation>Ajouter les frames d&apos;un paquet avec ce qu&apos;elles utilisent ; les frames que le projet a déjà peuvent être mises à jour</translation>
+        <translation type="vanished">Ajouter les frames d&apos;un paquet avec ce qu&apos;elles utilisent ; les frames que le projet a déjà peuvent être mises à jour</translation>
     </message>
     <message>
         <source>Export Selected Frames As Pac&amp;kage...</source>

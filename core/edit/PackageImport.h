@@ -25,6 +25,11 @@ namespace colorizing::edit {
 [[nodiscard]] document::ProjectSnapshot makePackage(const document::ProjectDocument& document,
                                                     const std::vector<std::size_t>& frames);
 
+// A new project of the package's frames, for Import Package with no project open (issue #75):
+// the package as it is, with its own new project ID (the source project's stays with it)
+// and no team.
+[[nodiscard]] document::ProjectSnapshot makeProjectFromPackage(document::ProjectSnapshot package);
+
 // What an import of the package into the project would do.
 struct PackageImportPlan {
     // Why the package cannot go into the project (another frame layout, other colors, too

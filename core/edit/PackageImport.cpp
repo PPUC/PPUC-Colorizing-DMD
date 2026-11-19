@@ -184,6 +184,15 @@ ProjectSnapshot makePackage(const ProjectDocument& document,
     return package;
 }
 
+ProjectSnapshot makeProjectFromPackage(ProjectSnapshot package)
+{
+    // ProjectDocument::fromSnapshot() gives a null ID a new one.
+    package.projectId = ComponentId{};
+    package.team.reset();
+    package.colorizationSettings.reset();
+    return package;
+}
+
 PackageImportPlan planPackageImport(const ProjectDocument& document,
                                     const ProjectSnapshot& package)
 {

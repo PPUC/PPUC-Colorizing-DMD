@@ -3296,6 +3296,10 @@ Use Create %1 Frame.</source>
         <translation>Die Frames eines Frame-Dumps hinzufügen, die das Projekt noch nicht hat</translation>
     </message>
     <message>
+        <source>Add the frames of a package, with what they use; frames the project has already can be updated. With no project open, the package becomes a new project</source>
+        <translation>Die Frames eines Pakets hinzufügen, mit allem, was sie verwenden; Frames, die das Projekt schon hat, können aktualisiert werden. Ist kein Projekt geöffnet, wird das Paket zu einem neuen Projekt</translation>
+    </message>
+    <message>
         <source>Open &amp;Recent</source>
         <translation>&amp;Zuletzt geöffnet</translation>
     </message>
@@ -4412,6 +4416,13 @@ Use Create %1 Frame.</source>
     <message>
         <source>Transparent pixels are painted with the point and shape tools</source>
         <translation>Transparente Pixel werden mit dem Punkt- und den Formwerkzeugen gezeichnet</translation>
+    </message>
+    <message numerus="yes">
+        <source>New project %1 of the package&apos;s %n frame(s), not saved yet</source>
+        <translation>
+            <numerusform>Neues Projekt %1 aus dem Frame des Pakets, noch nicht gespeichert</numerusform>
+            <numerusform>Neues Projekt %1 aus den %n Frames des Pakets, noch nicht gespeichert</numerusform>
+        </translation>
     </message>
     <message>
         <source>Not signed in to GitHub</source>
@@ -5888,7 +5899,7 @@ Use Create %1 Frame.</source>
     </message>
     <message>
         <source>Add the frames of a package, with what they use; frames the project has already can be updated</source>
-        <translation>Die Frames eines Pakets hinzufügen, mit allem, was sie verwenden; Frames, die das Projekt schon hat, können aktualisiert werden</translation>
+        <translation type="vanished">Die Frames eines Pakets hinzufügen, mit allem, was sie verwenden; Frames, die das Projekt schon hat, können aktualisiert werden</translation>
     </message>
     <message>
         <source>Export Selected Frames As Pac&amp;kage...</source>

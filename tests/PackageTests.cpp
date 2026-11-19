@@ -86,6 +86,25 @@ void testPackageContent()
            "the source project's ID and license, the frames' IDs and tags");
 }
 
+// Import Package with no project open makes a new project of the package (issue #75).
+void testProjectFromPackage()
+{
+    const ProjectDocument source = makeSource();
+    const ProjectDocument project = ProjectDocument::fromSnapshot(
+        edit::makeProjectFromPackage(edit::makePackage(source, {1, 4})));
+    expect(project.frameCount() == 2 && project.comparisonMaskCount() == 1 &&
+               project.backgroundCount() == 2 && project.spriteCount() == 2,
+           "a new project has the package's frames and what they use");
+    expect(project.frameMeta(0).id == source.frameMeta(1).id &&
+               project.license().kind == document::LicenseKind::CcBy &&
+               project.romName() == source.romName() &&
+               project.paletteCount() == source.paletteCount(),
+           "with the frames' IDs, the license, the ROM name and the palettes");
+    expect(!project.projectId().isNull() && project.projectId() != source.projectId() &&
+               !project.team(),
+           "but its own project ID and no team");
+}
+
 std::filesystem::path tempPath(const std::string& suffix)
 {
     static int counter = 0;
@@ -259,6 +278,7 @@ void testRefusals()
 void runPackageTests()
 {
     testPackageContent();
+    testProjectFromPackage();
     testPackageFile();
     testImportIntoAnotherProject();
     testUpdateKnownFrames();
