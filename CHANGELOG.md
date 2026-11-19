@@ -8,6 +8,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - `Ctrl/Cmd+Z` undoes the most recent edit anywhere in the project, as in the Win32 editor, and
   `Ctrl/Cmd+Shift+Z` redoes it; the undo of the frame and mode shown is now `Undo Here`
   (`Ctrl/Cmd+Alt+Z`, `Ctrl/Cmd+Alt+Shift+Z`). Keys set in the settings stay (issue #72).
+- After an action over several frames was undone, `Redo Here` brings it back on the frame shown
+  only; `Redo` brings back the rest.
 - The sprite canvas tells dynamic sets apart as the frame canvas does: the selected set's
   zones yellow, the others cyan, each area with its set's number (issue #73).
 - The toolbar's `Dynamic` shows and paints a sprite's dynamic zones on the sprite canvas;

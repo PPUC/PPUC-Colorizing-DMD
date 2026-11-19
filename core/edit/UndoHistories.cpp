@@ -183,11 +183,17 @@ uint64_t UndoHistories::runOne(const HistoryKey& key,
     return group;
 }
 
-std::optional<HistoryKey> UndoHistories::latestOfGroup(uint64_t group, bool undoing) const
+std::optional<HistoryKey> UndoHistories::latestOfGroup(
+    uint64_t group,
+    bool undoing,
+    const std::vector<HistoryKey>* within) const
 {
     std::optional<HistoryKey> latestKey;
     uint64_t latestSequence = 0;
     for (const auto& [key, history] : m_histories) {
+        if (within && std::find(within->begin(), within->end(), key) == within->end()) {
+            continue;
+        }
         const std::vector<Entry>& stack = undoing ? history.undoStack : history.redoStack;
         if (!stack.empty() && stack.back().group == group &&
             (!latestKey || stack.back().sequence > latestSequence)) {
@@ -221,17 +227,37 @@ const EditCommand* UndoHistories::redo(const HistoryKey& key,
                                        document::ProjectDocument& document,
                                        const RunHandler& ran)
 {
+    return redoGroup(key, document, ran, nullptr, nullptr);
+}
+
+const EditCommand* UndoHistories::redoGroup(const HistoryKey& key,
+                                            document::ProjectDocument& document,
+                                            const RunHandler& ran,
+                                            const std::vector<HistoryKey>* within,
+                                            std::size_t* left)
+{
+    if (left) {
+        *left = 0;
+    }
     const EditCommand* command = nullptr;
     const uint64_t group = runOne(key, false, document, ran, &command);
     // The rest of the group in the order it was made: undone newest first, the oldest has
     // the highest sequence on the redo stacks.
     while (command && group != 0) {
-        const std::optional<HistoryKey> next = latestOfGroup(group, false);
+        const std::optional<HistoryKey> next = latestOfGroup(group, false, within);
         if (!next) {
             break;
         }
         const EditCommand* member = nullptr;
         runOne(*next, false, document, ran, &member);
+    }
+    if (command && group != 0 && left) {
+        for (const auto& entry : m_histories) {
+            const std::vector<Entry>& redoStack = entry.second.redoStack;
+            *left += static_cast<std::size_t>(std::count_if(
+                redoStack.begin(), redoStack.end(),
+                [group](const Entry& entry) { return entry.group == group; }));
+        }
     }
     return command;
 }
@@ -297,6 +323,18 @@ const EditCommand* UndoHistories::redoLatest(const std::vector<HistoryKey>& keys
 {
     const std::optional<HistoryKey> key = latestRedoKey(keys);
     return key ? redo(*key, document, ran) : nullptr;
+}
+
+const EditCommand* UndoHistories::redoLatestWithin(const std::vector<HistoryKey>& keys,
+                                                   document::ProjectDocument& document,
+                                                   const RunHandler& ran,
+                                                   std::size_t* left)
+{
+    if (left) {
+        *left = 0;
+    }
+    const std::optional<HistoryKey> key = latestRedoKey(keys);
+    return key ? redoGroup(*key, document, ran, &keys, left) : nullptr;
 }
 
 void UndoHistories::dropReplacedHistories(const EditCommand& command)

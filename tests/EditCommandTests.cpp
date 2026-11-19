@@ -1049,6 +1049,48 @@ void testHistoryGroups()
            "without a group each command is its own step");
 }
 
+// Redo Here: after an action over several frames was undone, it comes back on the frame
+// shown alone; the rest of the action stays one step for Redo.
+void testHistoryRedoWithin()
+{
+    ProjectDocument document = makeDocument();
+    UndoHistories histories;
+    const auto pixels = [&]() {
+        return std::vector<uint16_t>{document.colorizedPixel(0, Resolution::Sd, 1, 0),
+                                     document.colorizedPixel(1, Resolution::Sd, 1, 0),
+                                     document.paletteColor(0, 2)};
+    };
+    using State = std::vector<uint16_t>;
+    histories.beginGroup();
+    commit(histories, document, makeFramePixel(0, Resolution::Sd, 1, 0, 0x0001));
+    const HistoryKey frame1 =
+        commit(histories, document, makeFramePixel(1, Resolution::Sd, 1, 0, 0x0002));
+    commit(histories, document, makePaletteColor(0, 0x0003));
+    histories.endGroup();
+    histories.undo(frame1, document);
+    expect(pixels() == State{0, 0, document.paletteColor(0, 2)} &&
+               document.paletteColor(0, 2) != 0x0003,
+           "the action is undone everywhere");
+    const uint16_t palette = document.paletteColor(0, 2);
+
+    std::size_t left = 99;
+    std::size_t ran = 0;
+    expect(histories.redoLatestWithin({frame1}, document,
+                                      [&ran](const EditCommand&) { ++ran; }, &left) !=
+                   nullptr &&
+               ran == 1 && left == 2 && pixels() == State{0, 0x0002, palette},
+           "Redo Here brings it back on the frame shown only, two parts left");
+    expect(histories.redoLatest(histories.keys(), document) != nullptr &&
+               pixels() == State{0x0001, 0x0002, 0x0003},
+           "Redo brings back the rest as one step");
+    histories.undo(frame1, document);
+    expect(pixels() == State{0, 0, palette}, "and the action is one step again");
+    left = 99;
+    expect(histories.redoLatestWithin(histories.keys(), document, {}, &left) != nullptr &&
+               left == 0 && pixels() == State{0x0001, 0x0002, 0x0003},
+           "within every history it is the whole action");
+}
+
 void testHistoryUndoLatestIsChronological()
 {
     ProjectDocument document = makeDocument();
@@ -1325,6 +1367,7 @@ void runEditCommandTests()
     testSpriteHdCommands();
     testHistoryUndoLatestIsChronological();
     testHistoryGroups();
+    testHistoryRedoWithin();
     testHistoryLatestAnywhere();
     testReplacingCommandDropsHistories();
     testCommandThatFailsStaysInItsHistory();

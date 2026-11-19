@@ -91,6 +91,12 @@ this frame's part alone, and it is undone with the frame's own steps later, afte
 Nothing made after the action is ever undone with it. The selection itself is not part of Undo;
 it has `Undo Selection` and `Redo Selection` of its own (see "Selection").
 
+`Redo Here` is the exception: after an action over several frames was undone, it brings the
+action back on what is shown only, the frame (and mode) of the current context. The other
+frames' parts stay undone and remain one step: `Redo` brings them back together, and the
+status bar says how many are left. For example, to keep a box drawn on five selected frames on
+only two of them: `Undo` the box, then `Redo Here` on each of the two.
+
 Undoing `Create HD` removes the HD frame again and restores the HD data the dialog options had
 overwritten: the frame's HD background mask and the HD image of the background that was assigned
 at the time (or its absence). Undoing `Remove HD`

@@ -6774,6 +6774,13 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
         <source>Undo failed, the step stays in the history: %1</source>
         <translation>Rückgängig fehlgeschlagen, der Schritt bleibt im Verlauf: %1</translation>
     </message>
+    <message numerus="yes">
+        <source>%1, here only: Redo brings back the step&apos;s %n other change(s)</source>
+        <translation>
+            <numerusform>%1, nur hier: Wiederholen bringt die %n andere Änderung des Schritts zurück</numerusform>
+            <numerusform>%1, nur hier: Wiederholen bringt die %n anderen Änderungen des Schritts zurück</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Undo: %1</source>
         <translation type="vanished">Rückgängig: %1</translation>

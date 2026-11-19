@@ -14274,11 +14274,16 @@ void MainWindow::runUndoRedo(bool anywhere, bool undoing)
         }
         refreshAfterEdit(command);
     };
+    // Redo Here brings an action over several frames back on what is shown only; Redo brings
+    // back the rest (UndoHistories::redoLatestWithin()).
+    std::size_t left = 0;
     try {
         if (undoing) {
             (void)m_undoHistories.undoLatest(keys, *m_document, refresh);
-        } else {
+        } else if (anywhere) {
             (void)m_undoHistories.redoLatest(keys, *m_document, refresh);
+        } else {
+            (void)m_undoHistories.redoLatestWithin(keys, *m_document, refresh, &left);
         }
     } catch (const std::exception& ex) {
         // The command could not run and stays where it was (UndoHistories leaves it on its
@@ -14298,7 +14303,12 @@ void MainWindow::runUndoRedo(bool anywhere, bool undoing)
     if (ran > 1) {
         text = tr("%1 (one step of %2 changes)").arg(text).arg(static_cast<qulonglong>(ran));
     }
-    statusBar()->showMessage(text, 2500);
+    if (left > 0) {
+        text = tr("%1, here only: Redo brings back the step's %n other change(s)", "",
+                  static_cast<int>(left))
+                   .arg(text);
+    }
+    statusBar()->showMessage(text, left > 0 ? 5000 : 2500);
 }
 
 void MainWindow::goToHistory(const edit::HistoryKey& key)

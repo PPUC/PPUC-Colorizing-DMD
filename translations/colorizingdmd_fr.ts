@@ -6774,6 +6774,13 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
         <source>Undo failed, the step stays in the history: %1</source>
         <translation>Échec de l&apos;annulation, l&apos;étape reste dans l&apos;historique : %1</translation>
     </message>
+    <message numerus="yes">
+        <source>%1, here only: Redo brings back the step&apos;s %n other change(s)</source>
+        <translation>
+            <numerusform>%1, ici seulement : Rétablir ramène l&apos;autre modification (%n) de l&apos;étape</numerusform>
+            <numerusform>%1, ici seulement : Rétablir ramène les %n autres modifications de l&apos;étape</numerusform>
+        </translation>
+    </message>
     <message>
         <source>Undo: %1</source>
         <translation type="vanished">Annulation : %1</translation>

@@ -112,6 +112,15 @@ public:
     const EditCommand* redoLatest(const std::vector<HistoryKey>& keys,
                                   document::ProjectDocument& document,
                                   const RunHandler& ran = {});
+    // As redoLatest(), but the step's group is redone only within the given histories: after
+    // an action over several frames was undone, it comes back on the frame shown alone (Redo
+    // Here). The commands of the group outside them stay on their redo stacks, still one
+    // group, so a redo there brings them back together. left, when given, is set to how many
+    // of them stay.
+    const EditCommand* redoLatestWithin(const std::vector<HistoryKey>& keys,
+                                        document::ProjectDocument& document,
+                                        const RunHandler& ran = {},
+                                        std::size_t* left = nullptr);
     // Every history that has a command to undo or redo, for undoing anywhere in the project.
     [[nodiscard]] std::vector<HistoryKey> keys() const;
     // The history undoLatest() or redoLatest() would use among the keys, without running it.
@@ -148,8 +157,16 @@ private:
                     const RunHandler& ran,
                     const EditCommand** command);
     // The key whose latest undo (or redo) command is the newest of the group; none if no
-    // history has one of the group on top.
-    [[nodiscard]] std::optional<HistoryKey> latestOfGroup(uint64_t group, bool undoing) const;
+    // history has one of the group on top. With within, among those keys only.
+    [[nodiscard]] std::optional<HistoryKey> latestOfGroup(
+        uint64_t group,
+        bool undoing,
+        const std::vector<HistoryKey>* within = nullptr) const;
+    const EditCommand* redoGroup(const HistoryKey& key,
+                                 document::ProjectDocument& document,
+                                 const RunHandler& ran,
+                                 const std::vector<HistoryKey>* within,
+                                 std::size_t* left);
 
     std::map<HistoryKey, History> m_histories;
     uint64_t m_nextSequence = 1;
