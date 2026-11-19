@@ -6,8 +6,11 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 #include <QContextMenuEvent>
+#include <QFontMetrics>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
@@ -782,6 +785,15 @@ bool SpriteEditorWidget::isDynamicPaintMode() const
     return m_dynamicPaint;
 }
 
+void SpriteEditorWidget::setSelectedDynamicSet(std::optional<std::size_t> set)
+{
+    if (m_selectedDynamicSet == set) {
+        return;
+    }
+    m_selectedDynamicSet = set;
+    update();
+}
+
 void SpriteEditorWidget::setLeftButtonPaintsDynamic(bool paints)
 {
     m_leftPaintsDynamic = paints;
@@ -872,39 +884,117 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
         }
     }
     // The outlines of the dynamic zones, over the picture of the plane they are on: the pixels
-    // keep the colors they show.
+    // keep the colors they show. As on the frame canvas the zones are outlined also where two
+    // sets meet, the selected set yellow and last, the others cyan, over a dark edge, and each
+    // area carries its set's number once a pixel is large enough (issue #73).
     const render::Resolution shownPlane = useHd ? render::Resolution::Hd : render::Resolution::Sd;
     if (m_dynamicPaint && region.region == render::CanvasRegion::SpriteColorized &&
         shownPlane == m_document->dynamicPlane()) {
-        const auto inZone = [&](int x, int y) {
-            return x >= 0 && y >= 0 && x < kSpriteSize.width && y < kSpriteSize.height &&
-                   dynamicColorAt(sprite, x, y, useHd).has_value();
+        const document::IndexedFrame& dynamicMask =
+            useHd ? sprite.dynamicMaskHd : sprite.dynamicMaskSd;
+        const auto setAt = [&](int x, int y) -> int {
+            if (x < 0 || y < 0 || x >= kSpriteSize.width || y >= kSpriteSize.height ||
+                !dynamicColorAt(sprite, x, y, useHd)) {
+                return 255;
+            }
+            return dynamicMask.pixels[spritePixelIndex(x, y)];
         };
-        QPen pen(QColor(0, 180, 255));
-        pen.setCosmetic(true);
-        pen.setWidth(2);
-        painter.save();
-        painter.setPen(pen);
+        std::vector<int> sets(static_cast<std::size_t>(kSpriteSize.width) *
+                              static_cast<std::size_t>(kSpriteSize.height));
         for (int y = 0; y < kSpriteSize.height; ++y) {
             for (int x = 0; x < kSpriteSize.width; ++x) {
-                if (!inZone(x, y)) {
-                    continue;
+                sets[spritePixelIndex(x, y)] = setAt(x, y);
+            }
+        }
+        const auto shownSet = [&](int x, int y) {
+            return x < 0 || y < 0 || x >= kSpriteSize.width || y >= kSpriteSize.height
+                       ? 255
+                       : sets[spritePixelIndex(x, y)];
+        };
+        const auto outline = [&](bool selected, QColor color, double width) {
+            QPen pen(color, width);
+            pen.setCosmetic(true);
+            painter.setPen(pen);
+            for (int y = 0; y < kSpriteSize.height; ++y) {
+                for (int x = 0; x < kSpriteSize.width; ++x) {
+                    const int set = shownSet(x, y);
+                    if (set == 255 ||
+                        (m_selectedDynamicSet && (set == static_cast<int>(*m_selectedDynamicSet)) !=
+                                                     selected) ||
+                        (!m_selectedDynamicSet && selected)) {
+                        continue;
+                    }
+                    const double left = region.rect.x + x * cellSize;
+                    const double top = region.rect.y + y * cellSize;
+                    const double right = left + cellSize;
+                    const double bottom = top + cellSize;
+                    if (shownSet(x - 1, y) != set) {
+                        painter.drawLine(QLineF(left, top, left, bottom));
+                    }
+                    if (shownSet(x + 1, y) != set) {
+                        painter.drawLine(QLineF(right, top, right, bottom));
+                    }
+                    if (shownSet(x, y - 1) != set) {
+                        painter.drawLine(QLineF(left, top, right, top));
+                    }
+                    if (shownSet(x, y + 1) != set) {
+                        painter.drawLine(QLineF(left, bottom, right, bottom));
+                    }
                 }
-                const double left = region.rect.x + x * cellSize;
-                const double top = region.rect.y + y * cellSize;
-                const double right = left + cellSize;
-                const double bottom = top + cellSize;
-                if (!inZone(x - 1, y)) {
-                    painter.drawLine(QLineF(left, top, left, bottom));
-                }
-                if (!inZone(x + 1, y)) {
-                    painter.drawLine(QLineF(right, top, right, bottom));
-                }
-                if (!inZone(x, y - 1)) {
-                    painter.drawLine(QLineF(left, top, right, top));
-                }
-                if (!inZone(x, y + 1)) {
-                    painter.drawLine(QLineF(left, bottom, right, bottom));
+            }
+        };
+        painter.save();
+        painter.setBrush(Qt::NoBrush);
+        outline(false, QColor(0, 0, 0, 180), 4.0);
+        outline(false, QColor(0, 200, 255), 2.0);
+        if (m_selectedDynamicSet) {
+            outline(true, QColor(0, 0, 0, 200), 4.0);
+            outline(true, QColor(255, 230, 0), 2.0);
+        }
+        // The numbers, in widget pixels: one per area (the pixels of a set that touch each
+        // other), at its first pixel from the top left, as the sets are numbered in the panel.
+        const QTransform toWidget = painter.transform();
+        const double pixel = toWidget.m11() * cellSize;
+        if (pixel >= 5.0) {
+            painter.resetTransform();
+            QFont font = painter.font();
+            font.setPixelSize(static_cast<int>(std::clamp(pixel * 0.9, 9.0, 14.0)));
+            font.setBold(true);
+            painter.setFont(font);
+            const QFontMetrics metrics(font);
+            std::vector<bool> seen(sets.size(), false);
+            for (int y = 0; y < kSpriteSize.height; ++y) {
+                for (int x = 0; x < kSpriteSize.width; ++x) {
+                    const int set = shownSet(x, y);
+                    if (set == 255 || seen[spritePixelIndex(x, y)]) {
+                        continue;
+                    }
+                    std::vector<std::pair<int, int>> pending{{x, y}};
+                    seen[spritePixelIndex(x, y)] = true;
+                    while (!pending.empty()) {
+                        const auto [px, py] = pending.back();
+                        pending.pop_back();
+                        for (const auto& [dx, dy] :
+                             {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                            const int nx = px + dx;
+                            const int ny = py + dy;
+                            if (shownSet(nx, ny) == set && !seen[spritePixelIndex(nx, ny)]) {
+                                seen[spritePixelIndex(nx, ny)] = true;
+                                pending.push_back({nx, ny});
+                            }
+                        }
+                    }
+                    const QString text = QString::number(set + 1);
+                    const QPointF corner = toWidget.map(
+                        QPointF(region.rect.x + x * cellSize, region.rect.y + y * cellSize));
+                    const QRectF box(
+                        corner + QPointF(2, 2),
+                        QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
+                    const bool selected =
+                        m_selectedDynamicSet && static_cast<int>(*m_selectedDynamicSet) == set;
+                    painter.fillRect(box, QColor(0, 0, 0, 190));
+                    painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
+                    painter.drawText(box, Qt::AlignCenter, text);
                 }
             }
         }

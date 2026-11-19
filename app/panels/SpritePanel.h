@@ -129,7 +129,6 @@ public:
     // Sprite shape mode and dynamic content (CDMD's sprite window: IDC_SHAPEM, the dynamic
     // sets and their colors).
     std::function<void(bool shapeMode)> onShapeModeToggled;
-    std::function<void(bool enabled)> onDynamicPaintToggled;
     // Paint Transparent: strokes on the HD sprite make its pixels transparent.
     std::function<void(bool enabled)> onTransparentPaintToggled;
     std::function<void(std::size_t originalColorIndex)> onDynamicColorClicked;
@@ -137,12 +136,10 @@ public:
     std::function<void(std::size_t from, std::size_t to)> onDynamicColorsSwapped;
     std::function<void()> onEditColorsToDynamicSet;
     std::function<void()> onDynamicSetToEditColors;
+    // The Set field changed; read it with dynamicSet().
+    std::function<void()> onDynamicSetChanged;
     // 0 to 8, shown as 1 to 9.
     [[nodiscard]] std::size_t dynamicSet() const;
-    void setDynamicPaintChecked(bool checked);
-    // Paint Dynamic's tool tip: whether its strokes paint the zones or it only shows them
-    // (DynamicZoneOptions::leftPaintsColors); the right button paints them either way.
-    void setLeftButtonPaintsDynamic(bool paints);
     // Neither notifies.
     void setTransparentPaintChecked(bool checked);
     [[nodiscard]] bool isTransparentPaintChecked() const;
@@ -183,7 +180,6 @@ private:
     QToolButton* m_removeHdButton = nullptr;
     QToolButton* m_transparentPaintButton = nullptr;
     QCheckBox* m_shapeModeCheckBox = nullptr;
-    QToolButton* m_dynamicPaintButton = nullptr;
     QSpinBox* m_dynamicSetSpinBox = nullptr;
     ColorGridWidget* m_dynamicColorGrid = nullptr;
     QToolButton* m_editColorsToSetButton = nullptr;

@@ -327,10 +327,6 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_shapeModeCheckBox = new QCheckBox(tr("Shape mode"), this);
     m_shapeModeCheckBox->setToolTip(tr(
         "Find the sprite by its shape (lit or not) instead of its shades"));
-    m_dynamicPaintButton = new QToolButton(this);
-    m_dynamicPaintButton->setText(tr("Paint Dynamic"));
-    m_dynamicPaintButton->setCheckable(true);
-    setLeftButtonPaintsDynamic(true);
     m_dynamicSetSpinBox = new QSpinBox(this);
     m_dynamicSetSpinBox->setRange(1, static_cast<int>(document::kMaxDynamicSetsPerSprite));
     m_dynamicSetSpinBox->setPrefix(tr("Set "));
@@ -349,7 +345,6 @@ SpritePanel::SpritePanel(QWidget* parent)
     auto* dynamicRow = new QHBoxLayout();
     dynamicRow->addWidget(m_shapeModeCheckBox);
     dynamicRow->addStretch(1);
-    dynamicRow->addWidget(m_dynamicPaintButton);
     dynamicRow->addWidget(m_dynamicSetSpinBox);
     pageLayout->addLayout(dynamicRow);
     pageLayout->addWidget(m_dynamicColorGrid);
@@ -362,15 +357,15 @@ SpritePanel::SpritePanel(QWidget* parent)
             onShapeModeToggled(checked);
         }
     });
-    connect(m_dynamicPaintButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (onDynamicPaintToggled) {
-            onDynamicPaintToggled(checked);
-        }
-    });
     connect(m_dynamicSetSpinBox,
             static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
             this,
-            [this](int) { refreshDynamic(m_dynamicDocument, m_dynamicSprite); });
+            [this](int) {
+                refreshDynamic(m_dynamicDocument, m_dynamicSprite);
+                if (onDynamicSetChanged) {
+                    onDynamicSetChanged();
+                }
+            });
     m_dynamicColorGrid->setColorsSwappedHandler([this](std::size_t from, std::size_t to) {
         if (onDynamicColorsSwapped) {
             onDynamicColorsSwapped(from, to);
@@ -423,7 +418,7 @@ SpritePanel::SpritePanel(QWidget* parent)
                                 m_detectionAreaComboBox, m_clearDetectionAreaButton,
                                 m_detectionAreaXSpinBox, m_detectionAreaYSpinBox,
                                 m_detectionAreaWidthSpinBox, m_detectionAreaHeightSpinBox,
-                                m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox,
+                                m_shapeModeCheckBox, m_dynamicSetSpinBox,
                                 m_editColorsToSetButton, m_setToEditColorsButton,
                                 m_createHdButton, m_removeHdButton, m_applySpriteEditsButton,
                                 m_editorSourceFrameButton, m_backToFrameButton}}) {
@@ -589,22 +584,6 @@ std::size_t SpritePanel::dynamicSet() const
     return static_cast<std::size_t>(m_dynamicSetSpinBox->value() - 1);
 }
 
-void SpritePanel::setDynamicPaintChecked(bool checked)
-{
-    QSignalBlocker blocker(m_dynamicPaintButton);
-    m_dynamicPaintButton->setChecked(checked);
-}
-
-void SpritePanel::setLeftButtonPaintsDynamic(bool paints)
-{
-    m_dynamicPaintButton->setToolTip(
-        paints ? tr("On the sprite canvas, strokes put sprite pixels into the dynamic set "
-                    "(Shift or erase: out of it), also with the right button; dynamic pixels "
-                    "are tinted")
-               : tr("Show the sprite's dynamic zones on the sprite canvas; the right button "
-                    "puts sprite pixels into the dynamic set (Shift: out of it)"));
-}
-
 void SpritePanel::setTransparentPaintChecked(bool checked)
 {
     QSignalBlocker blocker(m_transparentPaintButton);
@@ -659,7 +638,7 @@ void SpritePanel::refreshDynamic(const document::ProjectDocument* document,
     // sets: a set has a color per shade (issue #44).
     m_dynamicColorGrid->setShownCount(document ? document->colorCount() : 4);
     for (QWidget* widget : std::initializer_list<QWidget*>{
-             m_shapeModeCheckBox, m_dynamicPaintButton, m_dynamicSetSpinBox, m_dynamicColorGrid,
+             m_shapeModeCheckBox, m_dynamicSetSpinBox, m_dynamicColorGrid,
              m_editColorsToSetButton, m_setToEditColorsButton}) {
         widget->setEnabled(hasSprite);
     }

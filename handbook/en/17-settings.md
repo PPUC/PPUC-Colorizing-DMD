@@ -41,7 +41,7 @@ version when you report a problem.
   Under `Dynamic Zones` (see "Dynamic Masks"): `Left button with Dynamic on` is `Paints dynamic
   zones` (the default: `Dynamic` is a mode, and colors are painted with it off) or `Paints colors
   (Dynamic only shows the zones)`, the Win32 editor's way, where `Mask` can be on beside
-  `Dynamic` and `Paint Dynamic` of the sprite editor only show the zones. The right button
+  `Dynamic` only shows the zones, of the frames and of the sprite editor. The right button
   paints the zones with either. `Show and paint the zones on the
   original frame too` (on until set otherwise); off, the zones are shown and painted on the
   colorized frame only.

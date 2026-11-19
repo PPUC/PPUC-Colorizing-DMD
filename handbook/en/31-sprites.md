@@ -77,8 +77,8 @@ The controls:
   HD. On the sprite canvas (`Edit Sprite`, switched to HD) strokes of the point, line and shape
   tools make the pixels transparent; with `Shift` they cover again, where the original under them
   is, with their colors as before. Transparent HD pixels over the original are marked with a
-  pattern while the mode is on. The fill tool does not paint transparency, and `Paint Dynamic` and
-  `Paint Transparent` are not on together. Each stroke is one undo step of the sprite. In a 256x64
+  pattern while the mode is on. The fill tool does not paint transparency, and `Dynamic` and
+  `Paint Transparent` are not on together: one switches the other off. Each stroke is one undo step of the sprite. In a 256x64
   project the button works on the 256x64 sprite.
   - Why not capture the sprite without those pixels: a captured sprite starts at its top left
     pixel, so without the outline its original is smaller and starts at the inner pixels. The
@@ -113,17 +113,19 @@ The controls:
   the canvas and the Runtime view show it so. A sprite has 9 sets (`Set 1` to `Set 9`). The
   sprite canvas shows a dynamic pixel in the color its set gives the shade of the sprite's own
   original there, without `Apply Sprite`.
-  - `Paint Dynamic`: on the sprite canvas (`Edit Sprite`) strokes of the point, line and shape
-    tools put the sprite's pixels into the selected set; with `Shift` (erase) they leave it.
-    Every covered pixel can be painted, black ones too; transparent pixels never become
-    dynamic. The zones are outlined in blue while the mode is on. The fill tool does not paint
-    dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
+  - The toolbar's `Dynamic`, as for frames: on the sprite canvas (`Edit Sprite`) strokes of the
+    point, line and shape tools put the sprite's pixels into the selected set; with `Shift`
+    (erase) they leave it. Every covered pixel can be painted, black ones too; transparent
+    pixels never become dynamic. While `Dynamic` is on the zones are outlined as on the frame
+    canvas: the selected set's yellow, the others cyan, also where two sets meet, and each
+    area carries its set's number (1 to 9) at its top left once a pixel is at least 5 screen
+    pixels wide. The fill tool does not paint dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
     sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
   - The right button paints the zones too, with the point, line and shape tools, `Shift`
-    erasing, as in the Win32 editor. A right click while `Paint Dynamic` is off switches it on
-    and paints nothing yet; with `Paint Transparent` on it paints nothing.
+    erasing, as in the Win32 editor. A right click while `Dynamic` is off switches it on and
+    paints nothing yet; with `Paint Transparent` on it paints nothing.
   - With `Settings -> Appearance -> Dynamic Zones -> Left button with Dynamic on` set to `Paints
-    colors`, `Paint Dynamic` only shows the zones: the left button paints colors, the right
+    colors`, `Dynamic` only shows the sprite's zones: the left button paints colors, the right
     button the zones (see "Dynamic Masks").
   - The color grid shows the set's color for each original shade, 4 in a project with 4
     colors and 16 in one with 16; a click changes one, and a color dragged onto another one

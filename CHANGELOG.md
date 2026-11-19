@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The sprite canvas tells dynamic sets apart as the frame canvas does: the selected set's
+  zones yellow, the others cyan, each area with its set's number (issue #73).
+- The toolbar's `Dynamic` shows and paints a sprite's dynamic zones on the sprite canvas;
+  `Paint Dynamic` is gone from the sprite section (issue #74).
 - `Import Package` with no project open makes a new project of the package (issue #75).
 
 ## 3.99.42

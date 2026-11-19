@@ -1,6 +1,7 @@
 #include "FramePreviewWidget.h"
 #include "PickToolReturn.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <optional>
@@ -1704,8 +1705,45 @@ void testSpriteEditorShowsDynamicColors()
         return widget.grab().toImage().pixelColor(centre.toPoint());
     };
     expect(shown() == expected, "the dynamic pixel shows its set's color");
+    // While the zones are shown they are outlined and numbered at their top left: a pixel
+    // inside a zone, away from its number, keeps its color.
+    std::vector<Point> opaque;
+    for (int y = 0; y < 64; ++y) {
+        for (int x = 0; x < 256; ++x) {
+            if (sprite.originalSd.pixels[static_cast<std::size_t>(y) *
+                                             colorizing::document::kMaxSpriteWidth +
+                                         static_cast<std::size_t>(x)] != 255) {
+                opaque.push_back(Point{x, y});
+            }
+        }
+    }
+    const auto isOpaque = [&opaque](int x, int y) {
+        return std::any_of(opaque.begin(), opaque.end(),
+                           [x, y](const Point& point) { return point.x == x && point.y == y; });
+    };
+    std::optional<Point> inner;
+    for (const Point& point : opaque) {
+        if (isOpaque(point.x - 1, point.y) && isOpaque(point.x + 1, point.y) &&
+            isOpaque(point.x, point.y - 1) && isOpaque(point.x, point.y + 1)) {
+            inner = point;
+        }
+    }
+    expect(inner.has_value() && (inner->y > pixel->y + 2 || inner->x > pixel->x + 2),
+           "the sprite has an inner pixel away from its first one");
+    const uint8_t innerShade =
+        sprite.originalSd.pixels[static_cast<std::size_t>(inner->y) *
+                                     colorizing::document::kMaxSpriteWidth +
+                                 static_cast<std::size_t>(inner->x)];
+    document.setSpriteDynamicColor(0, 2, innerShade, magenta);
+    (void)document.setSpriteDynamicMaskPixels(0, opaque, 2);
+    widget.update();
+    const QPointF innerCentre = widget.pixelCentre(false, *inner);
+    const auto shownInner = [&widget, &innerCentre]() {
+        return widget.grab().toImage().pixelColor(innerCentre.toPoint());
+    };
+    expect(shownInner() == expected, "the zone's inner pixel shows its set's color");
     widget.setDynamicPaintMode(true);
-    expect(shown() == expected, "also while its zone is being painted");
+    expect(shownInner() == expected, "also while its zone is being painted");
     widget.setDynamicPaintMode(false);
 
     // The middle of the 128x32 pixel is where its four HD pixels meet: all four show the color.
@@ -1713,6 +1751,64 @@ void testSpriteEditorShowsDynamicColors()
     widget.setActiveResolution(colorizing::render::Resolution::Hd);
     expect(shown() == expected,
            "on the HD art the 128x32 sprite's dynamic pixel shows, as libserum draws it");
+}
+
+// Issue #73: with the zones shown, the sprite canvas tells the sets apart as the frame canvas
+// does: the selected set's zones yellow, the others cyan.
+void testSpriteEditorTellsDynamicSetsApart()
+{
+    using colorizing::render::Point;
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    const auto& sprite = document.sprite(0);
+    std::vector<Point> opaque;
+    for (int y = 0; y < 64; ++y) {
+        for (int x = 0; x < 256; ++x) {
+            if (sprite.originalSd.pixels[static_cast<std::size_t>(y) *
+                                             colorizing::document::kMaxSpriteWidth +
+                                         static_cast<std::size_t>(x)] != 255) {
+                opaque.push_back(Point{x, y});
+            }
+        }
+    }
+    expect(opaque.size() >= 2, "the sprite has two opaque pixels");
+    const Point first = opaque.front();
+    const Point last = opaque.back();
+    (void)document.setSpriteDynamicMaskPixels(0, {first}, 1);
+    (void)document.setSpriteDynamicMaskPixels(0, {last}, 4);
+
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.setZoom(4.0, QPoint(0, 0));
+    widget.setDynamicPaintMode(true);
+    widget.setSelectedDynamicSet(std::size_t{1});
+    const QPointF step = widget.pixelCentre(false, {1, 0}) - widget.pixelCentre(false, {0, 0});
+    const auto countAround = [&](const QImage& image, Point pixel, QColor color) {
+        const QPointF centre = widget.pixelCentre(false, pixel);
+        const int reach = static_cast<int>(step.x() / 2) + 3;
+        int count = 0;
+        for (int y = -reach; y <= reach; ++y) {
+            for (int x = -reach; x <= reach; ++x) {
+                const QPoint at = centre.toPoint() + QPoint(x, y);
+                if (image.rect().contains(at) && image.pixelColor(at) == color) {
+                    ++count;
+                }
+            }
+        }
+        return count;
+    };
+    const QColor yellow(255, 230, 0);
+    const QColor cyan(0, 200, 255);
+    QImage image = widget.grab().toImage();
+    expect(countAround(image, first, yellow) > 0 && countAround(image, first, cyan) == 0,
+           "the selected set's zone is yellow");
+    expect(countAround(image, last, cyan) > 0 && countAround(image, last, yellow) == 0,
+           "another set's zone is cyan");
+    widget.setSelectedDynamicSet(std::size_t{4});
+    image = widget.grab().toImage();
+    expect(countAround(image, last, yellow) > 0 && countAround(image, first, cyan) > 0,
+           "the selection follows the panel's set");
 }
 
 // Issue #58: the right button paints the sprite's dynamic zones with the point, line and shape
@@ -2639,6 +2735,34 @@ void testSpritePanelWarnsAboutManySprites()
     state.frameIndex = 0;
     panel.refresh(state);
     expect(panel.spriteCountWarning().isEmpty(), "another frame with two sprites has none");
+}
+
+// Issue #74: the toolbar's Dynamic shows and paints the sprite's zones; the sprite page has no
+// Paint Dynamic of its own, and its Set field tells the window which set is selected (#73).
+void testSpritePanelDynamicSet()
+{
+    colorizing::document::ProjectDocument document = makeSpritePanelDocument();
+    colorizing::app::SpritePanel panel;
+    colorizing::app::SpritePanelState state;
+    state.document = &document;
+    state.frameIndex = 0;
+    state.spriteIndex = 0;
+    panel.refresh(state);
+    for (QToolButton* button : panel.recordPage()->findChildren<QToolButton*>()) {
+        expect(button->text() != QStringLiteral("Paint Dynamic"),
+               "the sprite page has no Paint Dynamic");
+    }
+    QSpinBox* setBox = nullptr;
+    for (QSpinBox* box : panel.recordPage()->findChildren<QSpinBox*>()) {
+        if (box->prefix() == QStringLiteral("Set ")) {
+            setBox = box;
+        }
+    }
+    expect(setBox != nullptr, "the sprite page has its Set field");
+    std::vector<std::size_t> changes;
+    panel.onDynamicSetChanged = [&]() { changes.push_back(panel.dynamicSet()); };
+    setBox->setValue(3);
+    expect(changes == std::vector<std::size_t>{2}, "a new set is reported, 0-based");
 }
 
 // The sprite editor's page has Source Frame too: it leaves the editor, as Back to Frame, and
@@ -4619,6 +4743,7 @@ int main(int argc, char* argv[])
     testSpriteEditorZoom();
     testSpriteEditorShowsDynamicColors();
     testSpriteEditorRightButtonPaintsDynamic();
+    testSpriteEditorTellsDynamicSetsApart();
     testSpriteEditorFitsTheSprite();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorPaintsHdTransparency();
@@ -4635,6 +4760,7 @@ int main(int argc, char* argv[])
     testSpriteSlotOffsetFields();
     testManySpritesAdvice();
     testSpriteEditorSourceFrame();
+    testSpritePanelDynamicSet();
     testSpritePanelWarnsAboutManySprites();
     testSpriteAndBackgroundHdButtons();
     testMaskPanel();

@@ -55,6 +55,9 @@ public:
     // paints colors, the right one the zones (setLeftButtonPaintsDynamic(false)).
     void setDynamicPaintMode(bool enabled);
     [[nodiscard]] bool isDynamicPaintMode() const;
+    // The set the panel's Set field selects (0 to 8): its zones are drawn yellow, the others
+    // cyan.
+    void setSelectedDynamicSet(std::optional<std::size_t> set);
     // Whether the left button paints the zones in the dynamic paint mode (the default).
     void setLeftButtonPaintsDynamic(bool paints);
     // Called on a right press over the colorized sprite; returning true starts a stroke of the
@@ -174,6 +177,7 @@ private:
     bool m_colorSetReplace = false;
     bool m_dynamicPaint = false;
     bool m_leftPaintsDynamic = true;
+    std::optional<std::size_t> m_selectedDynamicSet;
     std::function<bool()> m_rightPressHandler;
     // The button of the colorized stroke under way; Qt::NoButton without one.
     Qt::MouseButton m_strokeButton = Qt::NoButton;

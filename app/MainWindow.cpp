@@ -1607,7 +1607,6 @@ void MainWindow::createCentralView()
         exportSelectedBackgroundPng();
     };
     m_spritePanel = new SpritePanel(central);
-    m_spritePanel->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
     m_spritePanel->onNameEdited = [this](const QString& name) {
         setCurrentSpriteName(name);
     };
@@ -1664,6 +1663,7 @@ void MainWindow::createCentralView()
         }
         updateFrameMetadataControls();
         updateSpriteControls();
+        updateCanvasModeButtons();
         updateUndoRedoActions();
     };
     m_spritePanel->onShapeModeToggled = [this](bool shapeMode) {
@@ -1683,9 +1683,9 @@ void MainWindow::createCentralView()
     m_spritePanel->onTransparentPaintToggled = [this](bool enabled) {
         if (m_spriteEditor) {
             m_spriteEditor->setTransparentPaintMode(enabled);
-            if (enabled && m_spriteEditor->isDynamicPaintMode()) {
-                m_spriteEditor->setDynamicPaintMode(false);
-                m_spritePanel->setDynamicPaintChecked(false);
+            // One paint mode at a time: the sprite's zones go with Dynamic.
+            if (enabled && m_spriteEditor->isDynamicPaintMode() && m_dynamicMaskOverlayButton) {
+                m_dynamicMaskOverlayButton->setChecked(false);
             }
         }
         if (enabled) {
@@ -1697,32 +1697,12 @@ void MainWindow::createCentralView()
                 4000);
         }
     };
-    m_spritePanel->onDynamicPaintToggled = [this](bool enabled) {
+    m_spritePanel->onDynamicSetChanged = [this]() {
         if (m_spriteEditor) {
-            m_spriteEditor->setDynamicPaintMode(enabled);
-        }
-        // One paint mode at a time.
-        if (enabled && m_spritePanel->isTransparentPaintChecked()) {
-            m_spritePanel->setTransparentPaintChecked(false);
-            if (m_spriteEditor) {
-                m_spriteEditor->setTransparentPaintMode(false);
-            }
-        }
-        if (enabled && m_dynamicZoneOptions.leftPaintsColors) {
-            statusBar()->showMessage(
-                tr("Dynamic zones shown on the sprite canvas (Edit Sprite): the right button "
-                   "paints them"),
-                4000);
-        } else if (enabled) {
-            statusBar()->showMessage(
-                tr("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
-                   "%1 sprite")
-                    .arg(m_document && m_document->dynamicPlane() == render::Resolution::Hd
-                             ? nativePlaneText(*m_document)
-                             : QStringLiteral("128x32")),
-                4000);
+            m_spriteEditor->setSelectedDynamicSet(m_spritePanel->dynamicSet());
         }
     };
+    m_spriteEditor->setSelectedDynamicSet(m_spritePanel->dynamicSet());
     m_spritePanel->onDynamicColorsSwapped = [this](std::size_t from, std::size_t to) {
         swapSpriteDynamicColors(from, to);
     };
@@ -2524,6 +2504,29 @@ void MainWindow::createCentralView()
         if (m_preview) {
             m_preview->clearPreviewPixels();
             m_preview->setDynamicMaskOverlayEnabled(checked);
+        }
+        // Dynamic shows and paints the sprite's zones on the sprite canvas too (issue #74).
+        if (m_spriteEditor) {
+            m_spriteEditor->setDynamicPaintMode(checked);
+        }
+        if (checked && m_spritePanel && m_spritePanel->isTransparentPaintChecked()) {
+            // One paint mode at a time.
+            m_spritePanel->setTransparentPaintChecked(false);
+            if (m_spriteEditor) {
+                m_spriteEditor->setTransparentPaintMode(false);
+            }
+        }
+        if (checked && spriteCanvasShown()) {
+            statusBar()->showMessage(
+                m_dynamicZoneOptions.leftPaintsColors
+                    ? tr("Dynamic zones shown on the sprite canvas (Edit Sprite): the right "
+                         "button paints them")
+                    : tr("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
+                         "%1 sprite")
+                          .arg(m_document && m_document->dynamicPlane() == render::Resolution::Hd
+                                   ? nativePlaneText(*m_document)
+                                   : QStringLiteral("128x32")),
+                4000);
         }
         updateDynamicZoneDisplay();
         updateUndoRedoActions();
@@ -3681,9 +3684,6 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         }
         if (m_spriteEditor) {
             m_spriteEditor->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
-        }
-        if (m_spritePanel) {
-            m_spritePanel->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
         }
         updateDynamicZoneDisplay();
         updateUndoRedoActions();
@@ -7071,6 +7071,12 @@ void MainWindow::updateCanvasModeButtons()
     m_dynamicMaskOverlayButton->setToolTip(
         !dynamicZonesHere ? tr("Dynamic zones are defined on the 128x32 plane: "
                                "switch to SD to see and paint them")
+        : spriteCanvasShown()
+            ? m_dynamicZoneOptions.leftPaintsColors
+                  ? tr("Show the sprite's dynamic zones; the right button puts sprite pixels "
+                       "into the dynamic set (Shift: out of it)")
+                  : tr("Paint the sprite's dynamic zones: strokes put sprite pixels into the "
+                       "dynamic set (Shift: out of it), also with the right button")
         : m_dynamicZoneOptions.leftPaintsColors
             ? tr("Show the dynamic zones; the right button paints them")
             : tr("Show and paint the dynamic zones; the right button paints them too"));
@@ -13797,10 +13803,10 @@ bool MainWindow::rightPressStartsSpriteDynamicStroke()
     }
     if (!m_spriteEditor->isDynamicPaintMode()) {
         // The zones are not painted unseen: the first right click shows them.
-        m_spritePanel->setDynamicPaintChecked(true);
-        if (m_spritePanel->onDynamicPaintToggled) {
-            m_spritePanel->onDynamicPaintToggled(true);
+        if (!m_dynamicMaskOverlayButton || !m_dynamicMaskOverlayButton->isEnabled()) {
+            return false;
         }
+        m_dynamicMaskOverlayButton->setChecked(true);
         statusBar()->showMessage(
             tr("Sprite dynamic zones shown: the right button paints them in set %1")
                 .arg(static_cast<int>(m_spritePanel->dynamicSet()) + 1),

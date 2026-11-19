@@ -6195,6 +6195,14 @@ Utiliser Créer la frame %1.</translation>
         <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
     </message>
     <message>
+        <source>Show the sprite&apos;s dynamic zones; the right button puts sprite pixels into the dynamic set (Shift: out of it)</source>
+        <translation>Afficher les zones dynamiques du sprite ; le bouton droit place les pixels du sprite dans le jeu dynamique (Shift : les en retire)</translation>
+    </message>
+    <message>
+        <source>Paint the sprite&apos;s dynamic zones: strokes put sprite pixels into the dynamic set (Shift: out of it), also with the right button</source>
+        <translation>Peindre les zones dynamiques du sprite : les traits placent les pixels du sprite dans le jeu dynamique (Shift : les en retirent), aussi avec le bouton droit</translation>
+    </message>
+    <message>
         <source>Show the dynamic zones; the right button paints them</source>
         <translation>Afficher les zones dynamiques ; le bouton droit les peint</translation>
     </message>
@@ -9708,7 +9716,7 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Paint Dynamic</source>
-        <translation>Peindre dyn.</translation>
+        <translation type="vanished">Peindre dyn.</translation>
     </message>
     <message>
         <source>On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: out of it); dynamic pixels are tinted</source>
@@ -9744,11 +9752,11 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: out of it), also with the right button; dynamic pixels are tinted</source>
-        <translation>Sur le canevas du sprite, les traits placent les pixels du sprite dans le jeu dynamique (Shift ou gomme : les en retirent), aussi avec le bouton droit ; les pixels dynamiques sont teintés</translation>
+        <translation type="vanished">Sur le canevas du sprite, les traits placent les pixels du sprite dans le jeu dynamique (Shift ou gomme : les en retirent), aussi avec le bouton droit ; les pixels dynamiques sont teintés</translation>
     </message>
     <message>
         <source>Show the sprite&apos;s dynamic zones on the sprite canvas; the right button puts sprite pixels into the dynamic set (Shift: out of it)</source>
-        <translation>Afficher les zones dynamiques du sprite sur son canevas ; le bouton droit place les pixels du sprite dans le jeu dynamique (Shift : les en retire)</translation>
+        <translation type="vanished">Afficher les zones dynamiques du sprite sur son canevas ; le bouton droit place les pixels du sprite dans le jeu dynamique (Shift : les en retire)</translation>
     </message>
     <message>
         <source>Create %1 Sprite</source>
