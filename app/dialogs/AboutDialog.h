@@ -14,7 +14,7 @@ class AboutDialog final : public QDialog {
 public:
     explicit AboutDialog(QWidget* parent = nullptr);
 
-    // The text of the version line, for tests: "Version 3.99.41".
+    // The text of the version line, for tests: "Version 3.99.42".
     [[nodiscard]] static QString versionText();
 
     // THIRD-PARTY-NOTICES.md as built in: Markdown, empty if the resource is missing.
