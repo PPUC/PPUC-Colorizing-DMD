@@ -28,6 +28,9 @@ colorizations. See `readme.md` for what the editor is and how to build it.
   file has a `run…Tests()` function that the main of its executable calls.
 - `handbook/en/`: the user handbook, one Markdown file per chapter, built into the app
   (`Help -> Handbook`). `handbook/en/README.md` lists the chapters in order.
+- `tutorial/en/`: a guided tutorial for new authors, one Markdown file per chapter in the order
+  of the work, each pointing to the handbook chapters it builds on. `tutorial/en/README.md`
+  lists the chapters. Keep it in line with the handbook when a workflow it describes changes.
 - `translations/`: Qt Linguist files for German and French.
 - `docs/status.md`: the working notes (decisions in force, state, open work). Read it first
   when resuming work.
