@@ -493,6 +493,11 @@ private:
     void blendEditColors(std::size_t from, std::size_t to);
     void setDynamicSetOriginalOnly(bool originalOnly);
     void setDynamicShadowDirectionBit(uint8_t bit, bool enabled);
+    // The shadow directions of the selected set as a whole (`Stern` of the Dynamic Sets section).
+    void setDynamicShadowDirections(uint8_t direction);
+    // Gives the selected set of every selected frame with dynamic data the directions newOf
+    // makes of its own; one step.
+    void applyDynamicShadowDirections(const std::function<uint8_t(uint8_t)>& newOf);
     void editDynamicShadowColor();
     void updateColorRotationControls();
     void setCurrentColorRotationLength(std::size_t slotIndex, int length);

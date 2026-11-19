@@ -154,5 +154,8 @@ pixel wide around the doubled zone, as libserum generates it there.
 The Inspector's `Dynamic` topic provides shadow controls for the active dynamic set:
 
 - Direction buttons `TL`, `T`, `TR`, `L`, `R`, `BL`, `B`, and `BR` toggle where shadows are cast.
+- `Stern`, in their middle, casts the shadow the way Stern draws its shadows: to the left,
+  right, top and bottom, without the corners, in one step. It shows pressed while the shadow
+  is exactly that; a click then takes the shadow away.
 - `Shadow Color` opens a color picker for the active set's shadow color.
 - Shadow edits apply to all selected frames that have dynamic data.

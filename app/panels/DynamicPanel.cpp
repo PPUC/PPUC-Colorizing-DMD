@@ -144,7 +144,21 @@ DynamicPanel::DynamicPanel(QWidget* parent)
             }
         });
     }
-    // The middle stays empty, as in the Win32 editor: the set's pixels the shadow falls from.
+    // The middle: the Stern way of casting the shadow, the four sides without the corners.
+    m_sternShadowButton = new QToolButton(this);
+    m_sternShadowButton->setText(tr("Stern"));
+    m_sternShadowButton->setToolTip(
+        tr("Shadow to the left, right, top and bottom without the corners, as Stern draws its "
+           "shadows; again: no shadow"));
+    m_sternShadowButton->setCheckable(true);
+    m_sternShadowButton->setFixedHeight(24);
+    m_sternShadowButton->setEnabled(false);
+    shadowGrid->addWidget(m_sternShadowButton, 1, 1);
+    connect(m_sternShadowButton, &QToolButton::clicked, this, [this](bool checked) {
+        if (onShadowDirectionsSet) {
+            onShadowDirectionsSet(checked ? kSternShadowDirections : uint8_t{0});
+        }
+    });
     pageLayout->addLayout(shadowGrid);
     m_shadowColorButton = new QToolButton(this);
     m_shadowColorButton->setText(tr("Shadow Color"));
@@ -343,6 +357,11 @@ void DynamicPanel::refreshShadow(const document::ProjectDocument* document,
         const uint8_t bit = static_cast<uint8_t>(button->property("shadowBit").toInt());
         button->setEnabled(enabled);
         button->setChecked(enabled && (direction & bit) != 0);
+    }
+    {
+        QSignalBlocker blocker(m_sternShadowButton);
+        m_sternShadowButton->setEnabled(enabled);
+        m_sternShadowButton->setChecked(enabled && direction == kSternShadowDirections);
     }
 
     m_shadowColorButton->setEnabled(enabled);

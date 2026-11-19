@@ -63,6 +63,12 @@ public:
     std::function<void(std::size_t from, std::size_t to)> onColorsGradient;
     // bit is the direction's bit in the shadow direction mask.
     std::function<void(uint8_t bit, bool enabled)> onShadowDirectionToggled;
+    // `Stern` in the middle of the directions: all of them at once, the four sides without the
+    // corners (kSternShadowDirections) as Stern draws its shadows, or none when the shadow is
+    // that already.
+    std::function<void(uint8_t direction)> onShadowDirectionsSet;
+    // Top, left, right and bottom: the bits of `T`, `L`, `R` and `B`.
+    static constexpr uint8_t kSternShadowDirections = 0x02 | 0x80 | 0x08 | 0x20;
     std::function<void()> onShadowColorClicked;
     // "Only on the SD Picture" of the selected set was switched.
     std::function<void(bool originalOnly)> onOriginalOnlyToggled;
@@ -81,6 +87,7 @@ private:
     std::vector<ColorSlotButton*> m_colorButtons;
     std::vector<QToolButton*> m_shadowDirectionButtons;
     QToolButton* m_shadowColorButton = nullptr;
+    QToolButton* m_sternShadowButton = nullptr;
     QCheckBox* m_originalOnlyCheckBox = nullptr;
 };
 

@@ -1162,6 +1162,14 @@
         <translation>Activer/désactiver la direction d&apos;ombre dynamique %1</translation>
     </message>
     <message>
+        <source>Stern</source>
+        <translation>Stern</translation>
+    </message>
+    <message>
+        <source>Shadow to the left, right, top and bottom without the corners, as Stern draws its shadows; again: no shadow</source>
+        <translation>Ombre à gauche, à droite, en haut et en bas sans les coins, comme Stern dessine ses ombres ; une seconde fois : pas d&apos;ombre</translation>
+    </message>
+    <message>
         <source>S</source>
         <translation type="vanished">S</translation>
     </message>

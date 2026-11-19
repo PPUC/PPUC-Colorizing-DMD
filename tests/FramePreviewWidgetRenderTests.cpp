@@ -3731,14 +3731,39 @@ void testDynamicPanelOriginalOnlySets()
            "a frame without dynamic data has nothing to switch; refreshing does not report");
 }
 
-// The shadow directions surround an empty middle, as in the Win32 editor: no letter there that
-// reads like a setting.
-void testDynamicPanelShadowGridHasNoMiddleLabel()
+// `Stern` in the middle of the shadow directions: the four sides without the corners at once,
+// shown pressed while the shadow is exactly that, and a click then takes the shadow away.
+void testDynamicPanelSternShadow()
 {
-    colorizing::app::DynamicPanel panel;
-    for (const QLabel* label : panel.findChildren<QLabel*>()) {
-        expect(label->text() != QStringLiteral("S"), "the shadow grid has no S in its middle");
+    using colorizing::app::DynamicPanel;
+    using colorizing::render::Resolution;
+    colorizing::document::ProjectDocument document = makeInspectorPanelDocument();
+    DynamicPanel panel;
+    std::vector<int> directions;
+    panel.onShadowDirectionsSet = [&](uint8_t direction) { directions.push_back(direction); };
+    QToolButton* stern = nullptr;
+    for (QToolButton* button : panel.findChildren<QToolButton*>()) {
+        if (button->text() == QStringLiteral("Stern")) {
+            stern = button;
+        }
     }
+    expect(stern != nullptr, "the shadow directions have Stern in their middle");
+    panel.setDynamicSet(0);
+    document.setDynamicShadowDirection(0, Resolution::Sd, 0, 0x01);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(stern->isEnabled() && !stern->isChecked(), "a top left shadow is not Stern's");
+    stern->click();
+    expect(directions == std::vector<int>{DynamicPanel::kSternShadowDirections} &&
+               DynamicPanel::kSternShadowDirections == (0x02 | 0x80 | 0x08 | 0x20),
+           "a click asks for top, left, right and bottom without the corners");
+    document.setDynamicShadowDirection(0, Resolution::Sd, 0, DynamicPanel::kSternShadowDirections);
+    panel.refreshShadow(&document, 0, Resolution::Sd);
+    expect(stern->isChecked(), "it shows pressed while the shadow is Stern's");
+    stern->click();
+    expect(directions.size() == 2 && directions.back() == 0,
+           "clicked again it takes the shadow away");
+    panel.refreshShadow(&document, 3, Resolution::Sd);
+    expect(!stern->isEnabled(), "a frame without dynamic data has nothing to switch");
 }
 
 void testDynamicPanel()
@@ -4776,7 +4801,7 @@ int main(int argc, char* argv[])
     testMaskPanel();
     testDynamicPanel();
     testDynamicPanelOriginalOnlySets();
-    testDynamicPanelShadowGridHasNoMiddleLabel();
+    testDynamicPanelSternShadow();
     testDynamicSetList();
     testBackgroundPanel();
     testFramePanel();

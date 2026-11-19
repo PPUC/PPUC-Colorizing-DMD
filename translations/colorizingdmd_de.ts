@@ -1162,6 +1162,14 @@
         <translation>Dynamische Schattenrichtung %1 umschalten</translation>
     </message>
     <message>
+        <source>Stern</source>
+        <translation>Stern</translation>
+    </message>
+    <message>
+        <source>Shadow to the left, right, top and bottom without the corners, as Stern draws its shadows; again: no shadow</source>
+        <translation>Schatten nach links, rechts, oben und unten ohne die Ecken, wie Stern seine Schatten zeichnet; noch einmal: kein Schatten</translation>
+    </message>
+    <message>
         <source>S</source>
         <translation type="vanished">S</translation>
     </message>

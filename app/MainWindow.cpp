@@ -2172,6 +2172,9 @@ void MainWindow::createCentralView()
     m_dynamicPanel->onShadowDirectionToggled = [this](uint8_t bit, bool enabled) {
         setDynamicShadowDirectionBit(bit, enabled);
     };
+    m_dynamicPanel->onShadowDirectionsSet = [this](uint8_t direction) {
+        setDynamicShadowDirections(direction);
+    };
     m_dynamicPanel->onShadowColorClicked = [this]() {
         editDynamicShadowColor();
     };
@@ -9484,6 +9487,19 @@ void MainWindow::setDynamicSetOriginalOnly(bool originalOnly)
 
 void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
 {
+    applyDynamicShadowDirections([bit, enabled](uint8_t oldDirection) {
+        return enabled ? static_cast<uint8_t>(oldDirection | bit)
+                       : static_cast<uint8_t>(oldDirection & ~bit);
+    });
+}
+
+void MainWindow::setDynamicShadowDirections(uint8_t direction)
+{
+    applyDynamicShadowDirections([direction](uint8_t) { return direction; });
+}
+
+void MainWindow::applyDynamicShadowDirections(const std::function<uint8_t(uint8_t)>& newOf)
+{
     if (!m_document || !currentFrameIndex()) {
         return;
     }
@@ -9498,9 +9514,7 @@ void MainWindow::setDynamicShadowDirectionBit(uint8_t bit, bool enabled)
                 m_document->dynamicShadowDirection(frameIndex,
                                                    dynamicPlane(),
                                                    activeDynamicSet());
-            const uint8_t newDirection =
-                enabled ? static_cast<uint8_t>(oldDirection | bit)
-                        : static_cast<uint8_t>(oldDirection & ~bit);
+            const uint8_t newDirection = newOf(oldDirection);
             if (newDirection == oldDirection) {
                 continue;
             }
