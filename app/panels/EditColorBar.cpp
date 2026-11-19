@@ -64,6 +64,7 @@ protected:
             painter.setPen(QPen(Qt::white, 2));
             painter.drawRect(rect().adjusted(1, 1, -1, -1));
         }
+        paintGradientPreview(painter);
     }
 
     void mouseDoubleClickEvent(QMouseEvent* event) override

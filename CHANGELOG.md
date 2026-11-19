@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- While `Shift` + drag of a color is over another color of the row, the colors between show the
+  gradient the drop makes and the two ends are marked, unlike a swap (issue #77).
+
 ## 3.99.43
 
 - `Ctrl/Cmd+Z` undoes the most recent edit anywhere in the project, as in the Win32 editor, and

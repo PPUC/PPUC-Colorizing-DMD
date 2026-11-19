@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QKeyEvent>
 #include <QLabel>
@@ -30,6 +31,7 @@
 #include "document/ProjectDocument.h"
 #include "document/ProjectSnapshot.h"
 #include "edit/ColorModel.h"
+#include "edit/DrawingTools.h"
 #include "edit/ColorSetEdits.h"
 #include "panels/ColorSetPanel.h"
 #include "panels/EditColorBar.h"
@@ -748,6 +750,60 @@ void testColorSwapDrop()
            "a Shift drag across the edit colors blends them");
 }
 
+// Issue #77: while a Shift drag is over another color of the row, the colors between show what
+// the drop gives them and the two ends are marked; a plain drag (a swap) shows nothing of it.
+void testGradientDragPreview()
+{
+    colorizing::app::ColorGridWidget grid(16, 8);
+    std::vector<uint16_t> colors(16, 0x1234);
+    colors[2] = 0x0000;
+    colors[7] = 0xffff;
+    grid.setColors(colors, 16);
+    grid.setColorsSwappedHandler([](std::size_t, std::size_t) {});
+    grid.setColorsGradientHandler([](std::size_t, std::size_t) {});
+    std::vector<app::ColorSlotButton*> buttons;
+    for (QToolButton* button : grid.findChildren<QToolButton*>()) {
+        buttons.push_back(dynamic_cast<app::ColorSlotButton*>(button));
+    }
+    expect(buttons.size() == 16, "the grid has its slot buttons");
+    const auto enter = [&](std::size_t target, bool gradient) {
+        QMimeData* mime = app::colorDragMimeData(&grid, 2, 0x0000, gradient);
+        QDragEnterEvent event(QPointF(5, 5), Qt::CopyAction, mime, Qt::LeftButton,
+                              Qt::ShiftModifier);
+        static_cast<QObject*>(buttons[target])->event(&event);
+        delete mime;
+    };
+    const auto anyPreview = [&]() {
+        for (const app::ColorSlotButton* button : buttons) {
+            if (button->gradientPreview() || button->isGradientEnd()) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    enter(7, false);
+    expect(!anyPreview(), "a swap drag shows no gradient");
+    enter(7, true);
+    bool between = true;
+    for (std::size_t slot = 3; slot < 7; ++slot) {
+        between = between && buttons[slot]->gradientPreview() ==
+                                 edit::interpolateRgb565(0x0000, 0xffff, slot - 2, 5);
+    }
+    expect(between, "the colors between show the blend the drop gives them");
+    expect(buttons[2]->isGradientEnd() && buttons[7]->isGradientEnd() &&
+               !buttons[2]->gradientPreview() && !buttons[8]->gradientPreview() &&
+               !buttons[1]->isGradientEnd(),
+           "the two ends are marked, the colors outside stay as they are");
+    enter(4, true);
+    expect(!buttons[6]->gradientPreview() && buttons[3]->gradientPreview() &&
+               buttons[4]->isGradientEnd() && !buttons[7]->isGradientEnd(),
+           "over another color the preview follows");
+    QDragLeaveEvent leave;
+    static_cast<QObject*>(buttons[4])->event(&leave);
+    expect(!anyPreview(), "leaving the color takes the preview away");
+}
+
 // A favorite draw color of the toolbar is edited with a double click, as the palette's colors
 // and the edit colors are, and takes a color dropped on it.
 void testFavoriteColorButton()
@@ -822,6 +878,7 @@ void runColorWidgetTests()
     testColorPickerKeepsItsPlace();
     testColorRangeDrag();
     testColorSwapDrop();
+    testGradientDragPreview();
     testFavoriteColorButton();
     testDrawColorButton();
     for (PlaneLayout layout :

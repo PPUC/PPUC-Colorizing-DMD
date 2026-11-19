@@ -26,7 +26,10 @@ color picker.
     one to swap the two edit colors, one undo step. With `Shift` held at the press the drag
     makes a gradient instead, as in the Win32 editor: the edit colors between the two blend
     from the dragged color to the one it is dropped on, which both keep their colors; one
-    undo step. A swatch dragged elsewhere (a favorite, a
+    undo step. While such a drag is over a color, the colors between already show the blend,
+    the two ends are marked with a dashed outline, and the dragged swatch fades out; a swap
+    drag shows none of this. The same holds for the palette, the dynamic colors and the color
+    rotations. A swatch dragged elsewhere (a favorite, a
     dynamic color) gives its color as a palette color does.
   - The tool tip names the color, the shade it replaces and its key.
 - Edit colors are project data: they are saved in the project file, and every change is undoable (see

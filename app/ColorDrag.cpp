@@ -1,16 +1,20 @@
 #include "ColorDrag.h"
 
+#include <algorithm>
+
 #include <QApplication>
 #include <QDrag>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPixmap>
 #include <QStringList>
 #include <QWidget>
 
 #include "FrameImageUtils.h"
+#include "edit/DrawingTools.h"
 
 namespace colorizing::app {
 
@@ -52,8 +56,23 @@ void execColorDrag(QWidget* source,
 {
     auto* drag = new QDrag(source);
     drag->setMimeData(colorDragMimeData(owner, slot, rgb565, gradient));
-    QPixmap pixmap(24, 20);
-    pixmap.fill(rgb565ToColor(rgb565));
+    QPixmap pixmap(gradient ? 48 : 24, 20);
+    if (gradient) {
+        // A ramp out of the dragged color, not the swatch a swap drags.
+        pixmap.fill(Qt::transparent);
+        QPainter painter(&pixmap);
+        QLinearGradient ramp(0, 0, pixmap.width(), 0);
+        const QColor color = rgb565ToColor(rgb565);
+        QColor faded = color;
+        faded.setAlpha(40);
+        ramp.setColorAt(0, color);
+        ramp.setColorAt(1, faded);
+        painter.fillRect(pixmap.rect(), ramp);
+        painter.setPen(QPen(Qt::white, 1, Qt::DashLine));
+        painter.drawRect(pixmap.rect().adjusted(0, 0, -1, -1));
+    } else {
+        pixmap.fill(rgb565ToColor(rgb565));
+    }
     drag->setPixmap(pixmap);
     drag->exec(Qt::CopyAction | Qt::MoveAction, Qt::CopyAction);
 }
@@ -144,11 +163,98 @@ bool ColorSlotButton::takes(const QMimeData* mimeData) const
 
 void ColorSlotButton::dragEnterEvent(QDragEnterEvent* event)
 {
-    if (takes(event->mimeData())) {
+    const QMimeData* mimeData = event->mimeData();
+    if (takes(mimeData)) {
         event->acceptProposedAction();
+        const std::optional<std::size_t> from = draggedSlotOf(mimeData, m_owner);
+        const std::optional<uint16_t> fromColor = draggedColor(mimeData);
+        if (from && fromColor && isGradientDrag(mimeData) && onSlotsGradient) {
+            showGradientPreview(*from, *fromColor);
+        }
         return;
     }
     event->ignore();
+}
+
+void ColorSlotButton::dragLeaveEvent(QDragLeaveEvent* event)
+{
+    clearGradientPreview();
+    QToolButton::dragLeaveEvent(event);
+}
+
+std::vector<ColorSlotButton*> ColorSlotButton::rowButtons() const
+{
+    std::vector<ColorSlotButton*> buttons;
+    if (!m_owner) {
+        return buttons;
+    }
+    // ColorSlotButton has no Q_OBJECT of its own: look for the tool buttons that are one.
+    for (QToolButton* candidate : m_owner->findChildren<QToolButton*>()) {
+        auto* button = dynamic_cast<ColorSlotButton*>(candidate);
+        if (button && button->m_owner == m_owner) {
+            buttons.push_back(button);
+        }
+    }
+    return buttons;
+}
+
+void ColorSlotButton::showGradientPreview(std::size_t from, uint16_t fromColor)
+{
+    if (!m_rgb565) {
+        return;
+    }
+    const std::size_t first = std::min(from, m_slot);
+    const std::size_t last = std::max(from, m_slot);
+    for (ColorSlotButton* button : rowButtons()) {
+        const std::size_t slot = button->m_slot;
+        std::optional<uint16_t> preview;
+        if (slot > first && slot < last && button->m_rgb565) {
+            const std::size_t step = from < m_slot ? slot - from : from - slot;
+            preview = edit::interpolateRgb565(fromColor, *m_rgb565, step, last - first);
+        }
+        const bool end = slot == first || slot == last;
+        if (button->m_gradientPreview != preview || button->m_gradientEnd != end) {
+            button->m_gradientPreview = preview;
+            button->m_gradientEnd = end;
+            button->update();
+        }
+    }
+}
+
+void ColorSlotButton::clearGradientPreview()
+{
+    for (ColorSlotButton* button : rowButtons()) {
+        if (button->m_gradientPreview || button->m_gradientEnd) {
+            button->m_gradientPreview.reset();
+            button->m_gradientEnd = false;
+            button->update();
+        }
+    }
+}
+
+void ColorSlotButton::paintEvent(QPaintEvent* event)
+{
+    QToolButton::paintEvent(event);
+    QPainter painter(this);
+    paintGradientPreview(painter);
+}
+
+void ColorSlotButton::paintGradientPreview(QPainter& painter) const
+{
+    if (!m_gradientPreview && !m_gradientEnd) {
+        return;
+    }
+    painter.save();
+    if (m_gradientPreview) {
+        // The color the drop gives the slot, over its own.
+        painter.fillRect(rect().adjusted(3, 3, -3, -3), rgb565ToColor(*m_gradientPreview));
+    }
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(QColor(0, 0, 0, 200), 3));
+    painter.drawRect(rect().adjusted(1, 1, -2, -2));
+    painter.setPen(QPen(Qt::white, 1, Qt::DashLine));
+    painter.drawRect(rect().adjusted(1, 1, -2, -2));
+    painter.restore();
 }
 
 void ColorSlotButton::dropEvent(QDropEvent* event)
@@ -159,6 +265,7 @@ void ColorSlotButton::dropEvent(QDropEvent* event)
         return;
     }
     event->acceptProposedAction();
+    clearGradientPreview();
     if (const std::optional<std::size_t> from = draggedSlotOf(mimeData, m_owner)) {
         if (isGradientDrag(mimeData) && onSlotsGradient) {
             onSlotsGradient(*from, m_slot);
