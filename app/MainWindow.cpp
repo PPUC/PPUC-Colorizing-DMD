@@ -1392,6 +1392,7 @@ void MainWindow::createCentralView()
     m_preview->setDynamicZonesOnOriginalEnabled(m_dynamicZoneOptions.onOriginal);
     m_preview->setRuntimeView(&m_runtimeView);
     m_spriteEditor = new SpriteEditorWidget(central);
+    m_spriteEditor->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
     m_spriteEditor->setColorSetReplace(m_drawColorMode == edit::DrawColorMode::ColorSetReplace);
     m_canvasStack = new QStackedWidget(central);
     m_canvasStack->addWidget(m_preview);
@@ -1606,6 +1607,7 @@ void MainWindow::createCentralView()
         exportSelectedBackgroundPng();
     };
     m_spritePanel = new SpritePanel(central);
+    m_spritePanel->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
     m_spritePanel->onNameEdited = [this](const QString& name) {
         setCurrentSpriteName(name);
     };
@@ -1706,7 +1708,12 @@ void MainWindow::createCentralView()
                 m_spriteEditor->setTransparentPaintMode(false);
             }
         }
-        if (enabled) {
+        if (enabled && m_dynamicZoneOptions.leftPaintsColors) {
+            statusBar()->showMessage(
+                tr("Dynamic zones shown on the sprite canvas (Edit Sprite): the right button "
+                   "paints them"),
+                4000);
+        } else if (enabled) {
             statusBar()->showMessage(
                 tr("Paint dynamic zones on the sprite canvas (Edit Sprite), on the "
                    "%1 sprite")
@@ -2725,7 +2732,7 @@ void MainWindow::createCentralView()
                 paintSpriteHdTransparency(spriteIndex, resolution, {render::Point{x, y}}, erase);
                 return;
             }
-            if (m_spriteEditor->isDynamicPaintMode()) {
+            if (m_spriteEditor->strokePaintsDynamic()) {
                 paintSpriteDynamic(spriteIndex, {render::Point{x, y}}, erase);
                 return;
             }
@@ -2740,19 +2747,20 @@ void MainWindow::createCentralView()
                 paintSpriteHdTransparency(spriteIndex, resolution, pixels, erase);
                 return;
             }
-            if (m_spriteEditor->isDynamicPaintMode()) {
+            if (m_spriteEditor->strokePaintsDynamic()) {
                 paintSpriteDynamic(spriteIndex, pixels, erase);
                 return;
             }
             paintSpriteColorizedPixels(spriteIndex, resolution, pixels, erase);
         });
+    m_spriteEditor->setRightPressHandler([this]() { return rightPressStartsSpriteDynamicStroke(); });
     m_spriteEditor->setColorizedPixelPickedHandler(
         [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
             pickSpriteColorizedPixel(spriteIndex, resolution, x, y);
         });
     m_spriteEditor->setColorizedFloodFillHandler(
         [this](std::size_t spriteIndex, render::Resolution resolution, int x, int y) {
-            if (m_spriteEditor->isDynamicPaintMode()) {
+            if (m_spriteEditor->strokePaintsDynamic()) {
                 statusBar()->showMessage(
                     tr("Dynamic zones are painted with the point and shape tools"),
                     3000);
@@ -3648,6 +3656,12 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         }
         if (m_preview) {
             m_preview->clearPreviewPixels();
+        }
+        if (m_spriteEditor) {
+            m_spriteEditor->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
+        }
+        if (m_spritePanel) {
+            m_spritePanel->setLeftButtonPaintsDynamic(!m_dynamicZoneOptions.leftPaintsColors);
         }
         updateDynamicZoneDisplay();
         updateUndoRedoActions();
@@ -10843,6 +10857,12 @@ void MainWindow::colorizedCanvasClicked(render::CanvasHit hit, bool erase)
         m_canvasEdit.editSelectionAtPoint(context, hit, erase, selectsNonBlackOnly());
         return;
     }
+    if (alt && m_drawingTool == DrawingTool::FloodFill && m_preview &&
+        m_preview->strokeButton() == Qt::RightButton) {
+        // Win32: Alt+right click with the fill makes every pixel of the color dynamic.
+        m_editHelpers.assignDynamicSetByColor(context, hit);
+        return;
+    }
     if (alt && m_drawingTool == DrawingTool::FloodFill &&
         context.layer == CanvasEditLayer::FramePixels) {
         // Win32: Alt+click with the fill tool recolors every pixel of the color.
@@ -13726,6 +13746,43 @@ bool MainWindow::rightPressStartsDynamicStroke(const render::CanvasHit& hit)
     if (hit.region == render::CanvasRegion::OriginalFrame &&
         (!dynamicZonesOnOriginal(canvasModes(), m_dynamicZoneOptions) ||
          isSpriteCaptureSelectionModeActive())) {
+        return false;
+    }
+    return true;
+}
+
+bool MainWindow::rightPressStartsSpriteDynamicStroke()
+{
+    if (!m_document || !currentSpriteIndex() || !m_spritePanel || !m_spriteEditor) {
+        return false;
+    }
+    const bool zoneTool = m_drawingTool != DrawingTool::ColorPicker &&
+                          m_drawingTool != DrawingTool::FloodFill &&
+                          paintsDynamicZonesWithRightButton(m_drawingTool);
+    if (!zoneTool) {
+        statusBar()->showMessage(
+            tr("The right button paints the sprite's dynamic zones with the point, line and "
+               "shape tools"),
+            3000);
+        return false;
+    }
+    if (m_spriteEditor->isTransparentPaintMode()) {
+        statusBar()->showMessage(
+            tr("Paint Transparent is on: switch it off to paint dynamic zones with the right "
+               "button"),
+            3000);
+        return false;
+    }
+    if (!m_spriteEditor->isDynamicPaintMode()) {
+        // The zones are not painted unseen: the first right click shows them.
+        m_spritePanel->setDynamicPaintChecked(true);
+        if (m_spritePanel->onDynamicPaintToggled) {
+            m_spritePanel->onDynamicPaintToggled(true);
+        }
+        statusBar()->showMessage(
+            tr("Sprite dynamic zones shown: the right button paints them in set %1")
+                .arg(static_cast<int>(m_spritePanel->dynamicSet()) + 1),
+            3000);
         return false;
     }
     return true;

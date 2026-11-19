@@ -119,6 +119,12 @@ The controls:
     dynamic. The zones are outlined in blue while the mode is on. The fill tool does not paint
     dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
     sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
+  - The right button paints the zones too, with the point, line and shape tools, `Shift`
+    erasing, as in the Win32 editor. A right click while `Paint Dynamic` is off switches it on
+    and paints nothing yet; with `Paint Transparent` on it paints nothing.
+  - With `Settings -> Appearance -> Dynamic Zones -> Left button with Dynamic on` set to `Paints
+    colors`, `Paint Dynamic` only shows the zones: the left button paints colors, the right
+    button the zones (see "Dynamic Masks").
   - The color grid shows the set's color for each original shade, 4 in a project with 4
     colors and 16 in one with 16; a click changes one, and a color dragged onto another one
     swaps the two.

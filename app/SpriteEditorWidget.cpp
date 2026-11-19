@@ -7,6 +7,7 @@
 #include <array>
 #include <cmath>
 
+#include <QContextMenuEvent>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
 #include <QPainter>
@@ -298,13 +299,30 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if (event->button() == Qt::LeftButton &&
+    if (m_paintingColorized || m_dragStart) {
+        // The stroke under way goes on; a press of the other button starts nothing.
+        event->accept();
+        return;
+    }
+    const bool right = event->button() == Qt::RightButton;
+    if (right) {
+        // A right press never goes on to the window (no context menu either).
+        event->accept();
+    }
+    if ((event->button() == Qt::LeftButton || right) &&
         (m_colorizedPixelEditedHandler || m_colorizedPixelsEditedHandler ||
          m_colorizedPixelPickedHandler || m_colorizedFloodFillHandler) &&
         m_document && m_spriteIndex && *m_spriteIndex < m_document->spriteCount()) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
+        if (hit && right &&
+            (!m_rightPressHandler || !m_rightPressHandler() ||
+             m_drawingTool == SpriteDrawingTool::ColorPicker ||
+             m_drawingTool == SpriteDrawingTool::FloodFill)) {
+            return;
+        }
         if (hit) {
             m_paintingColorized = true;
+            m_strokeButton = event->button();
             m_paintErase = event->modifiers().testFlag(Qt::ShiftModifier);
             if (m_drawingTool == SpriteDrawingTool::Point) {
                 m_colorizedPixelEditedHandler(*m_spriteIndex,
@@ -320,6 +338,7 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
                                               hit->y);
                 m_paintingColorized = false;
                 m_paintErase = false;
+                m_strokeButton = Qt::NoButton;
             } else if (m_drawingTool == SpriteDrawingTool::FloodFill &&
                        m_colorizedFloodFillHandler) {
                 m_colorizedFloodFillHandler(*m_spriteIndex,
@@ -328,6 +347,7 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
                                             hit->y);
                 m_paintingColorized = false;
                 m_paintErase = false;
+                m_strokeButton = Qt::NoButton;
             } else if (editsColorizedStroke() && m_colorizedPixelsEditedHandler) {
                 m_colorizedStrokeStart = *hit;
                 m_colorizedStrokeEnd = *hit;
@@ -335,7 +355,10 @@ void SpriteEditorWidget::mousePressEvent(QMouseEvent* event)
             } else {
                 m_paintingColorized = false;
                 m_paintErase = false;
-                QWidget::mousePressEvent(event);
+                m_strokeButton = Qt::NoButton;
+                if (!right) {
+                    QWidget::mousePressEvent(event);
+                }
                 return;
             }
             event->accept();
@@ -365,7 +388,7 @@ void SpriteEditorWidget::mouseMoveEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if ((event->buttons() & Qt::LeftButton) && m_paintingColorized &&
+    if (m_paintingColorized && (event->buttons() & m_strokeButton) &&
         m_colorizedPixelEditedHandler && m_spriteIndex) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
         if (hit) {
@@ -407,7 +430,7 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if (event->button() == Qt::LeftButton && m_paintingColorized) {
+    if (m_paintingColorized && event->button() == m_strokeButton) {
         const std::optional<render::Point> hit = hitColorized(event->pos());
         if (m_colorizedStrokeStart && m_colorizedPixelsEditedHandler && m_spriteIndex &&
             editsColorizedStroke()) {
@@ -428,6 +451,7 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
         if (m_colorizedPaintFinishedHandler) {
             m_colorizedPaintFinishedHandler();
         }
+        m_strokeButton = Qt::NoButton;
         update();
         event->accept();
         return;
@@ -446,7 +470,16 @@ void SpriteEditorWidget::mouseReleaseEvent(QMouseEvent* event)
         event->accept();
         return;
     }
+    if (event->button() == Qt::RightButton) {
+        event->accept();
+        return;
+    }
     QWidget::mouseReleaseEvent(event);
+}
+
+void SpriteEditorWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    event->accept();
 }
 
 int SpriteEditorWidget::fittedScale() const
@@ -749,6 +782,22 @@ bool SpriteEditorWidget::isDynamicPaintMode() const
     return m_dynamicPaint;
 }
 
+void SpriteEditorWidget::setLeftButtonPaintsDynamic(bool paints)
+{
+    m_leftPaintsDynamic = paints;
+}
+
+void SpriteEditorWidget::setRightPressHandler(std::function<bool()> handler)
+{
+    m_rightPressHandler = std::move(handler);
+}
+
+bool SpriteEditorWidget::strokePaintsDynamic() const
+{
+    return m_strokeButton == Qt::RightButton ||
+           (m_strokeButton == Qt::LeftButton && m_dynamicPaint && m_leftPaintsDynamic);
+}
+
 void SpriteEditorWidget::setTransparentPaintMode(bool enabled)
 {
     if (m_transparentPaint == enabled) {
@@ -985,7 +1034,7 @@ void SpriteEditorWidget::paintColorizedStrokePreview(QPainter& painter, const Re
     }
     // In dynamic paint mode the stroke paints dynamic zones, not colors.
     const edit::PixelColorSource replaced =
-        m_colorSetReplace && !m_paintErase && !m_dynamicPaint && !m_transparentPaint
+        m_colorSetReplace && !m_paintErase && !strokePaintsDynamic() && !m_transparentPaint
             ? edit::spriteColorSetReplaceColorSource(*m_document, *m_spriteIndex, resolution)
             : edit::PixelColorSource();
 
@@ -1041,7 +1090,7 @@ bool SpriteEditorWidget::isColorizedPixelEditable(const document::SpriteRecord& 
     if (mask.pixels[index] == 255) {
         return false;
     }
-    if (m_dynamicPaint) {
+    if (strokePaintsDynamic()) {
         return (useHd ? render::Resolution::Hd : render::Resolution::Sd) ==
                m_document->dynamicPlane();
     }

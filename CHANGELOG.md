@@ -33,6 +33,10 @@ tagged; the changes since the last tag are listed under *Next version*.
   Win32 editor. In `Settings -> Appearance -> Dynamic Zones` the left button can paint colors
   while `Dynamic` only shows the zones, also beside `Mask`, and the zones can be left off the
   original (issue #58).
+- The right button paints a sprite's dynamic zones on the sprite canvas too, and the setting of
+  the left button applies to `Paint Dynamic` (issue #58).
+- `Alt` with a right click of the fill puts every pixel of the clicked color of the selected
+  frames into the dynamic set, as in the Win32 editor (issue #58).
 
 ## 3.99.38
 

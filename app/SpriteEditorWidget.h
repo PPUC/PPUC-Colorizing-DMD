@@ -51,8 +51,20 @@ public:
     // Strokes paint the sprite's dynamic zones (every covered pixel can be painted, black ones
     // too) and the zones are outlined. Only on the plane the sprite's dynamic content is
     // on (ProjectDocument::dynamicPlane()).
+    // With DynamicZoneOptions::leftPaintsColors the mode only shows the zones: the left button
+    // paints colors, the right one the zones (setLeftButtonPaintsDynamic(false)).
     void setDynamicPaintMode(bool enabled);
     [[nodiscard]] bool isDynamicPaintMode() const;
+    // Whether the left button paints the zones in the dynamic paint mode (the default).
+    void setLeftButtonPaintsDynamic(bool paints);
+    // Called on a right press over the colorized sprite; returning true starts a stroke of the
+    // sprite's dynamic zones there, with the point, line or shape tool (Shift erases). Without
+    // the handler, or when it returns false, the press does nothing.
+    void setRightPressHandler(std::function<bool()> handler);
+    // The stroke under way paints dynamic zones: one of the right button, or one of the left
+    // in the dynamic paint mode while the left button paints zones. Also while the stroke's
+    // edit handlers run.
+    [[nodiscard]] bool strokePaintsDynamic() const;
     // Strokes on the HD sprite make its pixels transparent (Shift: cover again where the
     // original is), as ProjectDocument::setSpriteHdTransparency(); the transparent pixels over
     // the original are marked. The SD sprite takes no strokes in this mode.
@@ -104,6 +116,8 @@ protected:
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
+    // No context menu: the right button paints.
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private:
     struct RegionLayout {
@@ -159,6 +173,10 @@ private:
     uint16_t m_activeDrawColor = 0xffff;
     bool m_colorSetReplace = false;
     bool m_dynamicPaint = false;
+    bool m_leftPaintsDynamic = true;
+    std::function<bool()> m_rightPressHandler;
+    // The button of the colorized stroke under way; Qt::NoButton without one.
+    Qt::MouseButton m_strokeButton = Qt::NoButton;
     bool m_transparentPaint = false;
     DmdRenderOptions m_renderOptions;
     bool m_showDetectionAreas = true;

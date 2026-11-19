@@ -330,9 +330,7 @@ SpritePanel::SpritePanel(QWidget* parent)
     m_dynamicPaintButton = new QToolButton(this);
     m_dynamicPaintButton->setText(tr("Paint Dynamic"));
     m_dynamicPaintButton->setCheckable(true);
-    m_dynamicPaintButton->setToolTip(tr(
-        "On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: "
-        "out of it); dynamic pixels are tinted"));
+    setLeftButtonPaintsDynamic(true);
     m_dynamicSetSpinBox = new QSpinBox(this);
     m_dynamicSetSpinBox->setRange(1, static_cast<int>(document::kMaxDynamicSetsPerSprite));
     m_dynamicSetSpinBox->setPrefix(tr("Set "));
@@ -595,6 +593,16 @@ void SpritePanel::setDynamicPaintChecked(bool checked)
 {
     QSignalBlocker blocker(m_dynamicPaintButton);
     m_dynamicPaintButton->setChecked(checked);
+}
+
+void SpritePanel::setLeftButtonPaintsDynamic(bool paints)
+{
+    m_dynamicPaintButton->setToolTip(
+        paints ? tr("On the sprite canvas, strokes put sprite pixels into the dynamic set "
+                    "(Shift or erase: out of it), also with the right button; dynamic pixels "
+                    "are tinted")
+               : tr("Show the sprite's dynamic zones on the sprite canvas; the right button "
+                    "puts sprite pixels into the dynamic set (Shift: out of it)"));
 }
 
 void SpritePanel::setTransparentPaintChecked(bool checked)

@@ -15,12 +15,15 @@ in the selected set (with `Shift` they erase), as comparison masks are painted o
 Both pictures show the same pixels of the plane the zones are on.
 
 The right button paints the zones too, in every mode and with the same tools, on the colorized
-picture (and on the original while the zones are shown there), with `Shift` erasing, as in the
-Win32 editor. It paints with the point, line, rectangle, circle and ellipse tools and the flood
-fill; with the pipette it picks the set under the cursor. `Sel` and the gradient do not paint
-zones. A right click while the zones are hidden shows them (`Dynamic` goes on) and paints
-nothing yet. The right button paints no zones in HD mode, in the sprite editor, while a
-background is edited and in paste mode; the status bar says why where it is not obvious.
+picture (and on the original while the zones are shown there), with `Shift` erasing, as in the Win32
+editor. It paints with the point, line, rectangle, circle and ellipse tools and the flood fill; with
+the pipette it picks the set under the cursor. `Sel` and the gradient do not paint zones. `Alt` with
+a right click of the fill (Win32) puts every pixel of the clicked pixel's color into the selected
+set, on every selected frame, wherever the pixels are; it refuses a dynamic pixel, as it works on
+static content. A right click while the zones are hidden shows them (`Dynamic` goes on) and paints
+nothing yet. The sprite editor paints a sprite's zones with the right button as well (see
+"Sprites"). The right button paints no frame zones in HD mode, while a background is edited and in
+paste mode; the status bar says why where it is not obvious.
 
 How the left button works is set in `Settings -> Appearance -> Dynamic Zones`:
 

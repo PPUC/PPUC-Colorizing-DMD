@@ -140,6 +140,9 @@ public:
     // 0 to 8, shown as 1 to 9.
     [[nodiscard]] std::size_t dynamicSet() const;
     void setDynamicPaintChecked(bool checked);
+    // Paint Dynamic's tool tip: whether its strokes paint the zones or it only shows them
+    // (DynamicZoneOptions::leftPaintsColors); the right button paints them either way.
+    void setLeftButtonPaintsDynamic(bool paints);
     // Neither notifies.
     void setTransparentPaintChecked(bool checked);
     [[nodiscard]] bool isTransparentPaintChecked() const;

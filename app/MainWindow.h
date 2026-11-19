@@ -681,6 +681,9 @@ private:
     // A right press on the canvas: whether it starts a stroke of the dynamic zones. Shows the
     // zones first when they are hidden, and says in the status bar why it does not paint.
     [[nodiscard]] bool rightPressStartsDynamicStroke(const render::CanvasHit& hit);
+    // A right press on the sprite canvas: whether it starts a stroke of the sprite's dynamic
+    // zones (as rightPressStartsDynamicStroke()).
+    [[nodiscard]] bool rightPressStartsSpriteDynamicStroke();
     // After the Mask or Dynamic toggle or the options changed: the zones on the original, the
     // Dynamic toggle's tool tip.
     void updateDynamicZoneDisplay();

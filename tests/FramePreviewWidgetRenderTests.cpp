@@ -17,6 +17,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMimeData>
+#include <QContextMenuEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QDropEvent>
@@ -1712,6 +1713,99 @@ void testSpriteEditorShowsDynamicColors()
     widget.setActiveResolution(colorizing::render::Resolution::Hd);
     expect(shown() == expected,
            "on the HD art the 128x32 sprite's dynamic pixel shows, as libserum draws it");
+}
+
+// Issue #58: the right button paints the sprite's dynamic zones with the point, line and shape
+// tools where the window lets it; the left button does in the dynamic paint mode unless it
+// paints colors there (the Win32 editor's way).
+void testSpriteEditorRightButtonPaintsDynamic()
+{
+    using colorizing::app::SpriteDrawingTool;
+    colorizing::document::ProjectDocument document = makeSpriteEditorDocument();
+    colorizing::app::SpriteEditorWidget widget;
+    widget.resize(640, 420);
+    widget.setDocument(&document);
+    widget.setSpriteIndex(std::size_t{0});
+    widget.resetZoom();
+
+    std::vector<bool> dynamicStrokes;
+    bool lastErase = false;
+    int finished = 0;
+    widget.setColorizedPixelEditedHandler(
+        [&](std::size_t, colorizing::render::Resolution, int, int, bool erase) {
+            dynamicStrokes.push_back(widget.strokePaintsDynamic());
+            lastErase = erase;
+        });
+    widget.setColorizedPixelsEditedHandler(
+        [&](std::size_t, colorizing::render::Resolution,
+            const std::vector<colorizing::render::Point>&, bool erase) {
+            dynamicStrokes.push_back(widget.strokePaintsDynamic());
+            lastErase = erase;
+        });
+    widget.setColorizedFloodFillHandler(
+        [&](std::size_t, colorizing::render::Resolution, int, int) {
+            dynamicStrokes.push_back(widget.strokePaintsDynamic());
+        });
+    widget.setColorizedPaintFinishedHandler([&]() { ++finished; });
+    const QPointF at = widget.pixelCentre(false, {2, 2});
+    const QPointF to = widget.pixelCentre(false, {4, 3});
+    expect(widget.rect().contains(at.toPoint()) && widget.rect().contains(to.toPoint()),
+           "the pixels are on the sprite canvas");
+    const auto send = [&](QEvent::Type type, QPointF where, Qt::MouseButton button,
+                          Qt::MouseButtons buttons,
+                          Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+        QMouseEvent event(type, where, where, widget.mapToGlobal(where), button, buttons,
+                          modifiers, QPointingDevice::primaryPointingDevice());
+        QApplication::sendEvent(&widget, &event);
+    };
+    const auto click = [&](Qt::MouseButton button, Qt::KeyboardModifiers modifiers) {
+        send(QEvent::MouseButtonPress, at, button, button, modifiers);
+        send(QEvent::MouseButtonRelease, at, button, Qt::NoButton, modifiers);
+    };
+
+    click(Qt::RightButton, Qt::NoModifier);
+    expect(dynamicStrokes.empty(), "without its handler the right button paints nothing");
+    bool allowed = false;
+    widget.setRightPressHandler([&]() { return allowed; });
+    click(Qt::RightButton, Qt::NoModifier);
+    expect(dynamicStrokes.empty(), "nor where the window refuses it");
+
+    allowed = true;
+    click(Qt::RightButton, Qt::ShiftModifier);
+    expect(dynamicStrokes == std::vector<bool>{true} && lastErase && finished == 1 &&
+               !widget.strokePaintsDynamic(),
+           "a right click paints the dynamic zones, Shift erasing");
+    widget.setDrawingTool(SpriteDrawingTool::FilledRectangle);
+    send(QEvent::MouseButtonPress, at, Qt::RightButton, Qt::RightButton);
+    send(QEvent::MouseButtonPress, to, Qt::LeftButton, Qt::LeftButton | Qt::RightButton);
+    send(QEvent::MouseMove, to, Qt::NoButton, Qt::LeftButton | Qt::RightButton);
+    send(QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::RightButton);
+    expect(dynamicStrokes.size() == 1, "the left button does not cut into the right stroke");
+    send(QEvent::MouseButtonRelease, to, Qt::RightButton, Qt::NoButton);
+    expect(dynamicStrokes == std::vector<bool>{true, true} && !lastErase,
+           "a right drag paints a shape of dynamic zones");
+    widget.setDrawingTool(SpriteDrawingTool::FloodFill);
+    click(Qt::RightButton, Qt::NoModifier);
+    expect(dynamicStrokes.size() == 2, "the fill paints no dynamic zones");
+    widget.setDrawingTool(SpriteDrawingTool::Point);
+
+    click(Qt::LeftButton, Qt::NoModifier);
+    expect(dynamicStrokes.back() == false, "the left button paints colors");
+    widget.setDynamicPaintMode(true);
+    click(Qt::LeftButton, Qt::NoModifier);
+    expect(dynamicStrokes.back() == true, "and dynamic zones in the dynamic paint mode");
+    widget.setLeftButtonPaintsDynamic(false);
+    click(Qt::LeftButton, Qt::NoModifier);
+    expect(dynamicStrokes.back() == false,
+           "unless it paints colors there, the mode only showing the zones");
+    click(Qt::RightButton, Qt::NoModifier);
+    expect(dynamicStrokes.back() == true, "the right button still paints them");
+
+    QContextMenuEvent menu(QContextMenuEvent::Mouse, at.toPoint(),
+                           widget.mapToGlobal(at.toPoint()));
+    menu.ignore();
+    QApplication::sendEvent(&widget, &menu);
+    expect(menu.isAccepted(), "the sprite canvas opens no context menu");
 }
 
 void testSpriteEditorRendersAndEditsDetectionArea()
@@ -4524,6 +4618,7 @@ int main(int argc, char* argv[])
     testFramePreviewDoesNotShowHdReferenceBelowOriginal();
     testSpriteEditorZoom();
     testSpriteEditorShowsDynamicColors();
+    testSpriteEditorRightButtonPaintsDynamic();
     testSpriteEditorFitsTheSprite();
     testSpriteEditorRendersAndEditsDetectionArea();
     testSpriteEditorPaintsHdTransparency();

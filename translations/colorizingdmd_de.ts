@@ -1381,6 +1381,14 @@
         <source>Dynamic set %1 assigned: %2 changed</source>
         <translation>Dynamik-Set %1 zugewiesen: %2 geändert</translation>
     </message>
+    <message>
+        <source>The pixel is dynamically colored; this works on static content only</source>
+        <translation>Das Pixel ist dynamisch gefärbt; dies wirkt nur auf statische Inhalte</translation>
+    </message>
+    <message>
+        <source>Dynamic set %1 assigned to the pixels of color 0x%2: %3 changed</source>
+        <translation>Dynamik-Set %1 den Pixeln der Farbe 0x%2 zugewiesen: %3 geändert</translation>
+    </message>
 </context>
 <context>
     <name>EditMenuActions</name>
@@ -4386,6 +4394,10 @@ Use Create %1 Frame.</source>
         <translation>Mit Lesezeichen</translation>
     </message>
     <message>
+        <source>Dynamic zones shown on the sprite canvas (Edit Sprite): the right button paints them</source>
+        <translation>Dynamische Zonen auf der Sprite-Zeichenfläche eingeblendet (Sprite bearbeiten): die rechte Maustaste zeichnet sie</translation>
+    </message>
+    <message>
         <source>Draw Color</source>
         <translation>Zeichenfarbe</translation>
     </message>
@@ -6644,6 +6656,18 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Dynamic zones shown: the right button paints them in set %1</source>
         <translation>Dynamische Zonen eingeblendet: die rechte Maustaste zeichnet sie in Dynamik-Set %1</translation>
+    </message>
+    <message>
+        <source>The right button paints the sprite&apos;s dynamic zones with the point, line and shape tools</source>
+        <translation>Die rechte Maustaste zeichnet die dynamischen Zonen des Sprites mit den Punkt-, Linien- und Formwerkzeugen</translation>
+    </message>
+    <message>
+        <source>Paint Transparent is on: switch it off to paint dynamic zones with the right button</source>
+        <translation>Transparent zeichnen ist eingeschaltet: zum Zeichnen dynamischer Zonen mit der rechten Maustaste ausschalten</translation>
+    </message>
+    <message>
+        <source>Sprite dynamic zones shown: the right button paints them in set %1</source>
+        <translation>Dynamische Zonen des Sprites eingeblendet: die rechte Maustaste zeichnet sie in Set %1</translation>
     </message>
     <message>
         <source>Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already</source>
@@ -9677,7 +9701,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: out of it); dynamic pixels are tinted</source>
-        <translation>Auf der Sprite-Zeichenfläche nehmen Striche Sprite-Pixel in das Dynamik-Set auf (Shift oder Radieren: heraus); dynamische Pixel werden eingefärbt dargestellt</translation>
+        <translation type="vanished">Auf der Sprite-Zeichenfläche nehmen Striche Sprite-Pixel in das Dynamik-Set auf (Shift oder Radieren: heraus); dynamische Pixel werden eingefärbt dargestellt</translation>
     </message>
     <message>
         <source>Set </source>
@@ -9706,6 +9730,14 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Copy the set&apos;s colors to the edit colors</source>
         <translation>Farben des Sets in die Bearbeitungsfarben kopieren</translation>
+    </message>
+    <message>
+        <source>On the sprite canvas, strokes put sprite pixels into the dynamic set (Shift or erase: out of it), also with the right button; dynamic pixels are tinted</source>
+        <translation>Auf der Sprite-Zeichenfläche nehmen Striche Sprite-Pixel in das Dynamik-Set auf (Shift oder Radieren: heraus), auch mit der rechten Maustaste; dynamische Pixel werden eingefärbt dargestellt</translation>
+    </message>
+    <message>
+        <source>Show the sprite&apos;s dynamic zones on the sprite canvas; the right button puts sprite pixels into the dynamic set (Shift: out of it)</source>
+        <translation>Die dynamischen Zonen des Sprites auf der Sprite-Zeichenfläche zeigen; die rechte Maustaste nimmt Sprite-Pixel in das Dynamik-Set auf (Shift: heraus)</translation>
     </message>
     <message>
         <source>Create %1 Sprite</source>

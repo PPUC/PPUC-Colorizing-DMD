@@ -379,6 +379,59 @@ void EditHelpersController::assignDynamicSet(const CanvasEditContext& context,
                kStatusMs);
 }
 
+void EditHelpersController::assignDynamicSetByColor(const CanvasEditContext& context,
+                                                    const render::CanvasHit& hit)
+{
+    if (!requireDynamicPlane(context) || hit.region != render::CanvasRegion::ColorizedFrame ||
+        hit.resolution != context.document->dynamicPlane()) {
+        return;
+    }
+    const document::ProjectDocument& document = *context.document;
+    const render::Resolution plane = hit.resolution;
+    std::vector<std::pair<std::size_t, edit::FrameContentChanges>> changes;
+    uint16_t color = 0;
+    try {
+        if (edit::isDynamicPixel(document, *context.currentFrame, plane,
+                                 render::Point{hit.x, hit.y})) {
+            showStatus(tr("The pixel is dynamically colored; this works on static content only"),
+                       kLongStatusMs);
+            return;
+        }
+        color = document.colorizedPixel(*context.currentFrame, plane, hit.x, hit.y);
+        const render::Size size = document.geometry().planeSize(plane);
+        for (std::size_t frameIndex : context.selectedFrames) {
+            if (plane == render::Resolution::Hd && !document.hasHdFrame(frameIndex)) {
+                continue;
+            }
+            edit::PlaneSelection ofColor(plane, size);
+            std::vector<render::Point> points;
+            for (int y = 0; y < size.height; ++y) {
+                for (int x = 0; x < size.width; ++x) {
+                    if (document.colorizedPixel(frameIndex, plane, x, y) == color) {
+                        points.push_back(render::Point{x, y});
+                    }
+                }
+            }
+            if (points.empty()) {
+                continue;
+            }
+            ofColor.add(points);
+            changes.emplace_back(frameIndex,
+                                 edit::makeAssignDynamicSetChanges(document, frameIndex, &ofColor,
+                                                                   context.dynamicSet));
+        }
+    } catch (const std::exception& ex) {
+        showStatus(QString::fromUtf8(ex.what()), kLongStatusMs);
+        return;
+    }
+    const std::size_t changed = commitAll(context, std::move(changes));
+    showStatus(tr("Dynamic set %1 assigned to the pixels of color 0x%2: %3 changed")
+                   .arg(static_cast<int>(context.dynamicSet))
+                   .arg(color, 4, 16, QLatin1Char('0'))
+                   .arg(framesText(changed)),
+               kStatusMs);
+}
+
 std::size_t EditHelpersController::commitAll(
     const CanvasEditContext& context,
     std::vector<std::pair<std::size_t, edit::FrameContentChanges>> changes)

@@ -77,6 +77,9 @@ public:
     void removeDynamicContent(const CanvasEditContext& context,
                               const edit::PlaneSelection* selection);
     void assignDynamicSet(const CanvasEditContext& context, const edit::PlaneSelection* selection);
+    // Alt with the right button and the fill (Win32): every pixel of the clicked pixel's color
+    // in each selected frame joins the dynamic set. Refused on a dynamic pixel, as in Win32.
+    void assignDynamicSetByColor(const CanvasEditContext& context, const render::CanvasHit& hit);
     // Dynamic pixels (of the selection if there is one) keep their color as a fixed one.
     void dynamicToStatic(const CanvasEditContext& context, const edit::PlaneSelection* selection);
     // The selection's colors times the coefficient, on the selected frames.

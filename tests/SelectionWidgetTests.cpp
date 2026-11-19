@@ -538,6 +538,26 @@ void testHelpers()
                document::plainOriginalColors(4)[1],
            "removed dynamic pixels get their plain color");
 
+    // Win32 Alt+right click with the fill: every pixel of the clicked color joins the set, on
+    // each selected frame; refused on a dynamic pixel.
+    committed.clear();
+    document.setColorizedPixel(0, Resolution::Sd, 5, 5, 0x1234);
+    document.setColorizedPixel(0, Resolution::Sd, 6, 7, 0x1234);
+    document.setColorizedPixel(1, Resolution::Sd, 8, 8, 0x1234);
+    context.layer = CanvasEditLayer::DynamicMask;
+    helpers.assignDynamicSetByColor(context, hitAt(Resolution::Sd, 5, 5));
+    expect(committed.size() == 2 && document.dynamicMaskPixel(0, Resolution::Sd, 5, 5) == 4 &&
+               document.dynamicMaskPixel(0, Resolution::Sd, 6, 7) == 4 &&
+               document.dynamicMaskPixel(1, Resolution::Sd, 8, 8) == 4 &&
+               document.dynamicMaskPixel(0, Resolution::Sd, 7, 7) == 255,
+           "the pixels of the clicked color join the dynamic set on the frames that have it");
+    committed.clear();
+    helpers.assignDynamicSetByColor(context, hitAt(Resolution::Sd, 5, 5));
+    expect(committed.empty() && status.find("static content") != std::string::npos,
+           "refused on a dynamic pixel");
+    helpers.removeDynamicContent(context, nullptr);
+    context.layer = CanvasEditLayer::FramePixels;
+
     // Auto copy: frames 1 and 2 share frame 0's original, so all match.
     edit::PlaneSelection square(Resolution::Sd, Size{128, 32});
     square.add({Point{10, 5}, Point{11, 5}});
