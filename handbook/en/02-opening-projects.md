@@ -1,5 +1,9 @@
 # Opening Projects
 
+When the editor starts, a picture shows over its window for a few seconds; a click closes it
+sooner. A question about an autosave of a new project that was never saved (see "Saving",
+"Autosave and recovery") comes once it has gone.
+
 Use `File -> Open Project...` and select a project file (`.cdmd`), or the files of an earlier
 editor: a `.cROM` or a `.cRZ`.
 

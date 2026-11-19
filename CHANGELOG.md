@@ -10,6 +10,7 @@ tagged; the changes since the last tag are listed under *Next version*.
   (`Ctrl/Cmd+Alt+Z`, `Ctrl/Cmd+Alt+Shift+Z`). Keys set in the settings stay (issue #72).
 - After an action over several frames was undone, `Redo Here` brings it back on the frame shown
   only; `Redo` brings back the rest.
+- A splash screen shows for a few seconds when the editor starts; a click closes it.
 - The sprite canvas tells dynamic sets apart as the frame canvas does: the selected set's
   zones yellow, the others cyan, each area with its set's number (issue #73).
 - The toolbar's `Dynamic` shows and paints a sprite's dynamic zones on the sprite canvas;

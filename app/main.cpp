@@ -1,18 +1,22 @@
 #include <QApplication>
 #include <QIcon>
 #include <QSettings>
+#include <QSplashScreen>
 #include <QSslSocket>
 #include <QElapsedTimer>
 #include <QStringList>
 #include <QThread>
+#include <QTimer>
 
 #include <cstdio>
+#include <memory>
 #include <string>
 
 #include "AppInfo.h"
 #include "Appearance.h"
 #include "DmdOutput.h"
 #include "MainWindow.h"
+#include "SplashScreen.h"
 #include "Translations.h"
 #include "vpx/VpxHost.h"
 #include "WheelGuard.h"
@@ -158,10 +162,21 @@ int main(int argc, char* argv[])
     colorizing::app::installTranslations();
     colorizing::app::installWheelGuard(&app);
     colorizing::app::applyTheme(colorizing::app::loadTheme());
+    // The splash shows while the window is made and for a few seconds over it; a click closes it
+    // early. The question about an autosave waits for it, so it is not hidden behind it.
+    std::unique_ptr<QSplashScreen> splash = colorizing::app::showSplashScreen();
     colorizing::app::MainWindow window;
     // Where and how large it was left (issue #2).
     colorizing::app::keepWindowGeometry(&window, QStringLiteral("main"));
     window.show();
-    window.offerUntitledAutosave();
+    if (splash) {
+        splash->raise();
+        QTimer::singleShot(colorizing::app::kSplashScreenMs, &window, [&splash, &window]() {
+            splash->close();
+            window.offerUntitledAutosave();
+        });
+    } else {
+        window.offerUntitledAutosave();
+    }
     return app.exec();
 }

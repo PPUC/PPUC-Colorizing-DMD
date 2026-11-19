@@ -2,6 +2,7 @@
 // single selection of a list row and the question about unsaved changes.
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <set>
@@ -37,6 +38,7 @@
 #include "CanvasKeys.h"
 #include "FrameImageUtils.h"
 #include "FrameStatusText.h"
+#include "SplashScreen.h"
 #include "dialogs/AboutDialog.h"
 #include "FlowLayout.h"
 #include "ListSelection.h"
@@ -576,8 +578,25 @@ void testColorValueText()
            "RGB565 and RGB888 as the color picker shows them");
 }
 
+// The start-up picture is built in and fits the screen, its proportions kept.
+void testSplashPixmap()
+{
+    const QPixmap full = colorizing::app::splashPixmap(QSize());
+    expect(!full.isNull(), "the splash picture is built in");
+    const QPixmap small = colorizing::app::splashPixmap(QSize(1000, 600));
+    expect(small.width() <= 800 && small.height() <= 480 &&
+               (small.width() == 800 || small.height() == 480),
+           "it is scaled down to 80% of a small screen");
+    expect(std::abs(static_cast<double>(small.width()) / small.height() -
+                    static_cast<double>(full.width()) / full.height()) < 0.02,
+           "its proportions are kept");
+    const QPixmap large = colorizing::app::splashPixmap(full.size() * 2);
+    expect(large.size() == full.size(), "it is not scaled up");
+}
+
 void runAppHelpersWidgetTests()
 {
+    testSplashPixmap();
     testColorValueText();
     testKeyHeldForCanvas();
     testAboutDialog();

@@ -183,6 +183,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     SpeakerLightView.h
     SpriteEditorWidget.cpp
     SpriteEditorWidget.h
+    SplashScreen.cpp
+    SplashScreen.h
     Translations.cpp
     Translations.h
     UndoShortcuts.h
@@ -213,6 +215,12 @@ qt_add_resources(colorizing_qt_v2_widgets "third_party_notices"
     PREFIX "/notices"
     BASE "${PROJECT_SOURCE_DIR}"
     FILES "${PROJECT_SOURCE_DIR}/THIRD-PARTY-NOTICES.md")
+
+# The picture shown while the editor starts, built in as :/splash/splash.png (SplashScreen).
+qt_add_resources(colorizing_qt_v2_widgets "splash"
+    PREFIX "/splash"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/splash"
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/splash/splash.png")
 
 # The icons of the drawing tools, built in under :/tool-icons/ (DrawingToolIcons).
 file(GLOB colorizing_qt_v2_tool_icons
