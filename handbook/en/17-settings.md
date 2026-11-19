@@ -38,6 +38,12 @@ version when you report a problem.
   Under `Sprite List`: `Zoom the thumbnails to the sprite's pixels` (on until set otherwise) shows
   each sprite of the left sidebar's list as large as it fits, with a pixel free around it, so that
   digits and small patches can be told apart; off, a thumbnail shows the whole sprite area.
+  Under `Dynamic Zones` (see "Dynamic Masks"): `Left button with Dynamic on` is `Paints dynamic
+  zones` (the default: `Dynamic` is a mode, and colors are painted with it off) or `Paints colors
+  (Dynamic only shows the zones)`, the Win32 editor's way, where `Mask` can be on beside
+  `Dynamic`. The right button paints the zones with either. `Show and paint the zones on the
+  original frame too` (on until set otherwise); off, the zones are shown and painted on the
+  colorized frame only.
   Under `Speaker Light Preview`: whether two speakers show beside the canvas and in the frame
   tester (also `View -> Speaker Light Preview`), their `Shape`, their number of `LEDs` and the
   channel each shows, see "Speaker Lights".

@@ -38,6 +38,7 @@ key. The `Win32` column is CDMD's, a Windows program.
 | `Alt+B`, `Alt+Shift+B` | Next, previous frame with a bookmark | - |
 | `Alt+R` | Go to where the frames moved last were | - |
 | `Esc` while dragging a helper line | Put the line back | - |
+| Right button on the canvas (`Shift`: erase) | Paint dynamic zones in the selected set, see "Dynamic Masks" | same |
 
 With a text field, a spin box or a list in focus, `Ctrl/Cmd+C`, `Ctrl/Cmd+V`, `Ctrl/Cmd+X` and
 `Ctrl/Cmd+A` do what they do there (`Ctrl/Cmd+A` in the frame list selects every frame). A single

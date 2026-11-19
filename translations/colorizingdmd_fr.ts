@@ -6171,6 +6171,14 @@ Utiliser Créer la frame %1.</translation>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame d&apos;un partenaire : %1. Elle reste en lecture seule ici jusqu&apos;à ce que la modification soit fusionnée.</translation>
     </message>
+    <message>
+        <source>Show the dynamic zones; the right button paints them</source>
+        <translation>Afficher les zones dynamiques ; le bouton droit les peint</translation>
+    </message>
+    <message>
+        <source>Show and paint the dynamic zones; the right button paints them too</source>
+        <translation>Afficher et peindre les zones dynamiques ; le bouton droit les peint aussi</translation>
+    </message>
     <message numerus="yes">
         <source>DOF events of %n frame(s) changed</source>
         <translation>
@@ -6624,6 +6632,18 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Added frame %1 with the picture of frame %2 as its original</source>
         <translation>Frame %1 ajoutée avec l&apos;image de la frame %2 comme originale</translation>
+    </message>
+    <message>
+        <source>The right button paints dynamic zones, which belong to the frame: edit the frame to paint them</source>
+        <translation>Le bouton droit peint les zones dynamiques, qui appartiennent à la frame : éditer la frame pour les peindre</translation>
+    </message>
+    <message>
+        <source>The right button paints dynamic zones with the drawing tools, the fill and the pipette</source>
+        <translation>Le bouton droit peint les zones dynamiques avec les outils de dessin, le remplissage et la pipette</translation>
+    </message>
+    <message>
+        <source>Dynamic zones shown: the right button paints them in set %1</source>
+        <translation>Zones dynamiques affichées : le bouton droit les peint dans le jeu %1</translation>
     </message>
     <message>
         <source>Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already</source>
@@ -8805,6 +8825,34 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Show each sprite as large as it fits, instead of its whole sprite area</source>
         <translation>Afficher chaque sprite aussi grand que possible, au lieu de toute sa zone de sprite</translation>
+    </message>
+    <message>
+        <source>Dynamic Zones</source>
+        <translation>Zones dynamiques</translation>
+    </message>
+    <message>
+        <source>Paints dynamic zones</source>
+        <translation>Peint les zones dynamiques</translation>
+    </message>
+    <message>
+        <source>Paints colors (Dynamic only shows the zones)</source>
+        <translation>Peint les couleurs (Dynamique affiche seulement les zones)</translation>
+    </message>
+    <message>
+        <source>With Dynamic on, the left button paints the dynamic zones, or it paints colors as in the Win32 editor, and Mask can be on beside Dynamic. The right button always paints the zones</source>
+        <translation>Avec Dynamique actif, le bouton gauche peint les zones dynamiques, ou les couleurs comme dans l&apos;éditeur Win32, et Masque peut être actif à côté de Dynamique. Le bouton droit peint toujours les zones</translation>
+    </message>
+    <message>
+        <source>Show and paint the zones on the original frame too</source>
+        <translation>Afficher et peindre les zones aussi sur la frame originale</translation>
+    </message>
+    <message>
+        <source>Off, the zones are shown and painted on the colorized frame only</source>
+        <translation>Désactivé, les zones sont affichées et peintes sur la frame colorisée uniquement</translation>
+    </message>
+    <message>
+        <source>Left button with Dynamic on</source>
+        <translation>Bouton gauche avec Dynamique actif</translation>
     </message>
     <message>
         <source>Speaker Light Preview</source>

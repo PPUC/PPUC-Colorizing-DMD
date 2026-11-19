@@ -1389,6 +1389,7 @@ void MainWindow::createCentralView()
         showCaptionsBelowThumbnails(list);
     }
     m_preview = new FramePreviewWidget(central);
+    m_preview->setDynamicZonesOnOriginalEnabled(m_dynamicZoneOptions.onOriginal);
     m_preview->setRuntimeView(&m_runtimeView);
     m_spriteEditor = new SpriteEditorWidget(central);
     m_spriteEditor->setColorSetReplace(m_drawColorMode == edit::DrawColorMode::ColorSetReplace);
@@ -2478,7 +2479,8 @@ void MainWindow::createCentralView()
         updateResolutionMode();
     });
     connect(m_comparisonMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (checked && m_dynamicMaskOverlayButton) {
+        if (checked && m_dynamicMaskOverlayButton &&
+            !maskWithDynamicZones(m_dynamicZoneOptions)) {
             QSignalBlocker blocker(m_dynamicMaskOverlayButton);
             m_dynamicMaskOverlayButton->setChecked(false);
             if (m_preview) {
@@ -2491,10 +2493,12 @@ void MainWindow::createCentralView()
         }
         m_maskPanel->setEditChecked(checked);
         updateMaskControls();
+        updateDynamicZoneDisplay();
         updateUndoRedoActions();
     });
     connect(m_dynamicMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
-        if (checked && m_comparisonMaskOverlayButton) {
+        if (checked && m_comparisonMaskOverlayButton &&
+            !maskWithDynamicZones(m_dynamicZoneOptions)) {
             QSignalBlocker blocker(m_comparisonMaskOverlayButton);
             m_comparisonMaskOverlayButton->setChecked(false);
             if (m_preview) {
@@ -2514,6 +2518,7 @@ void MainWindow::createCentralView()
             m_preview->clearPreviewPixels();
             m_preview->setDynamicMaskOverlayEnabled(checked);
         }
+        updateDynamicZoneDisplay();
         updateUndoRedoActions();
     });
     connect(m_backgroundMaskOverlayButton, &QToolButton::toggled, this, [this](bool checked) {
@@ -2581,6 +2586,8 @@ void MainWindow::createCentralView()
     m_preview->setPixelClickedHandler([this](render::CanvasHit hit, bool erase) {
         colorizedCanvasClicked(hit, erase);
     });
+    m_preview->setRightPressHandler(
+        [this](render::CanvasHit hit) { return rightPressStartsDynamicStroke(hit); });
     // A mask or background dropped onto the canvas is assigned to the selected frames, as its
     // Assign button does (one undo step); a scene becomes their trigger, as the Frame
     // section's Scene field makes it.
@@ -3579,6 +3586,7 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     }
     dialog.setSpeakerLightPreview(loadSpeakerLightPreviewOptions());
     dialog.setSpriteThumbnailsZoomed(loadSpriteThumbnailsZoomed());
+    dialog.setDynamicZoneOptions(m_dynamicZoneOptions);
     dialog.setShortcuts(m_shortcuts->entries());
     {
         std::vector<SettingsDialog::PluginChoice> plugins;
@@ -3629,6 +3637,20 @@ void MainWindow::editSettings(SettingsDialog::Page page)
     if (dialog.spriteThumbnailsZoomed() != loadSpriteThumbnailsZoomed()) {
         saveSpriteThumbnailsZoomed(dialog.spriteThumbnailsZoomed());
         refreshComponentBrowsers();
+    }
+    if (dialog.dynamicZoneOptions() != m_dynamicZoneOptions) {
+        m_dynamicZoneOptions = dialog.dynamicZoneOptions();
+        saveDynamicZoneOptions(m_dynamicZoneOptions);
+        if (!maskWithDynamicZones(m_dynamicZoneOptions) && isComparisonMaskModeActive() &&
+            areDynamicZonesShown()) {
+            // The two are modes again: one at a time.
+            m_dynamicMaskOverlayButton->setChecked(false);
+        }
+        if (m_preview) {
+            m_preview->clearPreviewPixels();
+        }
+        updateDynamicZoneDisplay();
+        updateUndoRedoActions();
     }
     saveSpeakerLightPreviewOptions(dialog.speakerLightPreview());
     if (m_speakerPreviewAction) {
@@ -7011,9 +7033,11 @@ void MainWindow::updateCanvasModeButtons()
     const bool dynamicZonesHere = isDynamicPlaneActive();
     m_dynamicMaskOverlayButton->setEnabled(hasDocument && editing && dynamicZonesHere);
     m_dynamicMaskOverlayButton->setToolTip(
-        dynamicZonesHere ? tr("Show dynamic mask overlay")
-                         : tr("Dynamic zones are defined on the 128x32 plane: "
-                              "switch to SD to see and paint them"));
+        !dynamicZonesHere ? tr("Dynamic zones are defined on the 128x32 plane: "
+                               "switch to SD to see and paint them")
+        : m_dynamicZoneOptions.leftPaintsColors
+            ? tr("Show the dynamic zones; the right button paints them")
+            : tr("Show and paint the dynamic zones; the right button paints them too"));
     m_backgroundMaskOverlayButton->setEnabled(hasDocument && editing);
     for (QToolButton* button : m_toolButtons) {
         button->setEnabled(editing);
@@ -10177,14 +10201,19 @@ CanvasEditContext MainWindow::canvasEditContext() const
     context.document = m_document ? &*m_document : nullptr;
     context.currentFrame = currentFrameIndex();
     context.selectedFrames = selectedFrameIndices();
-    if (isComparisonMaskModeActive()) {
-        context.layer = CanvasEditLayer::ComparisonMask;
-    } else if (isDynamicMaskModeActive()) {
-        context.layer = CanvasEditLayer::DynamicMask;
-    } else if (isBackgroundMaskModeActive()) {
-        context.layer = CanvasEditLayer::BackgroundMask;
-    } else if (isBackgroundImageTargetActive()) {
-        context.layer = CanvasEditLayer::BackgroundImage;
+    {
+        // The right button paints dynamic zones; with Mask beside the zones (the Win32
+        // editor's way) the left button paints colors on the colorized picture.
+        const Qt::MouseButton button = m_preview ? m_preview->strokeButton() : Qt::NoButton;
+        const CanvasStroke stroke = button == Qt::RightButton  ? CanvasStroke::Right
+                                    : button == Qt::LeftButton ? CanvasStroke::Left
+                                                               : CanvasStroke::None;
+        const bool onColorized = m_preview && m_preview->strokeRegion() ==
+                                                  render::CanvasRegion::ColorizedFrame;
+        context.layer =
+            canvasEditLayer(canvasModes(), m_dynamicZoneOptions, stroke, onColorized);
+        context.dynamicZonesOnOriginal =
+            dynamicZonesOnOriginal(canvasModes(), m_dynamicZoneOptions);
     }
     context.spriteCaptureSelection = isSpriteCaptureSelectionModeActive();
     context.spriteBounds = m_spritePanel && m_spritePanel->isBoundsOverlayChecked();
@@ -10784,6 +10813,10 @@ bool MainWindow::selectsWithPress() const
     // Control+click may be a right click to the system.
     const Qt::KeyboardModifiers modifiers = m_preview ? m_preview->pressModifiers()
                                                       : Qt::KeyboardModifiers();
+    // The right button paints dynamic zones, whatever the modifiers.
+    if (m_preview && m_preview->strokeButton() == Qt::RightButton) {
+        return false;
+    }
     return (modifiers & (Qt::ControlModifier | Qt::MetaModifier)) &&
            CanvasEditController::canEditSelection(canvasEditContext());
 }
@@ -13540,19 +13573,24 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
         return keys;
     }
     const std::optional<std::size_t> frameIndex = currentFrameIndex();
+    // With Mask beside the zones (DynamicZoneOptions::leftPaintsColors) the colorized picture
+    // paints colors as without Mask, and the right button the zones: their histories too.
+    const bool maskBesideFrame = maskWithDynamicZones(m_dynamicZoneOptions);
     if (isComparisonMaskModeActive()) {
         const std::optional<std::size_t> maskIndex = currentComparisonMaskIndex();
         if (maskIndex) {
             keys.push_back({edit::EditKind::ComparisonMask, *maskIndex, sd});
         }
-        if (frameIndex) {
-            keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
+        if (!maskBesideFrame) {
+            if (frameIndex) {
+                keys.push_back({edit::EditKind::FrameAttributes, *frameIndex, sd});
+            }
+            // Sprite capture and detection areas are edited beside the frame.
+            if (const std::optional<std::size_t> spriteIndex = currentSpriteIndex()) {
+                keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
+            }
+            return keys;
         }
-        // Sprite capture and detection areas are edited beside the frame.
-        if (const std::optional<std::size_t> spriteIndex = currentSpriteIndex()) {
-            keys.push_back({edit::EditKind::SpriteAttributes, *spriteIndex, sd});
-        }
-        return keys;
     }
     if (isDynamicMaskModeActive()) {
         if (frameIndex) {
@@ -13572,6 +13610,10 @@ std::vector<edit::HistoryKey> MainWindow::currentHistoryKeys() const
     }
     if (frameIndex) {
         keys.push_back({edit::EditKind::FramePixels, *frameIndex, m_activeResolution});
+        if (areDynamicZonesShown()) {
+            // Painted with the right button.
+            keys.push_back({edit::EditKind::DynamicMask, *frameIndex, dynamicPlane()});
+        }
     }
     const std::optional<std::size_t> paletteIndex = selectedPaletteIndex();
     if (paletteIndex) {
@@ -13626,7 +13668,76 @@ bool MainWindow::isDynamicPlaneActive() const
 
 bool MainWindow::isDynamicMaskModeActive() const
 {
+    return areDynamicZonesShown() && !m_dynamicZoneOptions.leftPaintsColors;
+}
+
+bool MainWindow::areDynamicZonesShown() const
+{
     return m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isChecked();
+}
+
+CanvasModes MainWindow::canvasModes() const
+{
+    CanvasModes modes;
+    modes.comparisonMask = isComparisonMaskModeActive();
+    modes.dynamicZones = areDynamicZonesShown();
+    modes.backgroundMask = isBackgroundMaskModeActive();
+    modes.backgroundImage = isBackgroundImageTargetActive();
+    return modes;
+}
+
+bool MainWindow::rightPressStartsDynamicStroke(const render::CanvasHit& hit)
+{
+    if (!m_document || !currentFrameIndex() || m_runtimeView.isEnabled() ||
+        spriteCanvasShown() || m_pasteMode.isActive()) {
+        return false;
+    }
+    if (activePaintTarget() == PaintTarget::Background) {
+        statusBar()->showMessage(
+            tr("The right button paints dynamic zones, which belong to the frame: edit the "
+               "frame to paint them"),
+            3000);
+        return false;
+    }
+    if (!isDynamicPlaneActive()) {
+        statusBar()->showMessage(tr("Dynamic zones are defined on the 128x32 plane: switch "
+                                    "to SD to see and paint them"),
+                                 3000);
+        return false;
+    }
+    if (!paintsDynamicZonesWithRightButton(m_drawingTool)) {
+        statusBar()->showMessage(
+            tr("The right button paints dynamic zones with the drawing tools, the fill and "
+               "the pipette"),
+            3000);
+        return false;
+    }
+    if (!areDynamicZonesShown()) {
+        // The zones are not painted unseen: the first right click shows them.
+        if (m_dynamicMaskOverlayButton && m_dynamicMaskOverlayButton->isEnabled()) {
+            m_dynamicMaskOverlayButton->setChecked(true);
+            statusBar()->showMessage(
+                tr("Dynamic zones shown: the right button paints them in set %1")
+                    .arg(activeDynamicSet()),
+                3000);
+        }
+        return false;
+    }
+    if (hit.region == render::CanvasRegion::OriginalFrame &&
+        (!dynamicZonesOnOriginal(canvasModes(), m_dynamicZoneOptions) ||
+         isSpriteCaptureSelectionModeActive())) {
+        return false;
+    }
+    return true;
+}
+
+void MainWindow::updateDynamicZoneDisplay()
+{
+    if (m_preview) {
+        m_preview->setDynamicZonesOnOriginalEnabled(
+            dynamicZonesOnOriginal(canvasModes(), m_dynamicZoneOptions));
+    }
+    updateCanvasModeButtons();
 }
 
 bool MainWindow::isBackgroundMaskModeActive() const

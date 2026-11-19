@@ -4,6 +4,7 @@
 #include <cmath>
 #include <exception>
 
+#include <QContextMenuEvent>
 #include <QDropEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -358,6 +359,15 @@ void FramePreviewWidget::setDynamicMaskOverlayEnabled(bool enabled)
     update();
 }
 
+void FramePreviewWidget::setDynamicZonesOnOriginalEnabled(bool enabled)
+{
+    if (m_showDynamicZonesOnOriginal == enabled) {
+        return;
+    }
+    m_showDynamicZonesOnOriginal = enabled;
+    update();
+}
+
 void FramePreviewWidget::setSelectedDynamicSet(std::optional<uint8_t> setIndex)
 {
     if (m_selectedDynamicSet == setIndex) {
@@ -668,6 +678,11 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
         QWidget::mousePressEvent(event);
         return;
     }
+    if (event->button() == Qt::LeftButton && m_strokeStart && m_strokeButton != Qt::LeftButton) {
+        // The other button's stroke goes on.
+        event->accept();
+        return;
+    }
     if (event->button() == Qt::LeftButton && m_helperLineMoveHandler) {
         if (const std::optional<std::size_t> line = helperLineHandleAt(event->position())) {
             for (const RegionView& view : regionViews()) {
@@ -694,31 +709,83 @@ void FramePreviewWidget::mousePressEvent(QMouseEvent* event)
             event->accept();
             return;
         }
-        if (hit && hit->region == render::CanvasRegion::ColorizedFrame) {
-            m_strokeStart = *hit;
-            m_strokeErase = event->modifiers().testFlag(Qt::ShiftModifier);
-            clearPreviewPixels();
-            if (m_pixelClickedHandler) {
-                m_pixelClickedHandler(*hit, m_strokeErase);
-            }
-            event->accept();
-            return;
-        }
-        if (hit && hit->region == render::CanvasRegion::OriginalFrame && m_originalClickedHandler) {
-            m_strokeStart = *hit;
-            m_strokeErase = event->modifiers().testFlag(Qt::ShiftModifier);
-            clearPreviewPixels();
-            m_originalClickedHandler(*hit, m_strokeErase);
+        if (hit && startStroke(*hit, Qt::LeftButton, event->modifiers())) {
             event->accept();
             return;
         }
     }
+    if (event->button() == Qt::RightButton && !m_strokeStart) {
+        // A right press never goes on to the window (no context menu either).
+        event->accept();
+        const std::optional<render::CanvasHit> hit = hitTestAt(event->pos());
+        if (hit && m_rightPressHandler &&
+            (hit->region == render::CanvasRegion::ColorizedFrame ||
+             hit->region == render::CanvasRegion::OriginalFrame)) {
+            setFocus(Qt::MouseFocusReason);
+            m_pressModifiers = event->modifiers();
+            if (m_rightPressHandler(*hit)) {
+                startStroke(*hit, Qt::RightButton, event->modifiers());
+            }
+        }
+        return;
+    }
     QWidget::mousePressEvent(event);
+}
+
+bool FramePreviewWidget::startStroke(const render::CanvasHit& hit,
+                                     Qt::MouseButton button,
+                                     Qt::KeyboardModifiers modifiers)
+{
+    const bool colorized = hit.region == render::CanvasRegion::ColorizedFrame;
+    if (!colorized && (hit.region != render::CanvasRegion::OriginalFrame ||
+                       !m_originalClickedHandler)) {
+        return false;
+    }
+    m_strokeStart = hit;
+    m_strokeErase = modifiers.testFlag(Qt::ShiftModifier);
+    m_strokeButton = button;
+    m_strokeRegion = hit.region;
+    clearPreviewPixels();
+    if (colorized) {
+        if (m_pixelClickedHandler) {
+            m_pixelClickedHandler(hit, m_strokeErase);
+        }
+    } else {
+        m_originalClickedHandler(hit, m_strokeErase);
+    }
+    if (!m_strokeStart) {
+        // The click ended the stroke (cancelStroke()).
+        m_strokeButton = Qt::NoButton;
+        m_strokeRegion.reset();
+    }
+    return true;
+}
+
+void FramePreviewWidget::setRightPressHandler(std::function<bool(render::CanvasHit)> handler)
+{
+    m_rightPressHandler = std::move(handler);
+}
+
+Qt::MouseButton FramePreviewWidget::strokeButton() const
+{
+    return m_strokeButton;
+}
+
+std::optional<render::CanvasRegion> FramePreviewWidget::strokeRegion() const
+{
+    return m_strokeRegion;
+}
+
+void FramePreviewWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    event->accept();
 }
 
 void FramePreviewWidget::cancelStroke()
 {
     m_strokeStart.reset();
+    m_strokeButton = Qt::NoButton;
+    m_strokeRegion.reset();
     clearPreviewPixels();
 }
 
@@ -744,6 +811,8 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
     if (showsRuntimeView()) {
         // A stroke that was under way when the view was switched on is dropped.
         m_strokeStart.reset();
+        m_strokeButton = Qt::NoButton;
+        m_strokeRegion.reset();
     }
     if (m_helperLineDrag && (event->buttons() & Qt::LeftButton) && m_document &&
         m_helperLineDrag->line < m_document->helperLines().size()) {
@@ -769,7 +838,8 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
     }
     if (m_positionHandler) {
         m_positionHandler(hitTestAt(event->pos()),
-                          event->buttons() & Qt::LeftButton ? m_strokeStart : std::nullopt);
+                          event->buttons() & strokeButtonOrLeft() ? m_strokeStart
+                                                                  : std::nullopt);
     }
     if (event->buttons() == Qt::NoButton && m_showDynamicMaskOverlay && !showsRuntimeView()) {
         // Names the set of the zone under the mouse.
@@ -813,7 +883,7 @@ void FramePreviewWidget::mouseMoveEvent(QMouseEvent* event)
     if (event->buttons() == Qt::NoButton && m_pointerHandler) {
         m_pointerHandler(showsRuntimeView() ? std::nullopt : hitTestAt(event->pos()));
     }
-    if ((event->buttons() & Qt::LeftButton) && m_strokeStart && m_strokePreviewHandler) {
+    if (m_strokeStart && (event->buttons() & m_strokeButton) && m_strokePreviewHandler) {
         // Beyond the frame too: a circle or ellipse larger than the frame (for gradients).
         const std::optional<render::CanvasHit> hit = strokeHitAt(event->position(), *m_strokeStart);
         if (hit) {
@@ -839,6 +909,8 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
     }
     if (showsRuntimeView()) {
         m_strokeStart.reset();
+        m_strokeButton = Qt::NoButton;
+        m_strokeRegion.reset();
     }
     if (event->button() == Qt::LeftButton && m_helperLineDrag) {
         const HelperLineDrag drag = *m_helperLineDrag;
@@ -851,19 +923,28 @@ void FramePreviewWidget::mouseReleaseEvent(QMouseEvent* event)
         event->accept();
         return;
     }
-    if (event->button() == Qt::LeftButton && m_strokeStart) {
+    if (m_strokeStart && event->button() == m_strokeButton) {
         const std::optional<render::CanvasHit> hit = strokeHitAt(event->position(), *m_strokeStart);
         const std::optional<render::CanvasHit> start = m_strokeStart;
         const bool erase = m_strokeErase;
         m_strokeStart.reset();
         m_strokeErase = false;
         clearPreviewPixels();
-        if (hit && hit->region == start->region &&
-            start->resolution == hit->resolution && m_strokeFinishedHandler) {
+        const bool finished = hit && hit->region == start->region &&
+                              start->resolution == hit->resolution && m_strokeFinishedHandler;
+        if (finished) {
             m_strokeFinishedHandler(*start, *hit, erase);
+        }
+        m_strokeButton = Qt::NoButton;
+        m_strokeRegion.reset();
+        if (finished) {
             event->accept();
             return;
         }
+    }
+    if (event->button() == Qt::RightButton) {
+        event->accept();
+        return;
     }
     QWidget::mouseReleaseEvent(event);
 }
@@ -1401,7 +1482,8 @@ const document::IndexedFrame* FramePreviewWidget::dynamicMaskFor(
     // over the colorized picture of that plane, not over the other plane.
     if (!m_showDynamicMaskOverlay || region.resolution != m_document->dynamicPlane() ||
         (region.region != render::CanvasRegion::ColorizedFrame &&
-         region.region != render::CanvasRegion::OriginalFrame)) {
+         (region.region != render::CanvasRegion::OriginalFrame ||
+          !m_showDynamicZonesOnOriginal))) {
         return nullptr;
     }
     const std::optional<document::FrameDynamicData>& dynamicData =

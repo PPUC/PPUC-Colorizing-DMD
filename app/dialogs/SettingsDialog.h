@@ -8,6 +8,7 @@
 
 #include "Appearance.h"
 #include "DmdOutput.h"
+#include "DynamicZoneMode.h"
 #include "KeyboardShortcuts.h"
 #include "Signing.h"
 #include "SpeakerLightView.h"
@@ -63,6 +64,9 @@ public:
     // The sprite list's thumbnails (Appearance.h).
     void setSpriteThumbnailsZoomed(bool zoomed);
     [[nodiscard]] bool spriteThumbnailsZoomed() const;
+    // How dynamic zones are painted (DynamicZoneMode.h).
+    void setDynamicZoneOptions(const DynamicZoneOptions& options);
+    [[nodiscard]] DynamicZoneOptions dynamicZoneOptions() const;
     [[nodiscard]] DmdOutputSettings dmdOutputSettings() const;
     // Who saves (AuthorName.h).
     void setAuthorName(const QString& name);
@@ -103,6 +107,8 @@ private:
     QToolButton* m_offPixelColorButton = nullptr;
     QColor m_offPixelColor;
     QCheckBox* m_spriteThumbnailsZoomed = nullptr;
+    QComboBox* m_dynamicLeftButton = nullptr;
+    QCheckBox* m_dynamicZonesOnOriginal = nullptr;
     QCheckBox* m_speakersShown = nullptr;
     QComboBox* m_speakerShape = nullptr;
     QSpinBox* m_speakerLeds = nullptr;

@@ -20,6 +20,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     ThumbnailCaptions.h
     CanvasEditController.h
     ColorDrag.cpp
+    DynamicZoneMode.cpp
+    DynamicZoneMode.h
     DrawingToolIcons.cpp
     DrawingToolIcons.h
     ColorDrag.h

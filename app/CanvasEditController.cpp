@@ -300,7 +300,8 @@ void CanvasEditController::originalPixelClicked(const CanvasEditContext& context
     // painted, filled (and dynamic sets picked) on the original as on the colorized picture.
     if (context.layer == CanvasEditLayer::DynamicMask ||
         context.layer == CanvasEditLayer::BackgroundMask) {
-        if (isOnOriginal(projectGeometry(context), hit)) {
+        if (isOnOriginal(projectGeometry(context), hit) &&
+            (context.layer != CanvasEditLayer::DynamicMask || context.dynamicZonesOnOriginal)) {
             colorizedPixelClicked(context, hit, erase);
         }
         return;
@@ -383,7 +384,7 @@ void CanvasEditController::strokePreviewed(const CanvasEditContext& context,
             }
             return;
         case CanvasEditLayer::DynamicMask:
-            if (onColorized || isOnOriginal(geometry, start)) {
+            if (onColorized || (context.dynamicZonesOnOriginal && isOnOriginal(geometry, start))) {
                 showPreview(start.region,
                             start.resolution,
                             strokePixels(context, start, end),
@@ -501,7 +502,8 @@ void CanvasEditController::strokeFinished(const CanvasEditContext& context,
                                       : tr("Painted comparison mask %1")));
             return;
         case CanvasEditLayer::DynamicMask:
-            if (!onColorized && !isOnOriginal(projectGeometry(context), start)) {
+            if (!onColorized && (!context.dynamicZonesOnOriginal ||
+                                 !isOnOriginal(projectGeometry(context), start))) {
                 return;
             }
             if (tool == DrawingTool::PaletteGradient) {

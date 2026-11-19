@@ -96,6 +96,7 @@ if(TARGET colorizing_qt_v2_widgets)
         HandbookWidgetTests.cpp
         ColorWidgetTests.cpp
         DumpImportWidgetTests.cpp
+        DynamicZoneWidgetTests.cpp
         EditorMatchesRuntimeTests.cpp
         FramePreviewWidgetRenderTests.cpp
         FrameTesterWidgetTests.cpp

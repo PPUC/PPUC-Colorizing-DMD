@@ -14,6 +14,28 @@ ellipse tools, the flood fill and the pipette work on the original as on the col
 in the selected set (with `Shift` they erase), as comparison masks are painted on the original.
 Both pictures show the same pixels of the plane the zones are on.
 
+The right button paints the zones too, in every mode and with the same tools, on the colorized
+picture (and on the original while the zones are shown there), with `Shift` erasing, as in the
+Win32 editor. It paints with the point, line, rectangle, circle and ellipse tools and the flood
+fill; with the pipette it picks the set under the cursor. `Sel` and the gradient do not paint
+zones. A right click while the zones are hidden shows them (`Dynamic` goes on) and paints
+nothing yet. The right button paints no zones in HD mode, in the sprite editor, while a
+background is edited and in paste mode; the status bar says why where it is not obvious.
+
+How the left button works is set in `Settings -> Appearance -> Dynamic Zones`:
+
+- `Paints dynamic zones` (the default): with `Dynamic` on, the left button paints zones as
+  described above. Colors are painted with `Dynamic` off. `Mask` and `Dynamic` are one at a time.
+- `Paints colors (Dynamic only shows the zones)`: the Win32 editor's way. `Dynamic` only shows the
+  zones; the left button always paints colors, and the right button paints the zones. `Mask` can
+  be on beside `Dynamic`: the original shows and paints the comparison mask, the colorized
+  picture shows the zones and paints colors with the left button and zones with the right one.
+  `Undo` takes back whichever was last.
+
+`Show and paint the zones on the original frame too` (on by default) draws the zones over the
+original as well. Off, they are shown and painted on the colorized picture only. While the
+comparison mask is shown, the original shows the mask alone.
+
 The `Dynamic Sets` section lists the sets the frame uses: per set a picture of the frame with that set's
 zones in their colors and the rest dimmed, its number and its number of pixels. A click selects
 the set, as `Dyn Set` does; the list follows a set chosen there or picked on the canvas. The
@@ -99,7 +121,7 @@ Rules:
 - Drag a swatch onto another one to swap the two colors. Each selected frame with dynamic data
   swaps its own two colors of the set, one undo step per frame.
 - The dynamic mask is rendered over the colorized frame of its plane.
-- `Mask` and `Dynamic` are mutually exclusive overlay modes.
+- `Mask` and `Dynamic` are one at a time, unless the left button paints colors (see above).
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.
 - With the `Pick` tool, click the colorized frame to select the dynamic set stored under the cursor.
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the dynamic mask.

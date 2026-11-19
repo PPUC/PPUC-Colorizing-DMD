@@ -62,6 +62,9 @@ struct CanvasEditContext {
     // from the document. Gradients ignore it.
     edit::DrawColorMode drawColorMode = edit::DrawColorMode::SingleColor;
     uint8_t dynamicSet = 0;
+    // Dynamic zones are shown, and so painted, on the original too, not only on the colorized
+    // picture (DynamicZoneOptions::onOriginal).
+    bool dynamicZonesOnOriginal = true;
     edit::PaletteGradientShape gradientShape = edit::PaletteGradientShape::Rectangle;
     edit::PaletteGradientDirection gradientDirection = edit::PaletteGradientDirection::LeftToRight;
     edit::PaletteGradientPattern gradientPattern = edit::PaletteGradientPattern::Linear;

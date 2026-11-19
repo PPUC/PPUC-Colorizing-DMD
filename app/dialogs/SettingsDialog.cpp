@@ -116,6 +116,24 @@ SettingsDialog::SettingsDialog(Theme theme,
         tr("Show each sprite as large as it fits, instead of its whole sprite area"));
     spritesLayout->addWidget(m_spriteThumbnailsZoomed);
 
+    // The right button paints the zones in either way; the left one as chosen.
+    auto* dynamicGroup = new QGroupBox(tr("Dynamic Zones"), appearance);
+    auto* dynamicForm = new QFormLayout(dynamicGroup);
+    m_dynamicLeftButton = new QComboBox(dynamicGroup);
+    m_dynamicLeftButton->addItem(tr("Paints dynamic zones"), false);
+    m_dynamicLeftButton->addItem(tr("Paints colors (Dynamic only shows the zones)"), true);
+    m_dynamicLeftButton->setToolTip(
+        tr("With Dynamic on, the left button paints the dynamic zones, or it paints colors as "
+           "in the Win32 editor, and Mask can be on beside Dynamic. The right button always "
+           "paints the zones"));
+    m_dynamicZonesOnOriginal =
+        new QCheckBox(tr("Show and paint the zones on the original frame too"), dynamicGroup);
+    m_dynamicZonesOnOriginal->setToolTip(
+        tr("Off, the zones are shown and painted on the colorized frame only"));
+    dynamicForm->addRow(tr("Left button with Dynamic on"), m_dynamicLeftButton);
+    dynamicForm->addRow(m_dynamicZonesOnOriginal);
+    setDynamicZoneOptions(DynamicZoneOptions{});
+
     // As the pixels of the canvas, the speakers are the editor's: machines differ.
     auto* speakersGroup = new QGroupBox(tr("Speaker Light Preview"), appearance);
     auto* speakersForm = new QFormLayout(speakersGroup);
@@ -146,6 +164,7 @@ SettingsDialog::SettingsDialog(Theme theme,
     appearanceLayout->addLayout(themeForm);
     appearanceLayout->addWidget(canvasGroup);
     appearanceLayout->addWidget(spritesGroup);
+    appearanceLayout->addWidget(dynamicGroup);
     appearanceLayout->addWidget(speakersGroup);
     appearanceLayout->addStretch(1);
     m_tabs->addTab(appearance, tr("Appearance"));
@@ -308,6 +327,20 @@ void SettingsDialog::setSpriteThumbnailsZoomed(bool zoomed)
 bool SettingsDialog::spriteThumbnailsZoomed() const
 {
     return m_spriteThumbnailsZoomed->isChecked();
+}
+
+void SettingsDialog::setDynamicZoneOptions(const DynamicZoneOptions& options)
+{
+    m_dynamicLeftButton->setCurrentIndex(m_dynamicLeftButton->findData(options.leftPaintsColors));
+    m_dynamicZonesOnOriginal->setChecked(options.onOriginal);
+}
+
+DynamicZoneOptions SettingsDialog::dynamicZoneOptions() const
+{
+    DynamicZoneOptions options;
+    options.leftPaintsColors = m_dynamicLeftButton->currentData().toBool();
+    options.onOriginal = m_dynamicZonesOnOriginal->isChecked();
+    return options;
 }
 
 void SettingsDialog::setSpeakerLightPreview(const SpeakerLightPreviewOptions& options)

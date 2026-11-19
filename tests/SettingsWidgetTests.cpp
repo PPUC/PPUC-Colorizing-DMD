@@ -13,6 +13,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QProxyStyle>
+#include <QComboBox>
 #include <QSettings>
 #include <QStyle>
 #include <QImage>
@@ -199,6 +200,31 @@ void runSettingsWidgetTests()
                tabs->tabText(tabs->currentIndex()) == QStringLiteral("DMD Output"),
            "it opens at the page asked for");
 
+    // Dynamic zones: the Dynamic mode by default, the Win32 editor's way when chosen.
+    const app::DynamicZoneOptions zoneDefaults = app::loadDynamicZoneOptions();
+    expect(!zoneDefaults.leftPaintsColors && zoneDefaults.onOriginal,
+           "by default the left button paints zones in the Dynamic mode, on both pictures");
+    app::DynamicZoneOptions win32Way;
+    win32Way.leftPaintsColors = true;
+    win32Way.onOriginal = false;
+    app::saveDynamicZoneOptions(win32Way);
+    expect(app::loadDynamicZoneOptions() == win32Way, "the dynamic zone options are kept");
+    expect(dialog.dynamicZoneOptions() == app::DynamicZoneOptions{},
+           "the dialog starts with the defaults");
+    dialog.setDynamicZoneOptions(win32Way);
+    expect(dialog.dynamicZoneOptions() == win32Way, "and shows the options it is given");
+    QComboBox* leftButton = nullptr;
+    for (QComboBox* box : dialog.findChildren<QComboBox*>()) {
+        if (box->itemText(0) == QStringLiteral("Paints dynamic zones")) {
+            leftButton = box;
+        }
+    }
+    expect(leftButton && leftButton->currentIndex() == 1,
+           "the left button's choice is on the Appearance page");
+    leftButton->setCurrentIndex(0);
+    expect(!dialog.dynamicZoneOptions().leftPaintsColors, "and is chosen there");
+
+    QSettings().remove(QStringLiteral("canvas"));
     QSettings().remove(QStringLiteral("appearance"));
     QCoreApplication::setOrganizationName(QString());
     QSettings::setDefaultFormat(QSettings::NativeFormat);

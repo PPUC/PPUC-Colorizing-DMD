@@ -29,6 +29,10 @@ tagged; the changes since the last tag are listed under *Next version*.
   again; Close ends it.
 - `Show In Editor` in the Frame Tester goes to the frame that started the scene while a scene
   plays, instead of to the scene's frame (issue #70).
+- The right button paints dynamic zones on the frame canvas, with `Shift` erasing, as in the
+  Win32 editor. In `Settings -> Appearance -> Dynamic Zones` the left button can paint colors
+  while `Dynamic` only shows the zones, also beside `Mask`, and the zones can be left off the
+  original (issue #58).
 
 ## 3.99.38
 

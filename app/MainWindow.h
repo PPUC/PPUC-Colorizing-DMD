@@ -24,6 +24,7 @@
 #include "dialogs/CromcHeaderDialog.h"
 #include "dialogs/SettingsDialog.h"
 #include "CanvasEditController.h"
+#include "DynamicZoneMode.h"
 #include "EditHelpersController.h"
 #include "PasteModeController.h"
 #include "document/ProjectDocument.h"
@@ -671,7 +672,18 @@ private:
     // False in HD mode of an ordinary project: the dynamic zones are those of the SD plane
     // and are not shown or painted over the HD frame.
     [[nodiscard]] bool isDynamicPlaneActive() const;
+    // The Dynamic mode: the zones are shown and the left button paints them (not with
+    // DynamicZoneOptions::leftPaintsColors, where the toggle only shows them).
     [[nodiscard]] bool isDynamicMaskModeActive() const;
+    // The Dynamic toggle is on: the zones are shown.
+    [[nodiscard]] bool areDynamicZonesShown() const;
+    [[nodiscard]] CanvasModes canvasModes() const;
+    // A right press on the canvas: whether it starts a stroke of the dynamic zones. Shows the
+    // zones first when they are hidden, and says in the status bar why it does not paint.
+    [[nodiscard]] bool rightPressStartsDynamicStroke(const render::CanvasHit& hit);
+    // After the Mask or Dynamic toggle or the options changed: the zones on the original, the
+    // Dynamic toggle's tool tip.
+    void updateDynamicZoneDisplay();
     [[nodiscard]] bool isBackgroundMaskModeActive() const;
     [[nodiscard]] std::optional<std::size_t> selectedPaletteIndex() const;
     // The color picker, with the project's palettes to pick a color from.
@@ -744,6 +756,8 @@ private:
     [[nodiscard]] DmdRenderOptions currentDmdRenderOptions() const;
     // How DMD pixels are drawn (Settings -> Appearance), kept for the next start.
     DmdRenderOptions m_dmdRenderOptions = loadDmdRenderOptions();
+    // How dynamic zones are painted (Settings -> Appearance), kept for the next start.
+    DynamicZoneOptions m_dynamicZoneOptions = loadDynamicZoneOptions();
     void updateDmdRenderOptions();
     // The off pixel color changed: everything that shows original frames in pictures it keeps.
     void refreshOriginalPictures();

@@ -6171,6 +6171,14 @@ Use Create %1 Frame.</source>
         <source>A partner&apos;s frame: %1. It stays read-only here until the change is merged.</source>
         <translation>Frame eines Partners: %1. Er bleibt hier schreibgeschützt, bis die Änderung zusammengeführt ist.</translation>
     </message>
+    <message>
+        <source>Show the dynamic zones; the right button paints them</source>
+        <translation>Dynamische Zonen zeigen; die rechte Maustaste zeichnet sie</translation>
+    </message>
+    <message>
+        <source>Show and paint the dynamic zones; the right button paints them too</source>
+        <translation>Dynamische Zonen zeigen und zeichnen; auch die rechte Maustaste zeichnet sie</translation>
+    </message>
     <message numerus="yes">
         <source>DOF events of %n frame(s) changed</source>
         <translation>
@@ -6624,6 +6632,18 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Added frame %1 with the picture of frame %2 as its original</source>
         <translation>Frame %1 mit dem Bild von Frame %2 als Original hinzugefügt</translation>
+    </message>
+    <message>
+        <source>The right button paints dynamic zones, which belong to the frame: edit the frame to paint them</source>
+        <translation>Die rechte Maustaste zeichnet dynamische Zonen, die zum Frame gehören: zum Zeichnen den Frame bearbeiten</translation>
+    </message>
+    <message>
+        <source>The right button paints dynamic zones with the drawing tools, the fill and the pipette</source>
+        <translation>Die rechte Maustaste zeichnet dynamische Zonen mit den Zeichenwerkzeugen, der Füllung und der Pipette</translation>
+    </message>
+    <message>
+        <source>Dynamic zones shown: the right button paints them in set %1</source>
+        <translation>Dynamische Zonen eingeblendet: die rechte Maustaste zeichnet sie in Dynamik-Set %1</translation>
     </message>
     <message>
         <source>Put %1 sprite(s) on %2 frame(s): %3 added, %4 there already</source>
@@ -8805,6 +8825,34 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Show each sprite as large as it fits, instead of its whole sprite area</source>
         <translation>Jedes Sprite so groß wie möglich zeigen statt seiner ganzen Sprite-Fläche</translation>
+    </message>
+    <message>
+        <source>Dynamic Zones</source>
+        <translation>Dynamische Zonen</translation>
+    </message>
+    <message>
+        <source>Paints dynamic zones</source>
+        <translation>Zeichnet dynamische Zonen</translation>
+    </message>
+    <message>
+        <source>Paints colors (Dynamic only shows the zones)</source>
+        <translation>Zeichnet Farben (Dynamik zeigt nur die Zonen)</translation>
+    </message>
+    <message>
+        <source>With Dynamic on, the left button paints the dynamic zones, or it paints colors as in the Win32 editor, and Mask can be on beside Dynamic. The right button always paints the zones</source>
+        <translation>Mit eingeschalteter Dynamik zeichnet die linke Maustaste die dynamischen Zonen oder, wie im Win32-Editor, Farben, und Maske kann neben Dynamik eingeschaltet sein. Die rechte Maustaste zeichnet immer die Zonen</translation>
+    </message>
+    <message>
+        <source>Show and paint the zones on the original frame too</source>
+        <translation>Die Zonen auch auf dem Original-Frame zeigen und zeichnen</translation>
+    </message>
+    <message>
+        <source>Off, the zones are shown and painted on the colorized frame only</source>
+        <translation>Aus, werden die Zonen nur auf dem kolorierten Frame gezeigt und gezeichnet</translation>
+    </message>
+    <message>
+        <source>Left button with Dynamic on</source>
+        <translation>Linke Maustaste bei eingeschalteter Dynamik</translation>
     </message>
     <message>
         <source>Speaker Light Preview</source>

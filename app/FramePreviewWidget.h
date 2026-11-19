@@ -50,6 +50,8 @@ public:
     // set brighter than the others, and every area carries its set number when the zoom leaves
     // room for it; the mouse over a zone names its set.
     void setDynamicMaskOverlayEnabled(bool enabled);
+    // Whether the zones are drawn over the original as well (on by default).
+    void setDynamicZonesOnOriginalEnabled(bool enabled);
     void setSelectedDynamicSet(std::optional<uint8_t> setIndex);
     void setBackgroundMaskOverlayEnabled(bool enabled);
     void setBackgroundLayerEnabled(bool enabled);
@@ -85,6 +87,16 @@ public:
     // Called first on a left press over the colorized frame; returning true takes the press,
     // so that no click or stroke follows (paste mode stamps with it).
     void setPressInterceptor(std::function<bool(render::CanvasHit, Qt::KeyboardModifiers)> handler);
+    // Called on a right press over either frame; returning true starts a stroke there, which
+    // goes to the click and stroke handlers as one of the left button (the right button
+    // paints dynamic zones). Without the handler, or when it returns false, the press does
+    // nothing.
+    void setRightPressHandler(std::function<bool(render::CanvasHit)> handler);
+    // The button of the stroke under way, also while its click and finish handlers run;
+    // Qt::NoButton without one.
+    [[nodiscard]] Qt::MouseButton strokeButton() const;
+    // The frame the stroke under way started on, as strokeButton().
+    [[nodiscard]] std::optional<render::CanvasRegion> strokeRegion() const;
     // Called on mouse moves without a button over the colorized frame; while one is set the
     // widget tracks the mouse.
     void setHoverHandler(std::function<void(render::CanvasHit)> handler);
@@ -176,6 +188,8 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void leaveEvent(QEvent* event) override;
+    // No context menu: the right button paints.
+    void contextMenuEvent(QContextMenuEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;
@@ -190,6 +204,16 @@ private:
     [[nodiscard]] std::vector<render::Point> pixelsInPlane(render::Resolution resolution,
                                                            std::vector<render::Point> pixels) const;
     [[nodiscard]] bool showsRuntimeView() const;
+    // Starts a stroke of the button at the hit, with the click handler of its frame; false
+    // where no stroke starts (the original without its handler, off the frames).
+    bool startStroke(const render::CanvasHit& hit,
+                     Qt::MouseButton button,
+                     Qt::KeyboardModifiers modifiers);
+    // The stroke's button, the left one without a stroke (for the position handler).
+    [[nodiscard]] Qt::MouseButton strokeButtonOrLeft() const
+    {
+        return m_strokeButton == Qt::NoButton ? Qt::LeftButton : m_strokeButton;
+    }
     // pictureRect: where the colorized picture is on screen.
     void paintRuntimeViewTexts(QPainter& painter, const QRectF& pictureRect);
     // The frame of an HD-only project has no HD data: nothing to show or to paint on.
@@ -242,6 +266,7 @@ private:
     bool m_showComparisonMaskOverlay = false;
     std::optional<document::IndexedFrame> m_differenceOverlay;
     bool m_showDynamicMaskOverlay = false;
+    bool m_showDynamicZonesOnOriginal = true;
     std::optional<uint8_t> m_selectedDynamicSet;
     bool m_showBackgroundMaskOverlay = false;
     bool m_showBackgroundLayer = false;
@@ -264,6 +289,10 @@ private:
     std::function<void(render::CanvasHit, render::CanvasHit, bool)> m_strokeFinishedHandler;
     std::optional<render::CanvasHit> m_strokeStart;
     bool m_strokeErase = false;
+    // See strokeButton() and strokeRegion(); kept until the stroke's last handler returned.
+    Qt::MouseButton m_strokeButton = Qt::NoButton;
+    std::optional<render::CanvasRegion> m_strokeRegion;
+    std::function<bool(render::CanvasHit)> m_rightPressHandler;
     render::CanvasRegion m_previewRegion = render::CanvasRegion::ColorizedFrame;
     std::optional<render::Resolution> m_previewResolution;
     std::vector<render::Point> m_previewPixels;
