@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.43
+
 - `Ctrl/Cmd+Z` undoes the most recent edit anywhere in the project, as in the Win32 editor, and
   `Ctrl/Cmd+Shift+Z` redoes it; the undo of the frame and mode shown is now `Undo Here`
   (`Ctrl/Cmd+Alt+Z`, `Ctrl/Cmd+Alt+Shift+Z`). Keys set in the settings stay (issue #72).
