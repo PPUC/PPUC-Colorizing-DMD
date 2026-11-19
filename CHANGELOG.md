@@ -10,6 +10,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The toolbar's `Dynamic` shows and paints a sprite's dynamic zones on the sprite canvas;
   `Paint Dynamic` is gone from the sprite section (issue #74).
 - `Import Package` with no project open makes a new project of the package (issue #75).
+- Dynamic zones that touch only at a corner are one area with one set number, on the frame and
+  the sprite canvas (issue #76).
 
 ## 3.99.42
 

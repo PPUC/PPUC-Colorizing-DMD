@@ -3,9 +3,10 @@
 The `Dynamic` toolbar toggle shows the current frame's dynamic zones: outlined on the colorized
 picture, also where two zones of different sets meet, and solid on the original, as a comparison
 mask is. The selected set (the one `Dyn Set` paints and edits) is yellow, the others cyan, both
-over a dark edge so they show on any picture. Each area of a set (its pixels that touch each other) carries the set's number at its top
-left once a DMD pixel is at least 5 screen pixels wide (zoom in for that); the mouse over a zone
-names its set and its number of pixels. The pixels stay visible in the colors the runtime gives
+over a dark edge so they show on any picture. Each area of a set (its pixels that touch each
+other, also only at a corner, so a diagonal stroke is one area) carries the set's number at its
+top left once a DMD pixel is at least 5 screen pixels wide (zoom in for that); the mouse over a
+zone names its set and its number of pixels. The pixels stay visible in the colors the runtime gives
 them: each one in its set's color for its original shade (the canvas always shows them so),
 without switching to the Runtime view.
 

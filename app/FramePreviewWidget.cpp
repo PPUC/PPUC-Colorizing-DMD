@@ -1,6 +1,8 @@
 #include "FramePreviewWidget.h"
 
 #include <algorithm>
+#include <array>
+#include <utility>
 #include <cmath>
 #include <exception>
 
@@ -16,6 +18,7 @@
 #include <QWheelEvent>
 
 #include "Appearance.h"
+#include "DynamicZoneMode.h"
 #include "FrameImageUtils.h"
 #include "PlaneLabels.h"
 #include "RuntimeView.h"
@@ -1590,15 +1593,6 @@ void FramePreviewWidget::paintDynamicSetLabels(QPainter& painter, const RegionVi
         return;
     }
     const document::IndexedFrame& mask = *found;
-    const int width = mask.size.width;
-    const int height = mask.size.height;
-    const auto index = [width](int x, int y) {
-        return static_cast<std::size_t>(y) * static_cast<std::size_t>(width) +
-               static_cast<std::size_t>(x);
-    };
-    // One label per area: the pixels of a set that touch each other, labelled at their first
-    // pixel from the top left.
-    std::vector<bool> seen(mask.pixels.size(), false);
     QFont font = painter.font();
     font.setPixelSize(static_cast<int>(std::clamp(pixel * 0.9, 9.0, 14.0)));
     font.setBold(true);
@@ -1606,36 +1600,18 @@ void FramePreviewWidget::paintDynamicSetLabels(QPainter& painter, const RegionVi
     painter.setClipRect(view.viewport);
     painter.setFont(font);
     const QFontMetrics metrics(font);
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            const uint8_t set = mask.pixels[index(x, y)];
-            if (set == 255 || seen[index(x, y)]) {
-                continue;
-            }
-            std::vector<std::pair<int, int>> pending{{x, y}};
-            seen[index(x, y)] = true;
-            while (!pending.empty()) {
-                const auto [px, py] = pending.back();
-                pending.pop_back();
-                for (const auto& [dx, dy] : {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-                    const int nx = px + dx;
-                    const int ny = py + dy;
-                    if (nx >= 0 && ny >= 0 && nx < width && ny < height &&
-                        !seen[index(nx, ny)] && mask.pixels[index(nx, ny)] == set) {
-                        seen[index(nx, ny)] = true;
-                        pending.push_back({nx, ny});
-                    }
-                }
-            }
-            const QString text = QString::number(set);
-            const QPointF corner(view.origin.x() + x * pixel, view.origin.y() + y * pixel);
-            const QRectF box(corner + QPointF(2, 2),
-                             QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
-            const bool selected = m_selectedDynamicSet && *m_selectedDynamicSet == set;
-            painter.fillRect(box, QColor(0, 0, 0, 190));
-            painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
-            painter.drawText(box, Qt::AlignCenter, text);
-        }
+    for (const DynamicSetLabel& label :
+         dynamicSetLabels(std::vector<int>(mask.pixels.begin(), mask.pixels.end()),
+                          mask.size.width, mask.size.height)) {
+        const QString text = QString::number(label.set);
+        const QPointF corner(view.origin.x() + label.at.x * pixel,
+                             view.origin.y() + label.at.y * pixel);
+        const QRectF box(corner + QPointF(2, 2),
+                         QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
+        const bool selected = m_selectedDynamicSet && *m_selectedDynamicSet == label.set;
+        painter.fillRect(box, QColor(0, 0, 0, 190));
+        painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
+        painter.drawText(box, Qt::AlignCenter, text);
     }
     painter.restore();
 }

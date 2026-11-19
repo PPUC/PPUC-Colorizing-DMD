@@ -118,8 +118,9 @@ The controls:
     (erase) they leave it. Every covered pixel can be painted, black ones too; transparent
     pixels never become dynamic. While `Dynamic` is on the zones are outlined as on the frame
     canvas: the selected set's yellow, the others cyan, also where two sets meet, and each
-    area carries its set's number (1 to 9) at its top left once a pixel is at least 5 screen
-    pixels wide. The fill tool does not paint dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
+    area (its pixels that touch, also only at a corner) carries its set's number (1 to 9) at
+    its top left once a pixel is at least 5 screen pixels wide. The fill tool does not paint
+    dynamic zones. The zones are on the plane the frames' dynamic zones are on: the 128x32
     sprite of an ordinary project (switch the canvas to SD), the native sprite otherwise.
   - The right button paints the zones too, with the point, line and shape tools, `Shift`
     erasing, as in the Win32 editor. A right click while `Dynamic` is off switches it on and

@@ -18,6 +18,7 @@
 #include <QScrollBar>
 #include <QWheelEvent>
 
+#include "DynamicZoneMode.h"
 #include "edit/DrawingGeometry.h"
 #include "edit/DrawingTools.h"
 
@@ -952,7 +953,8 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
             outline(true, QColor(255, 230, 0), 2.0);
         }
         // The numbers, in widget pixels: one per area (the pixels of a set that touch each
-        // other), at its first pixel from the top left, as the sets are numbered in the panel.
+        // other, also at a corner: issue #76), at its first pixel from the top left, as the
+        // sets are numbered in the panel.
         const QTransform toWidget = painter.transform();
         const double pixel = toWidget.m11() * cellSize;
         if (pixel >= 5.0) {
@@ -962,40 +964,19 @@ void SpriteEditorWidget::paintSpriteRegion(QPainter& painter, const RegionLayout
             font.setBold(true);
             painter.setFont(font);
             const QFontMetrics metrics(font);
-            std::vector<bool> seen(sets.size(), false);
-            for (int y = 0; y < kSpriteSize.height; ++y) {
-                for (int x = 0; x < kSpriteSize.width; ++x) {
-                    const int set = shownSet(x, y);
-                    if (set == 255 || seen[spritePixelIndex(x, y)]) {
-                        continue;
-                    }
-                    std::vector<std::pair<int, int>> pending{{x, y}};
-                    seen[spritePixelIndex(x, y)] = true;
-                    while (!pending.empty()) {
-                        const auto [px, py] = pending.back();
-                        pending.pop_back();
-                        for (const auto& [dx, dy] :
-                             {std::pair{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-                            const int nx = px + dx;
-                            const int ny = py + dy;
-                            if (shownSet(nx, ny) == set && !seen[spritePixelIndex(nx, ny)]) {
-                                seen[spritePixelIndex(nx, ny)] = true;
-                                pending.push_back({nx, ny});
-                            }
-                        }
-                    }
-                    const QString text = QString::number(set + 1);
-                    const QPointF corner = toWidget.map(
-                        QPointF(region.rect.x + x * cellSize, region.rect.y + y * cellSize));
-                    const QRectF box(
-                        corner + QPointF(2, 2),
-                        QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
-                    const bool selected =
-                        m_selectedDynamicSet && static_cast<int>(*m_selectedDynamicSet) == set;
-                    painter.fillRect(box, QColor(0, 0, 0, 190));
-                    painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
-                    painter.drawText(box, Qt::AlignCenter, text);
-                }
+            for (const DynamicSetLabel& label :
+                 dynamicSetLabels(sets, kSpriteSize.width, kSpriteSize.height)) {
+                const QString text = QString::number(label.set + 1);
+                const QPointF corner = toWidget.map(QPointF(region.rect.x + label.at.x * cellSize,
+                                                            region.rect.y + label.at.y * cellSize));
+                const QRectF box(
+                    corner + QPointF(2, 2),
+                    QSizeF(metrics.horizontalAdvance(text) + 6, metrics.height() + 2));
+                const bool selected =
+                    m_selectedDynamicSet && static_cast<int>(*m_selectedDynamicSet) == label.set;
+                painter.fillRect(box, QColor(0, 0, 0, 190));
+                painter.setPen(selected ? QColor(255, 230, 0) : QColor(0, 200, 255));
+                painter.drawText(box, Qt::AlignCenter, text);
             }
         }
         painter.restore();

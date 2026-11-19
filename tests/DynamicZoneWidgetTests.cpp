@@ -28,7 +28,9 @@ using colorizing::app::CanvasEditLayer;
 using colorizing::app::CanvasEditOutputs;
 using colorizing::app::CanvasModes;
 using colorizing::app::CanvasStroke;
+using colorizing::app::DynamicSetLabel;
 using colorizing::app::DynamicZoneOptions;
+using colorizing::app::dynamicSetLabels;
 using colorizing::app::FramePreviewWidget;
 using colorizing::app::paintsDynamicZonesWithRightButton;
 using colorizing::edit::DrawingTool;
@@ -293,8 +295,30 @@ void testZonesOffTheOriginal()
 
 }  // namespace
 
+// Issue #76: pixels of a set that touch at a corner are one area with one number; another set
+// beside them has its own.
+void testSetLabelsJoinDiagonals()
+{
+    constexpr int N = 255;
+    // Set 0 and set 1 as two diagonal stairs side by side, as in the report; set 2 apart.
+    const std::vector<int> sets{
+        N, 0, 1, N, N,
+        0, 1, N, N, N,
+        N, N, N, N, 2,
+    };
+    const std::vector<DynamicSetLabel> labels = dynamicSetLabels(sets, 5, 3);
+    expect(labels.size() == 3, "one number per set: " + std::to_string(labels.size()));
+    expect(labels[0].set == 0 && labels[0].at.x == 1 && labels[0].at.y == 0 &&
+               labels[1].set == 1 && labels[1].at.x == 2 && labels[1].at.y == 0 &&
+               labels[2].set == 2 && labels[2].at.x == 4 && labels[2].at.y == 2,
+           "each at its area's first pixel from the top left");
+    const std::vector<int> apart{0, N, 0, N, N, N, 0, N, 0};
+    expect(dynamicSetLabels(apart, 3, 3).size() == 4, "pixels that do not touch stay apart");
+}
+
 void runDynamicZoneWidgetTests()
 {
+    testSetLabelsJoinDiagonals();
     testLayers();
     testRightButtonStroke();
     testZonesOffTheOriginal();

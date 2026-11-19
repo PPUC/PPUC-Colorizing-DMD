@@ -26,6 +26,17 @@ struct DynamicZoneOptions {
     friend bool operator==(const DynamicZoneOptions&, const DynamicZoneOptions&) = default;
 };
 
+// Where the canvases put a zone's set number: one place per area, the pixels of a set that
+// touch each other, also at a corner (a diagonal stroke is one area, issue #76), at the area's
+// first pixel from the top left. sets holds a set per pixel, row by row, 255 for none.
+struct DynamicSetLabel {
+    render::Point at;
+    int set = 0;
+};
+[[nodiscard]] std::vector<DynamicSetLabel> dynamicSetLabels(const std::vector<int>& sets,
+                                                            int width,
+                                                            int height);
+
 [[nodiscard]] DynamicZoneOptions loadDynamicZoneOptions();
 void saveDynamicZoneOptions(const DynamicZoneOptions& options);
 
