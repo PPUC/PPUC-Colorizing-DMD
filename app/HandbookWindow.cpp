@@ -20,15 +20,21 @@ namespace colorizing::app {
 
 namespace {
 
-const QString kRoot = QStringLiteral(":/handbook/");
+QString rootOf(HandbookWindow::Book book)
+{
+    return book == HandbookWindow::Book::Tutorial ? QStringLiteral(":/tutorial/")
+                                                  : QStringLiteral(":/handbook/");
+}
 
 }  // namespace
 
-std::vector<HandbookWindow::Chapter> HandbookWindow::loadChapters(const QString& language)
+std::vector<HandbookWindow::Chapter> HandbookWindow::loadChapters(const QString& language,
+                                                                  Book book)
 {
-    QDir directory(kRoot + language);
+    const QString root = rootOf(book);
+    QDir directory(root + language);
     if (language.isEmpty() || !directory.exists()) {
-        directory = QDir(kRoot + QStringLiteral("en"));
+        directory = QDir(root + QStringLiteral("en"));
     }
     std::vector<Chapter> chapters;
     // NN-name.md, in the order of their numbers; README.md is the index for readers of the
@@ -53,15 +59,22 @@ std::vector<HandbookWindow::Chapter> HandbookWindow::loadChapters(const QString&
 }
 
 HandbookWindow::HandbookWindow(QWidget* parent)
+    : HandbookWindow(Book::Handbook, parent)
+{
+}
+
+HandbookWindow::HandbookWindow(Book book, QWidget* parent)
     : QWidget(parent, Qt::Window)
 {
-    setWindowTitle(tr("ColorizingDMD Handbook"));
+    const bool tutorial = book == Book::Tutorial;
+    setWindowTitle(tutorial ? tr("ColorizingDMD Tutorial") : tr("ColorizingDMD Handbook"));
     resize(1000, 720);
-    keepWindowGeometry(this, QStringLiteral("handbook"));
-    m_chapters = loadChapters(currentLanguage());
+    keepWindowGeometry(this, tutorial ? QStringLiteral("tutorial") : QStringLiteral("handbook"));
+    m_chapters = loadChapters(currentLanguage(), book);
 
     m_searchEdit = new QLineEdit(this);
-    m_searchEdit->setPlaceholderText(tr("Search the handbook"));
+    m_searchEdit->setPlaceholderText(tutorial ? tr("Search the tutorial")
+                                              : tr("Search the handbook"));
     m_searchEdit->setClearButtonEnabled(true);
     m_searchEdit->setToolTip(tr("Lists the chapters with the text; Enter goes to its next place"));
     m_chapterList = new QListWidget(this);

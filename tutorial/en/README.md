@@ -1,7 +1,8 @@
 # PPUC Colorizing DMD Tutorial
 
-A guided path through the editor, from a frame dump to a colorization a machine plays. Where the
-handbook (`Help -> Handbook`) describes every control, this tutorial follows the work in the
+A guided path through the editor, from a frame dump to a colorization a machine plays. The
+editor shows it under `Help -> Tutorial`, searchable. Where the handbook (`Help -> Handbook`)
+describes every control, this tutorial follows the work in the
 order it is usually done and explains why each step is there. Each chapter ends with the
 handbook chapters that hold the details.
 

@@ -2428,6 +2428,14 @@ Use Create %1 Frame.</source>
         <translation>ColorizingDMD-Handbuch</translation>
     </message>
     <message>
+        <source>ColorizingDMD Tutorial</source>
+        <translation>ColorizingDMD-Tutorial</translation>
+    </message>
+    <message>
+        <source>Search the tutorial</source>
+        <translation>Tutorial durchsuchen</translation>
+    </message>
+    <message>
         <source>Search the handbook</source>
         <translation>Handbuch durchsuchen</translation>
     </message>
@@ -4404,6 +4412,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Draw Color</source>
         <translation>Zeichenfarbe</translation>
+    </message>
+    <message>
+        <source>&amp;Tutorial</source>
+        <translation>&amp;Tutorial</translation>
+    </message>
+    <message>
+        <source>A guided path from a frame dump to a published colorization, for new authors</source>
+        <translation>Ein geführter Weg vom Frame-Dump zur veröffentlichten Kolorierung, für neue Autoren</translation>
     </message>
     <message>
         <source>Undo &amp;Here</source>

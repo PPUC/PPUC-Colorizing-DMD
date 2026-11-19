@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Help -> Tutorial`: a tutorial for new authors, from a frame dump to a published colorization,
+  in chapters and searchable like the handbook.
 - While `Shift` + drag of a color is over another color of the row, the colors between show the
   gradient the drop makes and the two ends are marked, unlike a swap (issue #77).
 

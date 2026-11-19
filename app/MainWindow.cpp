@@ -677,6 +677,18 @@ void MainWindow::createActions()
         m_handbookWindow->raise();
         m_handbookWindow->activateWindow();
     });
+    // The tutorial: the work in its order, for new authors, in the same kind of window.
+    QAction* tutorialAction = withShortcutId(helpMenu->addAction(tr("&Tutorial")), "tutorial");
+    tutorialAction->setToolTip(
+        tr("A guided path from a frame dump to a published colorization, for new authors"));
+    connect(tutorialAction, &QAction::triggered, this, [this]() {
+        if (!m_tutorialWindow) {
+            m_tutorialWindow = new HandbookWindow(HandbookWindow::Book::Tutorial, this);
+        }
+        m_tutorialWindow->show();
+        m_tutorialWindow->raise();
+        m_tutorialWindow->activateWindow();
+    });
     // On macOS it goes to the application menu.
     QAction* aboutAction =
         withShortcutId(helpMenu->addAction(tr("&About %1").arg(kApplicationName)), "about");

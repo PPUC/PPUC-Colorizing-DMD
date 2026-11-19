@@ -825,6 +825,7 @@ private:
     QToolButton* m_zoomButton = nullptr;
     // Help -> Handbook, created when first asked for.
     HandbookWindow* m_handbookWindow = nullptr;
+    HandbookWindow* m_tutorialWindow = nullptr;
     PluginLogWindow* m_pluginLogWindow = nullptr;
     PupTesterWindow* m_pupTesterWindow = nullptr;
     QAction* m_runtimeViewAction = nullptr;

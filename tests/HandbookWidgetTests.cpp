@@ -1,4 +1,4 @@
-// Help -> Handbook: the chapters built in, and their search.
+// Help -> Handbook and Help -> Tutorial: the chapters built in, and their search.
 
 #include <cstdlib>
 #include <iostream>
@@ -48,4 +48,18 @@ void runHandbookWidgetTests()
     expect(window.listedChapters().empty(), "a text no chapter has lists none");
     window.search(QString());
     expect(window.listedChapters().size() == english.size(), "an empty search lists them all");
+
+    // Help -> Tutorial: the tutorial's chapters in the same kind of window.
+    using Book = app::HandbookWindow::Book;
+    const std::vector<app::HandbookWindow::Chapter> tutorial =
+        app::HandbookWindow::loadChapters(QStringLiteral("en"), Book::Tutorial);
+    expect(tutorial.size() == 14 &&
+               tutorial.front().title == QStringLiteral("What A Colorization Is") &&
+               tutorial.back().title == QStringLiteral("Publishing"),
+           "the tutorial's chapters are built in, in their order");
+    app::HandbookWindow tutorialWindow(Book::Tutorial, nullptr);
+    expect(tutorialWindow.chapters().size() == tutorial.size() &&
+               tutorialWindow.currentChapter() == 0 &&
+               tutorialWindow.windowTitle() == QStringLiteral("ColorizingDMD Tutorial"),
+           "its window lists the tutorial, not the handbook");
 }

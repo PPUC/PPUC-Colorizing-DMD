@@ -12,14 +12,21 @@ class QTextBrowser;
 
 namespace colorizing::app {
 
-// Help -> Handbook: the handbook's chapters (handbook/<language>/NN-*.md, built in as resources
-// under :/handbook), searchable. The chapters of the user interface language are shown when
-// there are any, the English ones otherwise.
+// Help -> Handbook and Help -> Tutorial: the chapters of the handbook
+// (handbook/<language>/NN-*.md, built in under :/handbook) or of the tutorial
+// (tutorial/<language>/NN-*.md, under :/tutorial), searchable. The chapters of the user
+// interface language are shown when there are any, the English ones otherwise.
 class HandbookWindow final : public QWidget {
     Q_DECLARE_TR_FUNCTIONS(HandbookWindow)
 
 public:
+    enum class Book {
+        Handbook,
+        Tutorial,
+    };
+
     explicit HandbookWindow(QWidget* parent = nullptr);
+    HandbookWindow(Book book, QWidget* parent);
 
     struct Chapter {
         QString title;
@@ -28,7 +35,8 @@ public:
         QString text;
     };
     // The chapters in their order, of the language ("de") or, without it, English.
-    [[nodiscard]] static std::vector<Chapter> loadChapters(const QString& language);
+    [[nodiscard]] static std::vector<Chapter> loadChapters(const QString& language,
+                                                           Book book = Book::Handbook);
 
     [[nodiscard]] const std::vector<Chapter>& chapters() const;
     void showChapter(int index);

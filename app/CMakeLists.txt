@@ -209,6 +209,15 @@ qt_add_resources(colorizing_qt_v2_widgets "handbook"
     BASE "${PROJECT_SOURCE_DIR}/handbook"
     FILES ${colorizing_qt_v2_handbook_files})
 
+# The tutorial, every language's chapters, built in under :/tutorial/<language>/ for
+# Help -> Tutorial (HandbookWindow).
+file(GLOB colorizing_qt_v2_tutorial_files
+    CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/tutorial/*/[0-9]*.md")
+qt_add_resources(colorizing_qt_v2_widgets "tutorial"
+    PREFIX "/tutorial"
+    BASE "${PROJECT_SOURCE_DIR}/tutorial"
+    FILES ${colorizing_qt_v2_tutorial_files})
+
 # The third-party notices of the packages, built in as :/notices/THIRD-PARTY-NOTICES.md for
 # Help -> About (AboutDialog).
 qt_add_resources(colorizing_qt_v2_widgets "third_party_notices"
