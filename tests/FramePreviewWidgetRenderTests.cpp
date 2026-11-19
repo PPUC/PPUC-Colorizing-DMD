@@ -3731,6 +3731,16 @@ void testDynamicPanelOriginalOnlySets()
            "a frame without dynamic data has nothing to switch; refreshing does not report");
 }
 
+// The shadow directions surround an empty middle, as in the Win32 editor: no letter there that
+// reads like a setting.
+void testDynamicPanelShadowGridHasNoMiddleLabel()
+{
+    colorizing::app::DynamicPanel panel;
+    for (const QLabel* label : panel.findChildren<QLabel*>()) {
+        expect(label->text() != QStringLiteral("S"), "the shadow grid has no S in its middle");
+    }
+}
+
 void testDynamicPanel()
 {
     using colorizing::render::Resolution;
@@ -4766,6 +4776,7 @@ int main(int argc, char* argv[])
     testMaskPanel();
     testDynamicPanel();
     testDynamicPanelOriginalOnlySets();
+    testDynamicPanelShadowGridHasNoMiddleLabel();
     testDynamicSetList();
     testBackgroundPanel();
     testFramePanel();

@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The middle of the dynamic shadow directions is empty again, as in the Win32 editor; its `S`
+  read like a setting.
 - `Help -> Tutorial`: a tutorial for new authors, from a frame dump to a published colorization,
   in chapters and searchable like the handbook.
 - While `Shift` + drag of a color is over another color of the row, the colors between show the

@@ -144,9 +144,7 @@ DynamicPanel::DynamicPanel(QWidget* parent)
             }
         });
     }
-    auto* shadowCenterLabel = new QLabel(tr("S"), this);
-    shadowCenterLabel->setAlignment(Qt::AlignCenter);
-    shadowGrid->addWidget(shadowCenterLabel, 1, 1);
+    // The middle stays empty, as in the Win32 editor: the set's pixels the shadow falls from.
     pageLayout->addLayout(shadowGrid);
     m_shadowColorButton = new QToolButton(this);
     m_shadowColorButton->setText(tr("Shadow Color"));

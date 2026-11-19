@@ -1163,7 +1163,7 @@
     </message>
     <message>
         <source>S</source>
-        <translation>S</translation>
+        <translation type="vanished">S</translation>
     </message>
     <message>
         <source>Shadow Color</source>
