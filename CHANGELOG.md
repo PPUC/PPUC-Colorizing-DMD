@@ -5,14 +5,35 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.42
+
+- `Show In Editor` in the Frame Tester goes to the frame that started the scene while a scene
+  plays, instead of to the scene's frame (issue #70).
+- The right button paints dynamic zones on the frame canvas, with `Shift` erasing, as in the
+  Win32 editor. In `Settings -> Appearance -> Dynamic Zones` the left button can paint colors
+  while `Dynamic` only shows the zones, also beside `Mask`, and the zones can be left off the
+  original (issue #58).
+- The right button paints a sprite's dynamic zones on the sprite canvas too, and the setting of
+  the left button applies to `Paint Dynamic` (issue #58).
+- `Alt` with a right click of the fill puts every pixel of the clicked color of the selected
+  frames into the dynamic set, as in the Win32 editor (issue #58).
+
+## 3.99.41
+
+- A scene can start another scene when it has played (`Then plays` in the scene window), so that
+  an animation can end with a faster one, such as a dissolve to black; needs libserum 2.99.18.
+
+## 3.99.40
+
+- Editor API version 10 for plugins: a choice shown as radio buttons, chosen with one click.
+
+## 3.99.39
+
 - In a team project, adding, deleting or applying a light effect while a partner changes the
   settings says so, instead of seeming to add the effect and doing nothing.
 - Editor API version 9 for plugins: forms that stay open beside the editor and change as you
   fill them in, with pictures and extra buttons such as Back; plugins create scenes from frames
   and set the scene a frame starts.
-- Editor API version 10 for plugins: a choice shown as radio buttons, chosen with one click.
-- A scene can start another scene when it has played (`Then plays` in the scene window), so that
-  an animation can end with a faster one, such as a dissolve to black; needs libserum 2.99.18.
 - Holding `W` to select non-black pixels only also works with the mouse over the frame canvas
   while the frame strip has the focus, for example right after a click on a frame.
 - A double click on a recent or a palette color in the color picker takes it and closes the
@@ -27,16 +48,6 @@ tagged; the changes since the last tag are listed under *Next version*.
 - The Import Image and Import Movie Clip window stays open after Import, with its picture, clip
   time, zones and settings, and does not block the editor: undo, select other frames and import
   again; Close ends it.
-- `Show In Editor` in the Frame Tester goes to the frame that started the scene while a scene
-  plays, instead of to the scene's frame (issue #70).
-- The right button paints dynamic zones on the frame canvas, with `Shift` erasing, as in the
-  Win32 editor. In `Settings -> Appearance -> Dynamic Zones` the left button can paint colors
-  while `Dynamic` only shows the zones, also beside `Mask`, and the zones can be left off the
-  original (issue #58).
-- The right button paints a sprite's dynamic zones on the sprite canvas too, and the setting of
-  the left button applies to `Paint Dynamic` (issue #58).
-- `Alt` with a right click of the fill puts every pixel of the clicked color of the selected
-  frames into the dynamic set, as in the Win32 editor (issue #58).
 
 ## 3.99.38
 
