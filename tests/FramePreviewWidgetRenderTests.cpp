@@ -4750,6 +4750,7 @@ void runCanvasEditControllerTests();
 void runColorWidgetTests();
 void runDumpImportWidgetTests();
 void runDynamicZoneWidgetTests();
+void runQuickActionsWidgetTests();
 void runEditorMatchesRuntimeTests();
 void runFrameTesterWidgetTests();
 void runFrameSettingsWidgetTests();
@@ -4858,6 +4859,7 @@ int main(int argc, char* argv[])
     runEditorMatchesRuntimeTests();
     runDumpImportWidgetTests();
     runDynamicZoneWidgetTests();
+    runQuickActionsWidgetTests();
     runAppHelpersWidgetTests();
     runShortcutsWidgetTests();
     runColorWidgetTests();

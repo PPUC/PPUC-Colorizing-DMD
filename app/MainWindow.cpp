@@ -133,6 +133,7 @@
 #include "panels/FramePanel.h"
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
+#include "panels/QuickActionsPanel.h"
 #include "panels/RecordListPage.h"
 #include "panels/SameFramesPanel.h"
 #include "panels/HelperLinesPanel.h"
@@ -573,6 +574,7 @@ MainWindow::MainWindow(QWidget* parent)
     createCentralView();
     m_shortcuts = std::make_unique<KeyboardShortcuts>(menuBar());
     updateShortcutToolTips();
+    m_quickActionsPanel->setItems(QuickActionsPanel::loadItems());
     EditorPlugins::Window pluginWindow;
     pluginWindow.parent = this;
     pluginWindow.menu = m_pluginsMenu;
@@ -2121,6 +2123,16 @@ void MainWindow::createCentralView()
     auto* inspectorTabs = new SectionStack(inspector);
     m_inspectorSections = inspectorTabs;
 
+    // The author's most used menu entries, first; filled once the menus exist.
+    m_quickActionsPanel = new QuickActionsPanel(inspector);
+    m_quickActionsPanel->actionFor = [this](const QString& id) {
+        return menuBar()->findChild<QAction*>(id);
+    };
+    m_quickActionsPanel->entries = [this]() {
+        return m_shortcuts ? m_shortcuts->entries() : std::vector<ShortcutEntry>{};
+    };
+    inspectorTabs->addTab(m_quickActionsPanel, QStringLiteral("QuickActions"),
+                          tr("Quick Actions"));
     inspectorTabs->addTab(m_framePanel, QStringLiteral("Frame"), tr("Frame"));
 
     // The mask of the frame and, below it, the comparison tools; they scroll together.
@@ -2270,7 +2282,8 @@ void MainWindow::createCentralView()
     }
 
     inspectorLayout->addWidget(inspectorTabs, 1);
-    for (const QString& key : {QStringLiteral("Rot"), QStringLiteral("Sets"),
+    for (const QString& key : {QStringLiteral("QuickActions"), QStringLiteral("Rot"),
+                               QStringLiteral("Sets"),
                                QStringLiteral("HelperLines"), QStringLiteral("Lights"),
                                QStringLiteral("LightEffect")}) {
         for (int index = 0; index < inspectorTabs->count(); ++index) {
@@ -3683,6 +3696,8 @@ void MainWindow::editSettings(SettingsDialog::Page page)
         }
     }
     m_shortcuts->apply(dialog.shortcuts());
+    // Their tool tips name the keys.
+    m_quickActionsPanel->setItems(m_quickActionsPanel->items());
     updateShortcutToolTips();
     saveAuthorName(dialog.authorName());
     saveAuthorSigningKey(dialog.signingKey());

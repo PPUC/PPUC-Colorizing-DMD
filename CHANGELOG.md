@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- `Quick Actions`, a new section at the top of the Inspector: the menu entries you use most as
+  buttons, chosen with `Choose...`, the shadow and grow directions as a square of buttons.
 - The splash screen is off for now.
 
 ## 3.99.45

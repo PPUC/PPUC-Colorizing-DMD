@@ -10,7 +10,8 @@
 - **The left sidebar**: the project's comparison masks, backgrounds, sprites and scenes.
 - **The Inspector**, on the right: sections for the current frame (`Frame`, `Comparison Mask`,
   `Background`, `Sprite`, `Dynamic Sets`, `Palette`, `Color Rotations`, `Color Sets`). A click on
-  a header opens or closes a section; several can be open at once.
+  a header opens or closes a section; several can be open at once. `Quick Actions`, the first,
+  holds the menu entries you use most as buttons; `Choose...` there picks them.
 - **The toolbar**: the drawing tools, the four favorite colors and the draw color, the modes
   (`SD`, `HD`, `Mask`, `Dynamic`, `Background`), playback and the `Runtime` switch.
 - **The row of edit colors** under the toolbar: one color per shade of the original.

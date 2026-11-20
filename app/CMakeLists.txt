@@ -136,6 +136,8 @@ add_library(colorizing_qt_v2_widgets STATIC
     panels/MaskPanel.h
     panels/PalettePanel.cpp
     panels/PalettePanel.h
+    panels/QuickActionsPanel.cpp
+    panels/QuickActionsPanel.h
     panels/RecordListPage.cpp
     panels/RecordListPage.h
     panels/SameFramesPanel.cpp

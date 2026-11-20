@@ -78,6 +78,7 @@ class FramePreviewWidget;
 class LazyListIcons;
 class MaskPanel;
 class PalettePanel;
+class QuickActionsPanel;
 class RecordListPage;
 class SameFramesPanel;
 class SpritePanel;
@@ -900,6 +901,7 @@ private:
     MaskPanel* m_maskPanel = nullptr;
     SameFramesPanel* m_sameFramesPanel = nullptr;
     PalettePanel* m_palettePanel = nullptr;
+    QuickActionsPanel* m_quickActionsPanel = nullptr;
     SpritePanel* m_spritePanel = nullptr;
     DrawColorButton* m_activeColorButton = nullptr;
     QStackedWidget* m_canvasStack = nullptr;

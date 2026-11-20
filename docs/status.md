@@ -1268,8 +1268,11 @@ through `EditorBackend::language()` and `darkTheme()`.
 v12 (2026-11-20, issue #81, the part agreed on): RunEditorAction and IsEditorActionEnabled,
 triggering the menu's QAction by its shortcut id (`EditorPlugins::Window::menuAction`) for the
 ids of `EditorPlugins::pluginEditorActionIds()` only (published in the header; it only grows),
-refused while a plugin has an edit batch open. Floating palettes of #81 were declined; an
-author-configurable `Quick Actions` sidebar section of the editor's is the planned answer.
+refused while a plugin has an edit batch open. Floating palettes of #81 were declined; the
+editor's own answer is the `Quick Actions` section (`QuickActionsPanel`, first in the Inspector,
+optional): menu entries by shortcut id, chosen by the author and kept in QSettings
+`quickActions/items`, with the shadow and grow directions as groups. Open: plugin commands in it
+(menu entries of plugins would need ids), an order the author sets in Choose...
 The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
 `COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.

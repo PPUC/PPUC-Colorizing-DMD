@@ -4454,6 +4454,10 @@ Use Create %1 Frame.</source>
         <translation>Jeden Frame für das Intervall daneben abspielen; nicht angehakt jeden Frame für seine eigene Dauer (Dauer im Abschnitt Frame)</translation>
     </message>
     <message>
+        <source>Quick Actions</source>
+        <translation>Schnellaktionen</translation>
+    </message>
+    <message>
         <source>Transparent pixels are painted with the point and shape tools</source>
         <translation>Transparente Pixel werden mit dem Punkt- und den Formwerkzeugen gezeichnet</translation>
     </message>
@@ -8002,6 +8006,94 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>No pack %1 in %2: PUP shows nothing.</source>
         <translation>Kein Pack %1 in %2: PUP zeigt nichts.</translation>
+    </message>
+</context>
+<context>
+    <name>QuickActionsPanel</name>
+    <message>
+        <source>TL</source>
+        <comment>direction top left</comment>
+        <translation>OL</translation>
+    </message>
+    <message>
+        <source>T</source>
+        <comment>direction top</comment>
+        <translation>O</translation>
+    </message>
+    <message>
+        <source>TR</source>
+        <comment>direction top right</comment>
+        <translation>OR</translation>
+    </message>
+    <message>
+        <source>L</source>
+        <comment>direction left</comment>
+        <translation>L</translation>
+    </message>
+    <message>
+        <source>Stern</source>
+        <comment>the four sides, as Stern draws them</comment>
+        <translation>Stern</translation>
+    </message>
+    <message>
+        <source>R</source>
+        <comment>direction right</comment>
+        <translation>R</translation>
+    </message>
+    <message>
+        <source>BL</source>
+        <comment>direction bottom left</comment>
+        <translation>UL</translation>
+    </message>
+    <message>
+        <source>B</source>
+        <comment>direction bottom</comment>
+        <translation>U</translation>
+    </message>
+    <message>
+        <source>BR</source>
+        <comment>direction bottom right</comment>
+        <translation>UR</translation>
+    </message>
+    <message>
+        <source>Choose...</source>
+        <translation>Auswählen...</translation>
+    </message>
+    <message>
+        <source>Choose the menu entries shown here</source>
+        <translation>Die hier gezeigten Menüeinträge auswählen</translation>
+    </message>
+    <message>
+        <source>Edit -&gt; Shadow Next To Selection (all directions)</source>
+        <translation>Bearbeiten -&gt; Schatten neben Auswahl (alle Richtungen)</translation>
+    </message>
+    <message>
+        <source>Edit -&gt; Grow Selection (all directions)</source>
+        <translation>Bearbeiten -&gt; Auswahl vergrößern (alle Richtungen)</translation>
+    </message>
+    <message>
+        <source>Shadow Next To Selection</source>
+        <translation>Schatten neben Auswahl</translation>
+    </message>
+    <message>
+        <source>Grow Selection</source>
+        <translation>Auswahl vergrößern</translation>
+    </message>
+    <message>
+        <source>All Around</source>
+        <translation>Rundherum</translation>
+    </message>
+    <message>
+        <source>Choose the menu entries you use most to have them here.</source>
+        <translation>Wählen Sie die Menüeinträge, die Sie am häufigsten nutzen, um sie hier zu haben.</translation>
+    </message>
+    <message>
+        <source>Quick Actions</source>
+        <translation>Schnellaktionen</translation>
+    </message>
+    <message>
+        <source>The menu entries shown in the Quick Actions section, in this order:</source>
+        <translation>Die Menüeinträge, die der Abschnitt Schnellaktionen zeigt, in dieser Reihenfolge:</translation>
     </message>
 </context>
 <context>

@@ -4454,6 +4454,10 @@ Utiliser Créer la frame %1.</translation>
         <translation>Lire chaque frame pendant l&apos;intervalle à côté ; décoché, chaque frame pendant sa propre durée (la Durée de la section Frame)</translation>
     </message>
     <message>
+        <source>Quick Actions</source>
+        <translation>Actions rapides</translation>
+    </message>
+    <message>
         <source>Transparent pixels are painted with the point and shape tools</source>
         <translation>Les pixels transparents se peignent avec les outils point et forme</translation>
     </message>
@@ -8002,6 +8006,94 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>No pack %1 in %2: PUP shows nothing.</source>
         <translation>Pas de pack %1 dans %2 : PUP n&apos;affiche rien.</translation>
+    </message>
+</context>
+<context>
+    <name>QuickActionsPanel</name>
+    <message>
+        <source>TL</source>
+        <comment>direction top left</comment>
+        <translation>↖</translation>
+    </message>
+    <message>
+        <source>T</source>
+        <comment>direction top</comment>
+        <translation>↑</translation>
+    </message>
+    <message>
+        <source>TR</source>
+        <comment>direction top right</comment>
+        <translation>↗</translation>
+    </message>
+    <message>
+        <source>L</source>
+        <comment>direction left</comment>
+        <translation>←</translation>
+    </message>
+    <message>
+        <source>Stern</source>
+        <comment>the four sides, as Stern draws them</comment>
+        <translation>Stern</translation>
+    </message>
+    <message>
+        <source>R</source>
+        <comment>direction right</comment>
+        <translation>→</translation>
+    </message>
+    <message>
+        <source>BL</source>
+        <comment>direction bottom left</comment>
+        <translation>↙</translation>
+    </message>
+    <message>
+        <source>B</source>
+        <comment>direction bottom</comment>
+        <translation>↓</translation>
+    </message>
+    <message>
+        <source>BR</source>
+        <comment>direction bottom right</comment>
+        <translation>↘</translation>
+    </message>
+    <message>
+        <source>Choose...</source>
+        <translation>Choisir...</translation>
+    </message>
+    <message>
+        <source>Choose the menu entries shown here</source>
+        <translation>Choisir les entrées de menu affichées ici</translation>
+    </message>
+    <message>
+        <source>Edit -&gt; Shadow Next To Selection (all directions)</source>
+        <translation>Édition -&gt; Ombre à côté de la sélection (toutes les directions)</translation>
+    </message>
+    <message>
+        <source>Edit -&gt; Grow Selection (all directions)</source>
+        <translation>Édition -&gt; Agrandir la sélection (toutes les directions)</translation>
+    </message>
+    <message>
+        <source>Shadow Next To Selection</source>
+        <translation>Ombre à côté de la sélection</translation>
+    </message>
+    <message>
+        <source>Grow Selection</source>
+        <translation>Agrandir la sélection</translation>
+    </message>
+    <message>
+        <source>All Around</source>
+        <translation>Tout autour</translation>
+    </message>
+    <message>
+        <source>Choose the menu entries you use most to have them here.</source>
+        <translation>Choisissez les entrées de menu que vous utilisez le plus pour les avoir ici.</translation>
+    </message>
+    <message>
+        <source>Quick Actions</source>
+        <translation>Actions rapides</translation>
+    </message>
+    <message>
+        <source>The menu entries shown in the Quick Actions section, in this order:</source>
+        <translation>Les entrées de menu affichées dans la section Actions rapides, dans cet ordre :</translation>
     </message>
 </context>
 <context>
