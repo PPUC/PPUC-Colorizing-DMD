@@ -1262,6 +1262,9 @@ covered; per-frame durations do not exist in a scene (one duration for all frame
 v10 (2026-11-17, asked for by the same author): the field kind Radio in every form, a
 `QButtonGroup` of `QRadioButton`s (value in the property "choice") in a grid of four per line,
 rebuilt when SetFormField changes the choices; `buttonClicked` is the user-only signal.
+v11 (2026-11-20, issue #80, asked for by the same author): GetLanguage (`currentLanguage()`)
+and IsDarkTheme (`isDarkThemeShown()`: the application palette's window color is dark),
+through `EditorBackend::language()` and `darkTheme()`.
 The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
 `COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.

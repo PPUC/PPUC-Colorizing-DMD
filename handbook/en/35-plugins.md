@@ -99,4 +99,8 @@ frame unselected with Ctrl+click (Cmd+click on macOS) stays current, so a plugin
 selected frames as "from" and "to" checks that the current one is among them.
 Version 10 adds a field kind for every form: a choice shown as radio buttons, all its entries
 at once, up to four on a line (`CDMDPI_FIELD_RADIO`).
+Version 11 tells a plugin the editor's language and theme, so that it can show its own texts in
+the language of the menus and draw for a light or a dark window: `GetLanguage` gives the
+language in effect as `en`, `de` or `fr` (a change in the settings applies from the next start),
+and `IsDarkTheme` whether the dark theme is shown, with `Follow the system` resolved.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

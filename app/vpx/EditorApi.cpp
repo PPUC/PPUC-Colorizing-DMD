@@ -1323,8 +1323,29 @@ int MSGPIAPI setFrameScene(uint32_t endpointId, uint32_t frame, uint32_t scene)
     });
 }
 
+int MSGPIAPI getLanguage(char* code, uint32_t capacity)
+{
+    if (!g_backend) {
+        return 0;
+    }
+    const std::string language = g_backend->language();
+    if (language.empty()) {
+        return 0;
+    }
+    const uint32_t size = static_cast<uint32_t>(language.size() + 1);
+    if (code && capacity >= size) {
+        std::memcpy(code, language.c_str(), size);
+    }
+    return static_cast<int>(size);
+}
+
+int MSGPIAPI isDarkTheme()
+{
+    return g_backend && g_backend->darkTheme() ? 1 : 0;
+}
+
 const ColorizingDMDEditorAPI kApi{
-    10,
+    11,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -1382,6 +1403,8 @@ const ColorizingDMDEditorAPI kApi{
     &closeForm,
     &createScene,
     &setFrameScene,
+    &getLanguage,
+    &isDarkTheme,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

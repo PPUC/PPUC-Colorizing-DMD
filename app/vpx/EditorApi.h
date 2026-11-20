@@ -162,6 +162,11 @@ public:
                                  const FormFieldUpdate& update) = 0;
     // Closes the live form without telling the plugin; false without one.
     virtual bool closeForm(const std::string& pluginId) = 0;
+
+    // The language the editor's menus are shown in ("en", "de", "fr"); empty when not known.
+    [[nodiscard]] virtual std::string language() const = 0;
+    // Whether the editor shows its dark theme.
+    [[nodiscard]] virtual bool darkTheme() const = 0;
 };
 
 // The backend the API answers with from now on; nullptr: no project, no menu. Not owned.

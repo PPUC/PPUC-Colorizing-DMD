@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Editor API version 11: a plugin can ask for the editor's language and whether its dark theme
+  is shown, to show its own texts and colors to match (issue #80).
 - A flood fill of dynamic zones no longer runs over other zones: clicked outside the zones it
   fills the pixels of the clicked color that are in none, clicked into a zone it refills that
   zone's area alone (issue #78).

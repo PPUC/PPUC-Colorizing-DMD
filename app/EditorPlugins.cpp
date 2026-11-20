@@ -7,6 +7,8 @@
 
 #include <algorithm>
 
+#include "Appearance.h"
+#include "Translations.h"
 #include "document/ProjectDocument.h"
 #include "edit/EditBatch.h"
 #include "edit/EditCommand.h"
@@ -442,6 +444,16 @@ bool EditorPlugins::openForm(const std::string& pluginId,
         dialog->open();
     }
     return true;
+}
+
+std::string EditorPlugins::language() const
+{
+    return currentLanguage().toStdString();
+}
+
+bool EditorPlugins::darkTheme() const
+{
+    return isDarkThemeShown();
 }
 
 std::optional<std::string> EditorPlugins::formValue(const std::string& pluginId,

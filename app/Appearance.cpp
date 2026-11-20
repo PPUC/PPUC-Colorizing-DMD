@@ -335,6 +335,11 @@ void saveSpriteThumbnailsZoomed(bool zoomed)
     QSettings().setValue(kSpriteThumbnailsZoomedKey, zoomed);
 }
 
+bool isDarkThemeShown()
+{
+    return QApplication::palette().color(QPalette::Window).lightness() < 128;
+}
+
 void applyTheme(Theme theme)
 {
     (void)original();

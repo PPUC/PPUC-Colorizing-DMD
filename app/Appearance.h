@@ -25,6 +25,9 @@ void saveTheme(Theme theme);
 // only), and Qt before 6.8, use the Fusion style with a light or dark palette instead; back to
 // System, the application's own style and palette return.
 void applyTheme(Theme theme);
+// Whether the editor shows a dark theme now: the window color of the application's palette is
+// dark, however it came about (a chosen theme, "Follow the system", the style's own palette).
+[[nodiscard]] bool isDarkThemeShown();
 // The color of what a checked button shows on its fill: black or white, whichever reads.
 [[nodiscard]] QColor checkedButtonTextColor(const QPalette& palette);
 // The style the editor starts with for the platform's: Fusion instead of Windows 11's style,

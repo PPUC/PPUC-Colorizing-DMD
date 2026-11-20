@@ -17,9 +17,14 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
+#include <QApplication>
+#include <QPalette>
+#include <QColor>
 #include <QTemporaryDir>
 
+#include "Appearance.h"
 #include "EditorPlugins.h"
+#include "Translations.h"
 #include "RuntimeFixtures.h"
 #include "document/ProjectDocument.h"
 #include "document/Scene.h"
@@ -988,9 +993,35 @@ void runEditorPluginsWidgetTests()
     expect(!menu.menuAction()->isVisible() && menu.actions().isEmpty(),
            "its entries go with the plugin");
 
+    // What a plugin learns of the author's editor (issue #80).
+    expect(plugins.language() == app::currentLanguage().toStdString() &&
+               plugins.language() == "en",
+           "the language in effect, English in the tests");
+    // As a theme leaves the application's palette; the palette is put back afterwards.
+    const QPalette applicationPalette = QApplication::palette();
+    QPalette darkPalette = applicationPalette;
+    darkPalette.setColor(QPalette::Window, QColor(0x20, 0x20, 0x20));
+    QApplication::setPalette(darkPalette);
+    const bool dark = plugins.darkTheme();
+    QPalette lightPalette = applicationPalette;
+    lightPalette.setColor(QPalette::Window, QColor(0xf0, 0xf0, 0xf0));
+    QApplication::setPalette(lightPalette);
+    const bool light = plugins.darkTheme();
+    QApplication::setPalette(applicationPalette);
+    expect(dark && !light, "whether the dark theme is shown");
+
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 10, "the API table is version 10");
+    expect(api && api->version == 11, "the API table is version 11");
+
+    // Version 11 (issue #80): the language in effect and whether the theme is dark.
+    char code[8] = {};
+    expect(api->GetLanguage(nullptr, 0) == 3 && api->GetLanguage(code, 2) == 3 &&
+               code[0] == '\0' && api->GetLanguage(code, sizeof(code)) == 3 &&
+               std::string(code) == app::currentLanguage().toStdString(),
+           "GetLanguage gives the language's size, and its code where it fits");
+    expect(api->IsDarkTheme() == (app::isDarkThemeShown() ? 1 : 0),
+           "IsDarkTheme gives the theme shown");
 
     ColorizingDMDProjectInfo project{};
     expect(api->GetProjectInfo(&project) == 1 && project.hasProject == 1 &&

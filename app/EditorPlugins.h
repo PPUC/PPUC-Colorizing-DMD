@@ -120,6 +120,8 @@ public:
                       std::vector<vpx::SettingField> fields,
                       std::function<void(const std::string& key)> changed,
                       std::function<void(int result)> closed) override;
+    [[nodiscard]] std::string language() const override;
+    [[nodiscard]] bool darkTheme() const override;
     [[nodiscard]] std::optional<std::string> formValue(const std::string& pluginId,
                                                        const std::string& key) const override;
     bool updateFormField(const std::string& pluginId,

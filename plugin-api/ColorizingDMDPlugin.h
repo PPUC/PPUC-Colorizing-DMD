@@ -1,7 +1,8 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 10 (version 9 without radio buttons, version 8
-// without live forms and scenes either, version 7 without Create HD, deleting frames and sections either, version 6 without
+// ColorizingDMD editor API for plugins, version 11 (version 10 without the language and the
+// theme, version 9 without radio buttons either, version 8 without live forms and scenes
+// either, version 7 without Create HD, deleting frames and sections either, version 6 without
 // CopyFrameSettings either, version 5 without AddFrame, MoveFrames and EndEdit's refusal
 // either, version 4 without identification and the runtime either, version 3 without ShowForm
 // and the file, note and consent fields either, version 2 without the pictures and the
@@ -288,7 +289,7 @@ typedef struct ColorizingDMDScene
 
 typedef struct ColorizingDMDEditorAPI
 {
-   int version; // 9
+   int version; // 11
 
    // ---- The project ----------------------------------------------------------------------
    // Returns 0 when no project is open.
@@ -585,5 +586,21 @@ typedef struct ColorizingDMDEditorAPI
    // .triggerId); CDMDPI_NONE for none. Its PUP trigger and monochrome trigger stay. Refused for
    // a frame of a scene and for a scene the project does not have.
    int(MSGPIAPI* SetFrameScene)(uint32_t endpointId, uint32_t frame, uint32_t scene);
+
+   // ---- The author's language and theme (version 11) --------------------------------------
+   // For a plugin that brings its own texts in several languages and draws its own icons or
+   // colors. It treats an unknown language as English, and checks `version` first, so that
+   // editors before version 11 keep working.
+   //
+   // The language the editor's menus are shown in, as a lower case ISO 639-1 code into `code`
+   // (at most `capacity` bytes with the NUL): "en", "de" or "fr" today, more when the editor
+   // gets more. This is the language in effect, not the setting "Follow the system"; a change
+   // in the settings applies from the next start, so it does not change while a plugin is
+   // loaded. Returns the size of the code with the NUL, the code filled in when it fits (a first
+   // call with capacity 0 asks for the size), or 0 when it is not known (then English).
+   int(MSGPIAPI* GetLanguage)(char* code, uint32_t capacity);
+   // 1 while the editor shows its dark theme, else 0 (Settings -> Appearance -> Theme, with
+   // "Follow the system" resolved). It can change while a plugin is loaded.
+   int(MSGPIAPI* IsDarkTheme)();
 
 } ColorizingDMDEditorAPI;
