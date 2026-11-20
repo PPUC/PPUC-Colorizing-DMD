@@ -5,6 +5,10 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.47
+
+- The tests build again with Qt versions before 6.12.
+
 ## 3.99.46
 
 - `Quick Actions`, a new section at the top of the Inspector: the menu entries you use most as
