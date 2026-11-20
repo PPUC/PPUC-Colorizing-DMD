@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.45
+
 - Editor API version 12: a plugin can run the editor's own `Edit` menu helpers (selection,
   shadow and grow directions, the dynamic helpers) as if chosen from the menu (issue #81).
 - Editor API version 11: a plugin can ask for the editor's language and whether its dark theme
