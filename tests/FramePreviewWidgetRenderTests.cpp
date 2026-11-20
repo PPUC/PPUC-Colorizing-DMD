@@ -40,6 +40,7 @@
 #include "panels/MaskPanel.h"
 #include "panels/PalettePanel.h"
 #include "panels/RecordListPage.h"
+#include "panels/InspectorForm.h"
 #include "panels/SpritePanel.h"
 #include "SpriteEditorWidget.h"
 
@@ -3755,9 +3756,13 @@ void testDynamicPanelSternShadow()
         top = button->text() == QStringLiteral("T") ? button : top;
         bottom = button->text() == QStringLiteral("B") ? button : bottom;
     }
-    panel.resize(320, 900);
+    // However wide the section is, Stern keeps its own width (issue #79), also after the
+    // window made the section's button rows share its width.
+    colorizing::app::fillButtonRows(panel.layout());
+    panel.resize(1400, 900);
     panel.show();
     QApplication::processEvents();
+    expect(stern->width() == stern->sizeHint().width(), "Stern keeps its own width");
     expect(top && bottom && stern->width() > top->width() &&
                std::abs(top->geometry().center().x() - stern->geometry().center().x()) <= 1 &&
                std::abs(bottom->geometry().center().x() - stern->geometry().center().x()) <= 1,

@@ -155,7 +155,9 @@ DynamicPanel::DynamicPanel(QWidget* parent)
     m_sternShadowButton->setCheckable(true);
     m_sternShadowButton->setFixedHeight(24);
     m_sternShadowButton->setEnabled(false);
-    shadowGrid->addWidget(m_sternShadowButton, 1, 1);
+    // Centred, so it keeps the width of its text however wide the section is, also once
+    // fillButtonRows() makes the grid's buttons expanding (issue #79).
+    shadowGrid->addWidget(m_sternShadowButton, 1, 1, Qt::AlignCenter);
     connect(m_sternShadowButton, &QToolButton::clicked, this, [this](bool checked) {
         if (onShadowDirectionsSet) {
             onShadowDirectionsSet(checked ? kSternShadowDirections : uint8_t{0});
