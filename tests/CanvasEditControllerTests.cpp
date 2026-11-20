@@ -778,8 +778,9 @@ void testDynamicMaskLayer()
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Painted dynamic mask rectangle",
            "dynamic stroke");
-    // The flood fill takes its area from the frame, not from the mask: a rectangle of
-    // another color on the frame gets the set, whatever the mask holds there.
+    // Outside the zones the flood fill takes its area from the frame: the pixels of the
+    // clicked color that are in no zone. The zone of set 3 (the rectangle and the point
+    // painted at 6,7 before) stays (issue #78).
     owner.next();
     CanvasEditContext frameContext = context;
     frameContext.layer = CanvasEditLayer::FramePixels;
@@ -789,26 +790,42 @@ void testDynamicMaskLayer()
     owner.next();
     context.tool = DrawingTool::FloodFill;
     context.dynamicSet = 5;
-    controller.colorizedPixelClicked(context, colorized(6, 7), false);
+    controller.colorizedPixelClicked(context, colorized(8, 9), false);
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Flood filled dynamic mask" &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 5 &&
                document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 8, 6) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 9) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 3 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 6, 7) == 3 &&
                document.dynamicMaskPixel(2, Resolution::Sd, 9, 9) == 255,
-           "dynamic flood fills the frame's area of the clicked color");
+           "dynamic flood fills the clicked color's pixels that are in no zone");
+    // Clicked into a zone, the fill takes that zone's area of its set alone.
     owner.next();
-    controller.colorizedPixelClicked(context, colorized(6, 7), true);
+    context.dynamicSet = 6;
+    controller.colorizedPixelClicked(context, colorized(5, 6), false);
+    expect(owner.committed(EditKind::DynamicMask, {2}) &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 6 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 6, 7) == 6 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 7, 8) == 6 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 5,
+           "a fill clicked into a zone refills that zone alone");
+    context.dynamicSet = 5;
+    owner.next();
+    controller.colorizedPixelClicked(context, colorized(8, 9), true);
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                owner.status == "Flood erased dynamic mask" &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 255 &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 255,
-           "dynamic flood erase clears that area");
+               document.dynamicMaskPixel(2, Resolution::Sd, 8, 9) == 255 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 9) == 255 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 6,
+           "dynamic flood erase clears the clicked zone's area");
     owner.next();
     controller.originalPixelClicked(context, original(9, 9), false);
     expect(owner.committed(EditKind::DynamicMask, {2}) &&
                document.dynamicMaskPixel(2, Resolution::Sd, 9, 9) == 5 &&
-               document.dynamicMaskPixel(2, Resolution::Sd, 0, 0) == 5,
-           "on the original, the area of the clicked shade (here all of it)");
+               document.dynamicMaskPixel(2, Resolution::Sd, 0, 0) == 5 &&
+               document.dynamicMaskPixel(2, Resolution::Sd, 5, 6) == 6,
+           "on the original, the area of the clicked shade outside the zones");
     owner.next();
     controller.originalPixelClicked(context, original(9, 9), true);
     expect(owner.committed(EditKind::DynamicMask, {2}) &&

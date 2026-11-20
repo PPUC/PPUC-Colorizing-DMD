@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A flood fill of dynamic zones no longer runs over other zones: clicked outside the zones it
+  fills the pixels of the clicked color that are in none, clicked into a zone it refills that
+  zone's area alone (issue #78).
 - The `T` and `B` shadow directions stand centred over and under `Stern` (issue #79).
 - A project made from a package without palettes gets the palettes of a new project, so its
   `Palette` section can be used (issue #75).

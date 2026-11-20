@@ -167,6 +167,52 @@ std::vector<render::Point> frameFloodArea(const document::ProjectDocument& docum
                                                            hit.y));
 }
 
+// The area a flood fill of the dynamic zones covers (issue #78). Clicked into a zone, the
+// zone's own area: the pixels of its set connected to the clicked one, so one of two separate
+// boxes of a set is refilled alone. Clicked outside the zones, the pixels connected to it that
+// have its color (on the original: its shade) and belong to no zone: a fill never runs over
+// another zone. The other tools paint over zones as before.
+std::vector<render::Point> dynamicFloodArea(const document::ProjectDocument& document,
+                                            std::size_t frameIndex,
+                                            const render::CanvasHit& hit)
+{
+    const std::optional<document::FrameDynamicData>& dynamicData =
+        document.dynamicData(frameIndex);
+    const bool onOriginal = hit.region == render::CanvasRegion::OriginalFrame;
+    const render::Size planeSize =
+        onOriginal ? document.originalFrame(frameIndex).size
+                   : document.colorizedFrame(frameIndex, hit.resolution).size;
+    if (!dynamicData) {
+        return frameFloodArea(document, frameIndex, hit);
+    }
+    const document::IndexedFrame& mask =
+        hit.resolution == render::Resolution::Hd ? dynamicData->maskHd : dynamicData->maskSd;
+    if (mask.size != planeSize) {
+        return frameFloodArea(document, frameIndex, hit);
+    }
+    const render::Point seed{hit.x, hit.y};
+    const auto index = [&mask](render::Point point) {
+        return static_cast<std::size_t>(point.y) * static_cast<std::size_t>(mask.size.width) +
+               static_cast<std::size_t>(point.x);
+    };
+    const uint8_t seedSet = mask.pixels[index(seed)];
+    if (seedSet != 255) {
+        return edit::floodFillMatching(mask.pixels, mask.size, seed, seedSet);
+    }
+    if (onOriginal) {
+        const document::IndexedFrame& original = document.originalFrame(frameIndex);
+        const uint8_t shade = original.pixels[index(seed)];
+        return edit::floodFillRegion(mask.size, seed, [&](render::Point point) {
+            return mask.pixels[index(point)] == 255 && original.pixels[index(point)] == shade;
+        });
+    }
+    const document::Rgb565Frame& frame = document.colorizedFrame(frameIndex, hit.resolution);
+    const uint16_t color = frame.pixels[index(seed)];
+    return edit::floodFillRegion(mask.size, seed, [&](render::Point point) {
+        return mask.pixels[index(point)] == 255 && frame.pixels[index(point)] == color;
+    });
+}
+
 }  // namespace
 
 CanvasEditController::CanvasEditController(CanvasEditOutputs outputs)
@@ -860,7 +906,7 @@ void CanvasEditController::floodFillDynamicMask(const CanvasEditContext& context
         commitFrameMaskPixels(context,
                               edit::EditKind::DynamicMask,
                               hit.resolution,
-                              frameFloodArea(document, frameIndex, hit),
+                              dynamicFloodArea(document, frameIndex, hit),
                               newValue,
                               erase ? tr("Flood erased dynamic mask")
                                     : tr("Flood filled dynamic mask"));

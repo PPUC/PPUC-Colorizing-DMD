@@ -132,6 +132,12 @@ Rules:
 - Click the colorized frame to set that dynamic-mask pixel to the selected `Dyn Set`.
 - With the `Pick` tool, click the colorized frame to select the dynamic set stored under the cursor.
 - Line, rectangle, filled rectangle, circle, filled circle, ellipse, filled ellipse, and flood fill edit the dynamic mask.
+  The shapes paint over any zone they cover. The flood fill does not run over other zones:
+  - clicked outside the zones, it takes the pixels connected to the clicked one that have its
+    color (on the original frame: its shade) and are in no zone;
+  - clicked into a zone, it takes that zone's area: the pixels of its set connected to the
+    clicked one. Of two separate boxes of a set, only the clicked one changes;
+  - with `Shift` it erases that same area.
 - The flood fill takes its area from the frame, not from the mask: the pixels connected to the
   clicked one that have its color in the frame's colorized picture, or its shade when clicked on
   the original frame. They get the selected set (with `Shift`, none), whatever they held before.

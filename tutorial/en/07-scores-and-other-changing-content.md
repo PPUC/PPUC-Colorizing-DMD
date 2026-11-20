@@ -18,7 +18,9 @@ because changing the set's colors recolors every pixel of it.
    original: the selected set in yellow, the others in cyan. Zoomed in, each area carries its set
    number.
 2. Choose the set in `Dyn Set` of the `Dynamic Sets` section.
-3. Paint the zone with the drawing tools, on either picture. `Shift` erases.
+3. Paint the zone with the drawing tools, on either picture. `Shift` erases. `Flood` stops at
+   other zones: clicked into a zone it refills just that zone, clicked outside it fills the
+   pixels of that color that are in no zone yet.
 4. Press `Dynamic` again to paint colors.
 
 The right mouse button paints zones too, whatever mode is on, as in the Win32 editor. If you
