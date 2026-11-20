@@ -132,9 +132,11 @@ DynamicPanel::DynamicPanel(QWidget* parent)
         button->setFixedSize(32, 24);
         button->setEnabled(false);
         button->setProperty("shadowBit", static_cast<int>(kShadowDirectionBits[directionIndex]));
+        // Centred in their cells: `T` and `B` over and under `Stern`, which is wider (issue #79).
         shadowGrid->addWidget(button,
                               kShadowDirectionRows[directionIndex],
-                              kShadowDirectionColumns[directionIndex]);
+                              kShadowDirectionColumns[directionIndex],
+                              Qt::AlignCenter);
         m_shadowDirectionButtons.push_back(button);
         connect(button, &QToolButton::toggled, this, [this, button](bool checked) {
             if (onShadowDirectionToggled) {

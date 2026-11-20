@@ -3748,6 +3748,21 @@ void testDynamicPanelSternShadow()
         }
     }
     expect(stern != nullptr, "the shadow directions have Stern in their middle");
+    // Issue #79: T and B stand centred over and under the wider Stern.
+    QToolButton* top = nullptr;
+    QToolButton* bottom = nullptr;
+    for (QToolButton* button : panel.findChildren<QToolButton*>()) {
+        top = button->text() == QStringLiteral("T") ? button : top;
+        bottom = button->text() == QStringLiteral("B") ? button : bottom;
+    }
+    panel.resize(320, 900);
+    panel.show();
+    QApplication::processEvents();
+    expect(top && bottom && stern->width() > top->width() &&
+               std::abs(top->geometry().center().x() - stern->geometry().center().x()) <= 1 &&
+               std::abs(bottom->geometry().center().x() - stern->geometry().center().x()) <= 1,
+           "T and B are centred on Stern");
+    panel.hide();
     panel.setDynamicSet(0);
     document.setDynamicShadowDirection(0, Resolution::Sd, 0, 0x01);
     panel.refreshShadow(&document, 0, Resolution::Sd);

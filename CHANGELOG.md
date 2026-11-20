@@ -5,6 +5,7 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The `T` and `B` shadow directions stand centred over and under `Stern` (issue #79).
 - A project made from a package without palettes gets the palettes of a new project, so its
   `Palette` section can be used (issue #75).
 ## 3.99.44
