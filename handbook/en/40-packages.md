@@ -47,10 +47,12 @@ The import is one undo step. It also ends the undo histories of the frames it up
 earlier edits can no longer be undone one by one. A package of an earlier version with 32
 sprite slots per frame gets the 128 of the project (see "Project Files", "libserum 2.9").
 
-With no project open, `Import Package...` makes a new project of the package, as `New Project
-From Dump` does of a dump: its frames with the masks, backgrounds, sprites, palettes and light
-effects they use, the package's ROM name and license. The new project gets its own project ID
-and belongs to no team; it is not saved yet. This prepares a project of just the package's
+With no project open, `Import Package...` makes a new project of the package, as `New Project From
+Dump` does of a dump: its frames with the masks, backgrounds, sprites, palettes and light effects
+they use, the package's ROM name and license. The new project gets its own project ID and belongs to
+no team; it is not saved yet. A package of a project without palettes (one of an earlier editor can
+have none) gives the project the palettes a project from a dump starts with: palette 0 begins with
+the plain original colors, the others are black. This prepares a project of just the package's
 frames, for example for another author.
 
 ## Copying frames to another window

@@ -97,12 +97,35 @@ void testProjectFromPackage()
            "a new project has the package's frames and what they use");
     expect(project.frameMeta(0).id == source.frameMeta(1).id &&
                project.license().kind == document::LicenseKind::CcBy &&
-               project.romName() == source.romName() &&
-               project.paletteCount() == source.paletteCount(),
-           "with the frames' IDs, the license, the ROM name and the palettes");
+               project.romName() == source.romName(),
+           "with the frames' IDs, the license and the ROM name");
     expect(!project.projectId().isNull() && project.projectId() != source.projectId() &&
                !project.team(),
            "but its own project ID and no team");
+
+    ProjectSnapshot withPalettes = edit::makePackage(source, {1, 4});
+    document::PaletteRecord palette;
+    palette.colors.assign(document::kPaletteColorCount, 0x07e0);
+    withPalettes.palettes = {palette, palette};
+    const ProjectDocument keeping =
+        ProjectDocument::fromSnapshot(edit::makeProjectFromPackage(std::move(withPalettes)));
+    expect(keeping.paletteCount() == 2 && keeping.paletteColor(1, 5) == 0x07e0,
+           "a package's palettes go into the project as they are");
+
+    // Issue #75: a package of a project without palettes (one of an earlier editor) still gives
+    // a project whose Palette section can be used.
+    ProjectSnapshot bare = edit::makePackage(source, {1, 4});
+    bare.palettes.clear();
+    const ProjectDocument fromBare =
+        ProjectDocument::fromSnapshot(edit::makeProjectFromPackage(std::move(bare)));
+    const std::vector<uint16_t> originalColors =
+        legacy::legacyOriginalColors(fromBare.colorCount());
+    bool startsWithOriginals = fromBare.paletteCount() == document::kPaletteCount;
+    for (std::size_t color = 0; startsWithOriginals && color < originalColors.size(); ++color) {
+        startsWithOriginals = fromBare.paletteColor(0, color) == originalColors[color];
+    }
+    expect(startsWithOriginals && fromBare.paletteColor(1, 0) == 0,
+           "a package without palettes gets those of a new project, palette 0 the originals");
 }
 
 std::filesystem::path tempPath(const std::string& suffix)

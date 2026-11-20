@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A project made from a package without palettes gets the palettes of a new project, so its
+  `Palette` section can be used (issue #75).
 ## 3.99.44
 
 - `Stern` in the middle of the dynamic shadow directions casts the shadow to the four sides

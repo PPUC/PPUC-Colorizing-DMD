@@ -27,7 +27,7 @@ namespace colorizing::edit {
 
 // A new project of the package's frames, for Import Package with no project open (issue #75):
 // the package as it is, with its own new project ID (the source project's stays with it)
-// and no team.
+// and no team. A package without palettes gets those of a new project from a dump.
 [[nodiscard]] document::ProjectSnapshot makeProjectFromPackage(document::ProjectSnapshot package);
 
 // What an import of the package into the project would do.

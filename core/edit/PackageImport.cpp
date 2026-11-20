@@ -190,6 +190,19 @@ ProjectSnapshot makeProjectFromPackage(ProjectSnapshot package)
     package.projectId = ComponentId{};
     package.team.reset();
     package.colorizationSettings.reset();
+    // A project of an earlier editor can have no palettes, and so its packages: the new project
+    // then gets the palettes a project from a dump starts with, palette 0 beginning with the
+    // plain original colors, so that the Palette section can be used.
+    if (package.palettes.empty()) {
+        document::PaletteRecord emptyPalette;
+        emptyPalette.colors.assign(document::kPaletteColorCount, 0);
+        package.palettes.assign(document::kPaletteCount, emptyPalette);
+        const std::vector<uint16_t> originalColors =
+            legacy::legacyOriginalColors(package.colorCount);
+        for (std::size_t color = 0; color < originalColors.size(); ++color) {
+            package.palettes[0].colors[color] = originalColors[color];
+        }
+    }
     return package;
 }
 
