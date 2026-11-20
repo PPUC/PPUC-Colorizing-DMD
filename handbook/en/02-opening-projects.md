@@ -1,9 +1,5 @@
 # Opening Projects
 
-When the editor starts, a picture shows over its window for a few seconds; a click closes it
-sooner. A question about an autosave of a new project that was never saved (see "Saving",
-"Autosave and recovery") comes once it has gone.
-
 New to the editor? `Help -> Tutorial` follows the work from a frame dump to a published
 colorization in chapters, searchable as this handbook is, and points to the handbook chapters
 for the details.

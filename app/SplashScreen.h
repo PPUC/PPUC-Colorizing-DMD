@@ -11,6 +11,8 @@ namespace colorizing::app {
 
 // The picture shown while the editor starts, built in as :/splash/splash.png.
 inline constexpr int kSplashScreenMs = 4000;
+// Whether the editor shows it at all; off for now, the picture and the code stay.
+inline constexpr bool kSplashScreenShown = false;
 
 // The picture scaled down to fit into the available screen area (at most 80% of its height and
 // width), its proportions kept; a null pixmap when the picture is missing.

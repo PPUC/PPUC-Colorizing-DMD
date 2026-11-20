@@ -164,7 +164,8 @@ int main(int argc, char* argv[])
     colorizing::app::applyTheme(colorizing::app::loadTheme());
     // The splash shows while the window is made and for a few seconds over it; a click closes it
     // early. The question about an autosave waits for it, so it is not hidden behind it.
-    std::unique_ptr<QSplashScreen> splash = colorizing::app::showSplashScreen();
+    std::unique_ptr<QSplashScreen> splash =
+        colorizing::app::kSplashScreenShown ? colorizing::app::showSplashScreen() : nullptr;
     colorizing::app::MainWindow window;
     // Where and how large it was left (issue #2).
     colorizing::app::keepWindowGeometry(&window, QStringLiteral("main"));

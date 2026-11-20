@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- The splash screen is off for now.
+
 ## 3.99.45
 
 - Editor API version 12: a plugin can run the editor's own `Edit` menu helpers (selection,

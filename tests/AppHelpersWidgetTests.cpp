@@ -592,6 +592,7 @@ void testSplashPixmap()
            "its proportions are kept");
     const QPixmap large = colorizing::app::splashPixmap(full.size() * 2);
     expect(large.size() == full.size(), "it is not scaled up");
+    static_assert(!colorizing::app::kSplashScreenShown, "the splash screen is off for now");
 }
 
 void runAppHelpersWidgetTests()
