@@ -16,6 +16,8 @@
 #include <QListWidget>
 #include <QMouseEvent>
 #include <QMimeData>
+#include <QPoint>
+#include <QPointF>
 #include <QScrollBar>
 #include <QSettings>
 #include <QSpinBox>
@@ -768,7 +770,14 @@ void testGradientDragPreview()
     expect(buttons.size() == 16, "the grid has its slot buttons");
     const auto enter = [&](std::size_t target, bool gradient) {
         QMimeData* mime = app::colorDragMimeData(&grid, 2, 0x0000, gradient);
-        QDragEnterEvent event(QPointF(5, 5), Qt::CopyAction, mime, Qt::LeftButton,
+        // Qt 6.12 takes the position as QPointF and deprecates the QPoint constructor, which
+        // older versions only have.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+        const QPointF position(5, 5);
+#else
+        const QPoint position(5, 5);
+#endif
+        QDragEnterEvent event(position, Qt::CopyAction, mime, Qt::LeftButton,
                               Qt::ShiftModifier);
         static_cast<QObject*>(buttons[target])->event(&event);
         delete mime;
