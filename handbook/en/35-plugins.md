@@ -103,4 +103,14 @@ Version 11 tells a plugin the editor's language and theme, so that it can show i
 the language of the menus and draw for a light or a dark window: `GetLanguage` gives the
 language in effect as `en`, `de` or `fr` (a change in the settings applies from the next start),
 and `IsDarkTheme` whether the dark theme is shown, with `Follow the system` resolved.
+Version 12 lets a plugin run some of the editor's own functions instead of rebuilding them:
+`RunEditorAction` runs an entry of the `Edit` menu as if you chose it, on the frame shown, the
+selected frames and the selection, with your draw color and dynamic set, as one undo step of
+the editor's; `IsEditorActionEnabled` says whether it can run now. The entries are named by
+the ids the keyboard shortcut settings keep them under, listed in the plugin header. Supported
+are `Copy`, the selection entries (select all,
+none, invert, undo and redo the selection, from the background mask, mirror), `Black Original
+To Black`, `Remove Dynamic Zones`, `Assign Dynamic Set`, `Dynamic To Static`, and every
+direction of `Shadow Next To Selection` and `Grow Selection`; none of them opens a window. A
+plugin can so offer buttons for them, for example the eight shadow directions.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

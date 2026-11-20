@@ -23,6 +23,7 @@
 #include <QTemporaryDir>
 
 #include "Appearance.h"
+#include "EditMenuActions.h"
 #include "EditorPlugins.h"
 #include "Translations.h"
 #include "RuntimeFixtures.h"
@@ -962,9 +963,18 @@ void runEditorPluginsWidgetTests()
     edit::UndoHistories histories;
     std::vector<std::string> recorded;
     QMenu menu;
+    // The Edit menu's helpers, whose actions a plugin may run (editor API version 12).
+    QMenu editMenu;
+    app::EditMenuActions editActions(&editMenu, nullptr);
+    editActions.setState(true, false);
+    int selectedAll = 0;
+    editActions.onSelectAll = [&selectedAll]() { ++selectedAll; };
 
     app::EditorPlugins::Window window;
     window.menu = &menu;
+    window.menuAction = [&editMenu](const QString& id) {
+        return editMenu.findChild<QAction*>(id);
+    };
     window.document = [&document]() { return &document; };
     window.editableDocument = [&document]() { return &document; };
     window.recordEdit = [&](std::unique_ptr<edit::EditCommand> command) {
@@ -1010,9 +1020,30 @@ void runEditorPluginsWidgetTests()
     QApplication::setPalette(applicationPalette);
     expect(dark && !light, "whether the dark theme is shown");
 
+    // The editor's own actions a plugin may run (issue #81): every published id is an action of
+    // the Edit menu, an action outside the list or not enabled is refused.
+    bool allThere = true;
+    for (const std::string& id : app::EditorPlugins::pluginEditorActionIds()) {
+        allThere = allThere && editMenu.findChild<QAction*>(QString::fromStdString(id));
+    }
+    expect(allThere && app::EditorPlugins::pluginEditorActionIds().size() == 33,
+           "every published action is in the Edit menu");
+    expect(plugins.editorActionEnabled("select-all") && plugins.runEditorAction("select-all") &&
+               selectedAll == 1,
+           "a published action runs as from the menu");
+    expect(editMenu.findChild<QAction*>(QStringLiteral("brightness")) &&
+               !plugins.editorActionEnabled("brightness") &&
+               !plugins.runEditorAction("brightness") && !plugins.runEditorAction("no-such"),
+           "one that opens a window, or no action, is refused");
+    editActions.setState(false, false);
+    expect(!plugins.editorActionEnabled("select-all") && !plugins.runEditorAction("select-all") &&
+               selectedAll == 1,
+           "and so is one not enabled now");
+    editActions.setState(true, false);
+
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 11, "the API table is version 11");
+    expect(api && api->version == 12, "the API table is version 12");
 
     // Version 11 (issue #80): the language in effect and whether the theme is dark.
     char code[8] = {};
@@ -1077,6 +1108,18 @@ void runEditorPluginsWidgetTests()
 
     // Editing: a batch of changes, one undo step.
     const uint32_t plugin = 7;
+    // Version 12: the editor's own actions, not while a batch is open.
+    const int before = selectedAll;
+    expect(api->IsEditorActionEnabled("select-all") == 1 &&
+               api->RunEditorAction(plugin, "select-all") == 1 && selectedAll == before + 1 &&
+               api->RunEditorAction(plugin, "brightness") == 0,
+           "RunEditorAction runs a published action");
+    expect(api->BeginEdit(plugin, "Open") == 1 &&
+               api->RunEditorAction(plugin, "select-all") == 0 &&
+               api->IsEditorActionEnabled("select-all") == 0 && selectedAll == before + 1 &&
+               api->EndEdit(plugin, 0) == 1,
+           "and none while a batch is open");
+
     std::vector<uint8_t> keep(128 * 32, 0);
     expect(api->ResetFramePixels(plugin, 1, keep.data(), 128 * 32, CDMDPI_NONE) == 0,
            "no change without a batch");

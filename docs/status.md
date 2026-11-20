@@ -1265,6 +1265,11 @@ rebuilt when SetFormField changes the choices; `buttonClicked` is the user-only 
 v11 (2026-11-20, issue #80, asked for by the same author): GetLanguage (`currentLanguage()`)
 and IsDarkTheme (`isDarkThemeShown()`: the application palette's window color is dark),
 through `EditorBackend::language()` and `darkTheme()`.
+v12 (2026-11-20, issue #81, the part agreed on): RunEditorAction and IsEditorActionEnabled,
+triggering the menu's QAction by its shortcut id (`EditorPlugins::Window::menuAction`) for the
+ids of `EditorPlugins::pluginEditorActionIds()` only (published in the header; it only grows),
+refused while a plugin has an edit batch open. Floating palettes of #81 were declined; an
+author-configurable `Quick Actions` sidebar section of the editor's is the planned answer.
 The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
 `COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.

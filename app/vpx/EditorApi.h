@@ -167,6 +167,12 @@ public:
     [[nodiscard]] virtual std::string language() const = 0;
     // Whether the editor shows its dark theme.
     [[nodiscard]] virtual bool darkTheme() const = 0;
+
+    // The editor's own menu actions a plugin may run: those of the published list
+    // (EditorPlugins::pluginEditorActionIds()), by the ids of the keyboard shortcut settings.
+    // Runs one as if the author chose it; false for another id or one not enabled now.
+    virtual bool runEditorAction(const std::string& id) = 0;
+    [[nodiscard]] virtual bool editorActionEnabled(const std::string& id) const = 0;
 };
 
 // The backend the API answers with from now on; nullptr: no project, no menu. Not owned.

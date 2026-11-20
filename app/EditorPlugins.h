@@ -52,7 +52,14 @@ public:
         // What the background and sprite panels show.
         std::function<std::optional<std::size_t>()> currentBackground;
         std::function<std::optional<std::size_t>()> currentSprite;
+        // The menu action with this shortcut id (its object name); nullptr for none.
+        std::function<QAction*(const QString& id)> menuAction;
     };
+
+    // The editor actions a plugin may run with RunEditorAction (editor API version 12), by the
+    // ids of the keyboard shortcut settings: the Edit menu's helpers that work on the frame
+    // shown and its selection and open no window. The list only grows, as the API does.
+    [[nodiscard]] static const std::vector<std::string>& pluginEditorActionIds();
 
     explicit EditorPlugins(Window window);
     ~EditorPlugins() override;
@@ -122,6 +129,8 @@ public:
                       std::function<void(int result)> closed) override;
     [[nodiscard]] std::string language() const override;
     [[nodiscard]] bool darkTheme() const override;
+    bool runEditorAction(const std::string& id) override;
+    [[nodiscard]] bool editorActionEnabled(const std::string& id) const override;
     [[nodiscard]] std::optional<std::string> formValue(const std::string& pluginId,
                                                        const std::string& key) const override;
     bool updateFormField(const std::string& pluginId,

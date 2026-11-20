@@ -596,6 +596,9 @@ MainWindow::MainWindow(QWidget* parent)
     pluginWindow.showStatus = [this](const QString& text) {
         statusBar()->showMessage(text, 5000);
     };
+    pluginWindow.menuAction = [this](const QString& id) {
+        return menuBar()->findChild<QAction*>(id);
+    };
     m_plugins = std::make_unique<EditorPlugins>(std::move(pluginWindow));
     // Where the mouse is on the canvas, to measure and to find a place again on another frame.
     m_positionLabel = new QLabel(this);

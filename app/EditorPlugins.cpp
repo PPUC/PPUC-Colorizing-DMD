@@ -456,6 +456,56 @@ bool EditorPlugins::darkTheme() const
     return isDarkThemeShown();
 }
 
+const std::vector<std::string>& EditorPlugins::pluginEditorActionIds()
+{
+    static const std::vector<std::string> ids = []() {
+        std::vector<std::string> list{
+            "copy",
+            "select-all",
+            "select-none",
+            "invert-selection",
+            "undo-selection",
+            "redo-selection",
+            "selection-from-background-mask",
+            "mirror-selection-horizontally",
+            "mirror-selection-vertically",
+            "black-original-to-black",
+            "remove-dynamic-zones",
+            "assign-dynamic-set",
+            "dynamic-to-static",
+        };
+        // Shadow Next To Selection and Grow Selection, in every direction.
+        for (const char* group : {"shadow", "grow"}) {
+            for (const char* direction :
+                 {"all-around", "all-around-stern-style", "left", "bottom-left", "bottom",
+                  "bottom-right", "right", "top-right", "top", "top-left"}) {
+                list.push_back(std::string(group) + '-' + direction);
+            }
+        }
+        return list;
+    }();
+    return ids;
+}
+
+bool EditorPlugins::editorActionEnabled(const std::string& id) const
+{
+    const std::vector<std::string>& ids = pluginEditorActionIds();
+    if (std::find(ids.begin(), ids.end(), id) == ids.end() || !m_window.menuAction) {
+        return false;
+    }
+    const QAction* action = m_window.menuAction(QString::fromStdString(id));
+    return action && action->isEnabled();
+}
+
+bool EditorPlugins::runEditorAction(const std::string& id)
+{
+    if (!editorActionEnabled(id)) {
+        return false;
+    }
+    m_window.menuAction(QString::fromStdString(id))->trigger();
+    return true;
+}
+
 std::optional<std::string> EditorPlugins::formValue(const std::string& pluginId,
                                                     const std::string& key) const
 {

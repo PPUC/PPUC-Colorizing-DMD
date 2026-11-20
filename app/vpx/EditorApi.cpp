@@ -1344,8 +1344,25 @@ int MSGPIAPI isDarkTheme()
     return g_backend && g_backend->darkTheme() ? 1 : 0;
 }
 
+// Not while a plugin has an edit batch open: the action is an undo step of its own, made on
+// the document the batch is changing.
+int MSGPIAPI runEditorAction(uint32_t endpointId, const char* actionId)
+{
+    (void)endpointId;
+    if (!g_backend || !actionId || g_batch) {
+        return 0;
+    }
+    return g_backend->runEditorAction(actionId) ? 1 : 0;
+}
+
+int MSGPIAPI isEditorActionEnabled(const char* actionId)
+{
+    return g_backend && actionId && !g_batch && g_backend->editorActionEnabled(actionId) ? 1
+                                                                                           : 0;
+}
+
 const ColorizingDMDEditorAPI kApi{
-    11,
+    12,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -1405,6 +1422,8 @@ const ColorizingDMDEditorAPI kApi{
     &setFrameScene,
     &getLanguage,
     &isDarkTheme,
+    &runEditorAction,
+    &isEditorActionEnabled,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)
