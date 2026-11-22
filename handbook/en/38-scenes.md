@@ -97,7 +97,7 @@ What one line of a `<rom>.pup.csv` says, and the scene's name and frames:
 | Plays | Once, in a loop, or several times. |
 | Back and forth | Each time, the frames play to the last and back: 1 to 100, 99 to 2, then 1 to 100 again, so no frame shows twice in a row. The last time ends on the first frame; a scene with several groups picks its group each time it starts at the first frame. The canvas plays a background scene this way too. Needs libserum 2.99.7. |
 | Can be interrupted | A frame of the game identified while the scene plays ends it. |
-| Start immediately | The first frame shows when the trigger fires, without waiting for the next frame of the game. |
+| Starts | When the scene starts once its trigger fired. `After one frame duration`: the frame of the game that fires the trigger shows for the scene's frame duration first. `Immediately`: the scene's first frame replaces that frame. `With the next frame`: that frame stays until the game sends its next frame, however long that takes, and the scene's first frame replaces that one (see "Starting with the next frame" below). Off for a background scene, which starts at once. |
 | Then plays | `No other scene`, or another scene of the project that starts when this one has played (see "One scene after another" below). |
 | When it has played | Keep its last frame, black, or the frame shown before the scene. Off while another scene follows. |
 | Hold the last frame for / Start by itself after | For a scene that cannot be interrupted and keeps its last frame: how long that frame stays. Otherwise: the scene starts by itself after this many seconds without a new frame. `Off` for neither. |
@@ -163,6 +163,27 @@ both have are set; the status bar says how many. A time below 1 ms counts as 1 m
 Frame durations of their own need libserum 2.99.20 or later; an earlier libserum plays every
 frame at the scene's duration. A project saved by an editor without them opens with every frame
 of a scene at its scene's duration, whatever its `Duration` field said, as that editor played it.
+
+## Starting with the next frame
+
+An animation of the ROM often starts after a frame that stays for a time nobody can tell in
+advance, for example while a ball drains. A scene that replaces the animation should start
+exactly when the ROM moves on, not after a fixed time. Trigger it from that frame and set
+`Starts` to `With the next frame`: the frame shows as the game sends it, the scene waits, and the
+first frame the game sends next is replaced by the scene's first frame. Then the scene plays with
+its frames' times.
+
+- The same frame sent again, or a frame identified as the frame that fired the trigger, keeps the
+  scene waiting.
+- A scene that cannot be interrupted starts on any other frame, a frame of the project too.
+- A scene that can be interrupted starts only on a frame that is not a frame of the project. A
+  frame of the project drops the scene and shows as usual, and its own trigger can fire.
+- A scene that a plugin or another scene starts has no frame that fired its trigger; it starts
+  after one frame duration.
+
+The `Frame Tester` and the Runtime view show it as libserum plays it. It needs libserum 2.99.21
+or later; an earlier one starts such a scene immediately. A project saved with it opens in an
+earlier editor with the scene starting after one frame duration.
 
 ## One scene after another
 

@@ -410,7 +410,8 @@ void testShowTriggerOfScene()
         definition.frameCount = 50;
         definition.frameGroups = 1;
         definition.durationMs = 30;
-        definition.immediateStart = immediateStart;
+        definition.startMode = immediateStart ? document::kSceneStartImmediately
+                                              : document::kSceneStartAfterFirstFrame;
         expect(static_cast<bool>(edit::addScene(document, definition)), "the scene is added");
         document.setSceneTriggerId(2, 50030);
 

@@ -8596,11 +8596,39 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     </message>
     <message>
         <source>Start immediately</source>
-        <translation>Démarrer immédiatement</translation>
+        <translation type="vanished">Démarrer immédiatement</translation>
     </message>
     <message>
         <source>Show the first frame when the trigger fires, without waiting for the next frame of the game</source>
-        <translation>Afficher la première frame dès que le déclencheur se produit, sans attendre la frame suivante du jeu</translation>
+        <translation type="vanished">Afficher la première frame dès que le déclencheur se produit, sans attendre la frame suivante du jeu</translation>
+    </message>
+    <message>
+        <source>After one frame duration</source>
+        <translation>Après une durée de frame</translation>
+    </message>
+    <message>
+        <source>The frame of the game that fires the trigger shows for the frame duration first</source>
+        <translation>La frame du jeu qui déclenche le déclencheur s’affiche d’abord pendant la durée de frame</translation>
+    </message>
+    <message>
+        <source>Immediately</source>
+        <translation>Immédiatement</translation>
+    </message>
+    <message>
+        <source>The first frame replaces the frame of the game that fires the trigger</source>
+        <translation>La première frame remplace la frame du jeu qui déclenche le déclencheur</translation>
+    </message>
+    <message>
+        <source>With the next frame</source>
+        <translation>Avec la frame suivante</translation>
+    </message>
+    <message>
+        <source>The frame that fires the trigger stays until the game sends its next frame, however long that takes, and the first frame replaces that one. A scene that can be interrupted starts only on a frame that is not in the project</source>
+        <translation>La frame qui déclenche le déclencheur reste jusqu’à ce que le jeu envoie sa frame suivante, quel que soit le temps que cela prend, et la première frame remplace celle-ci. Une scène interruptible ne démarre que sur une frame qui n’est pas dans le projet</translation>
+    </message>
+    <message>
+        <source>When the scene starts after its trigger fired. A background scene starts at once</source>
+        <translation>Quand la scène démarre après le déclenchement de son déclencheur. Une scène d’arrière-plan démarre immédiatement</translation>
     </message>
     <message>
         <source>Keep its last frame</source>
@@ -8693,6 +8721,10 @@ Peignez son image uniquement dans les couleurs originales simples (les %3 couleu
     <message>
         <source>Plays</source>
         <translation>Lecture</translation>
+    </message>
+    <message>
+        <source>Starts</source>
+        <translation>Démarre</translation>
     </message>
     <message>
         <source>Then plays</source>

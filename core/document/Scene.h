@@ -22,6 +22,16 @@ constexpr uint8_t kSceneReplaceDynamicBlack = 32;
 // run ends on it (libserum 2.99.7).
 constexpr uint8_t kSceneBackAndForth = 64;
 constexpr uint8_t kSceneKnownOptions = 127;
+// When libserum starts a scene whose trigger a frame fires (SceneDefinition::startMode).
+// After the first frame: the triggering frame shows for the scene's duration first.
+constexpr uint8_t kSceneStartAfterFirstFrame = 0;
+// Immediately: the scene's first frame replaces the triggering frame.
+constexpr uint8_t kSceneStartImmediately = 1;
+// With the next frame: the triggering frame shows until the game sends its next frame, however
+// long that takes, and the scene's first frame replaces that one (libserum 2.99.21). A scene
+// that can be interrupted starts only on a frame that is not a frame of the project; such a
+// frame drops it. Repeats of the triggering frame keep it waiting.
+constexpr uint8_t kSceneStartWithNextFrame = 2;
 // The IDs a scene made in the editor gets: the trigger range kept for scenes (see
 // Triggers.h). Scenes of an imported pup.csv keep theirs.
 constexpr uint16_t kFirstSceneId = 50000;
@@ -54,7 +64,7 @@ constexpr uint16_t kMaxSceneSpeedPercent = 1000;
 
 // A scene of the colorization: libserum plays its frames when the PUP trigger sceneId fires.
 // It is what one line of a "<rom>.pup.csv" says, with that file's columns:
-// sceneId, frameCount, durationMs, interruptable, immediateStart, repeat, frameGroups,
+// sceneId, frameCount, durationMs, interruptable, startMode, repeat, frameGroups,
 // random, autoStartSeconds, options.
 struct SceneDefinition {
     uint16_t sceneId = 0;
@@ -66,7 +76,8 @@ struct SceneDefinition {
     // a variant it follows from the base's and the speed (normalizeSceneVariants()).
     uint16_t durationMs = 33;
     bool interruptable = false;
-    bool immediateStart = false;
+    // kSceneStart...
+    uint8_t startMode = kSceneStartAfterFirstFrame;
     // 0 plays once, 1 loops, 2 and more play that many times.
     uint8_t repeat = 0;
     // Sets of frameCount frames; libserum plays one of them each time (at least 1).
@@ -105,7 +116,7 @@ struct SceneDefinition {
     {
         return a.sceneId == b.sceneId && a.frameCount == b.frameCount &&
                a.durationMs == b.durationMs && a.interruptable == b.interruptable &&
-               a.immediateStart == b.immediateStart && a.repeat == b.repeat &&
+               a.startMode == b.startMode && a.repeat == b.repeat &&
                a.frameGroups == b.frameGroups && a.random == b.random &&
                a.autoStartSeconds == b.autoStartSeconds && a.options == b.options &&
                a.name == b.name && a.baseSceneId == b.baseSceneId &&

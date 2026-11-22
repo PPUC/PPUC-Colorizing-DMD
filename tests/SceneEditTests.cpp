@@ -802,7 +802,7 @@ void testVariantsInFileAndLibserum()
     variant.baseSceneId = 50720;
     variant.name = "Multiball, at once";
     variant.interruptable = true;
-    variant.immediateStart = true;
+    variant.startMode = document::kSceneStartImmediately;
     const auto addedVariant = edit::addScene(document, variant);
     document.setSceneTriggerId(0, 50721);
 
@@ -841,7 +841,7 @@ void testFollowUpScenes()
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
     document::SceneDefinition first = makeScene(50730, 2, 1);
-    first.immediateStart = true;
+    first.startMode = document::kSceneStartImmediately;
     const auto addedFirst = edit::addScene(document, first);
     document::SceneDefinition second = makeScene(50731, 2, 1);
     second.durationMs = 20;
@@ -959,7 +959,7 @@ void testSceneFrameDurations()
     document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
         runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
     document::SceneDefinition base = makeScene(50750, 3, 2);
-    base.immediateStart = true;
+    base.startMode = document::kSceneStartImmediately;
     const auto addedBase = edit::addScene(document, base);
     const std::vector<std::size_t> frames = edit::sceneFrames(document, 50750);
     expect(frames.size() == 6 && document.frameDurationMs(frames[0]) == 30,
@@ -1026,7 +1026,7 @@ void testSceneFrameDurations()
     document.setSceneTriggerId(0, 50750);
     document::SceneDefinition background = *document.colorizationSettings()->scene(50750);
     background.options = document::kSceneAsBackground;
-    background.immediateStart = false;
+    background.startMode = document::kSceneStartAfterFirstFrame;
     const auto behind = edit::changeScene(document, 50750, background);
     expect(document.backgroundSceneFrame(0, 99) == frameOf(1, 0) &&
                document.backgroundSceneFrame(0, 100) == frameOf(1, 1) &&
@@ -1083,6 +1083,75 @@ void testSceneFrameDurations()
     expect(before && before->frames[frameOf(1, 0)].durationMs == 40 &&
                before->colorizationSettings->scene(50751)->speedPercent == 100,
            "a file from before gives the frames their scene's duration and a variant its speed");
+}
+
+// A scene that starts with the next frame: libserum gets the start mode, shows the frame that
+// fires the trigger as itself and the scene's first frame for the next frame, unless the scene
+// can be interrupted and that frame is a frame of the project. The project file keeps the
+// mode; a reader that does not know it starts the scene after its first frame.
+void testSceneStartsWithNextFrame()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    document::SceneDefinition scene = makeScene(50770, 2, 1);
+    scene.startMode = document::kSceneStartWithNextFrame;
+    const auto added = edit::addScene(document, scene);
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 50770);
+    document.setSceneTriggerId(1, 50770);
+    const std::vector<uint8_t> block = legacy::cromSettingsBlock(document.toSnapshot());
+    // magic, size, contents, scene count, then scene ID, frames, duration, interruptable and
+    // the start mode.
+    expect(added && frames.size() == 2 && block.size() > 23 && block[23] == 2,
+           "libserum gets the start mode");
+
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    for (const bool interruptable : {false, true}) {
+        const std::string which = interruptable ? "interruptable: " : "not interruptable: ";
+        document::SceneDefinition changed = *document.colorizationSettings()->scene(50770);
+        changed.interruptable = interruptable;
+        const auto change = edit::changeScene(document, 50770, changed);
+        std::string error;
+        expect(preview.openProject(document, runtime::PlaneRequest::Both, &error),
+               which + "the project loads: " + error);
+        const runtime::RuntimeFrame trigger = preview.colorize(document.originalFrame(1));
+        const runtime::RuntimeFrame next = preview.colorize(document.originalFrame(2));
+        preview.close();
+        expect(trigger.shownFrameIndex == std::optional<std::size_t>(1) &&
+                   trigger.nextRotationMs == 0,
+               which + "the frame that fires the trigger shows, and no scene step is due");
+        expect(next.shownFrameIndex ==
+                   std::optional<std::size_t>(interruptable ? 2 : frames.front()),
+               which + (interruptable ? "a frame of the project drops the scene"
+                                      : "the next frame starts the scene"));
+    }
+
+    std::map<std::string, std::string> entriesOfFile;
+    project::forEachProjectEntry(document.toSnapshot(), {"test"},
+                                 [&](const std::string& name, const std::string& bytes) {
+                                     entriesOfFile[name] = bytes;
+                                 });
+    const auto read = [&](const std::map<std::string, std::string>& files) {
+        std::string message;
+        return project::readProjectEntries(
+            [&](const std::string& name) -> std::optional<std::string> {
+                const auto found = files.find(name);
+                return found == files.end() ? std::nullopt
+                                            : std::optional<std::string>(found->second);
+            },
+            message);
+    };
+    const std::optional<document::ProjectSnapshot> kept = read(entriesOfFile);
+    expect(kept && kept->colorizationSettings->scene(50770)->startMode ==
+                       document::kSceneStartWithNextFrame,
+           "the project file keeps the start mode");
+    std::map<std::string, std::string> older = entriesOfFile;
+    older["manifest.json"] = std::regex_replace(
+        older["manifest.json"], std::regex(R"(,\s*"startWithNextFrame"\s*:\s*true)"), "");
+    const std::optional<document::ProjectSnapshot> before = read(older);
+    expect(older["manifest.json"] != entriesOfFile["manifest.json"] && before &&
+               before->colorizationSettings->scene(50770)->startMode ==
+                   document::kSceneStartAfterFirstFrame,
+           "without it, the scene starts after its first frame");
 }
 
 // A scene made from frames (the editor API's CreateScene): its frames are made like them.
@@ -1166,5 +1235,6 @@ void runSceneEditTests()
     testVariantsInFileAndLibserum();
     testFollowUpScenes();
     testSceneFrameDurations();
+    testSceneStartsWithNextFrame();
     testAddSceneLike();
 }

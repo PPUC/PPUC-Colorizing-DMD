@@ -69,7 +69,7 @@ void testCsvReadsAsLibserum()
               "7,2\n"
               "8,x,100\n"
               "9,3,50,1,1,2,0,1,300,6\n"
-              "10,2,60,0,0,1,4,0,5,33\n");
+              "10,2,60,0,2,1,4,0,5,33\n");
     const auto scenes = runtime::readSceneCsv(csv);
     SceneGenerator generator;
     expect(generator.parseCSV(csv.string()), "libserum reads the csv");
@@ -82,7 +82,7 @@ void testCsvReadsAsLibserum()
         expect(scene.sceneId == data.sceneId && scene.frameCount == data.frameCount &&
                    scene.durationMs == data.durationPerFrame &&
                    scene.interruptable == data.interruptable &&
-                   scene.immediateStart == data.immediateStart && scene.repeat == data.repeat &&
+                   scene.startMode == data.startMode && scene.repeat == data.repeat &&
                    scene.frameGroups == (data.frameGroups == 0 ? 1 : data.frameGroups) &&
                    scene.random == data.random && scene.autoStartSeconds == data.autoStart &&
                    scene.options == data.sceneOptions,

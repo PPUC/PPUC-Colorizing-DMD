@@ -37,7 +37,7 @@ document::SceneDefinition sceneOf(uint16_t id)
     scene.frameCount = 2;
     scene.durationMs = 30;
     scene.interruptable = true;
-    scene.immediateStart = true;
+    scene.startMode = document::kSceneStartImmediately;
     return scene;
 }
 

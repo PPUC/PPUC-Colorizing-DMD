@@ -8596,11 +8596,39 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>Start immediately</source>
-        <translation>Sofort starten</translation>
+        <translation type="vanished">Sofort starten</translation>
     </message>
     <message>
         <source>Show the first frame when the trigger fires, without waiting for the next frame of the game</source>
-        <translation>Den ersten Frame zeigen, sobald der Trigger auslöst, ohne auf den nächsten Frame des Spiels zu warten</translation>
+        <translation type="vanished">Den ersten Frame zeigen, sobald der Trigger auslöst, ohne auf den nächsten Frame des Spiels zu warten</translation>
+    </message>
+    <message>
+        <source>After one frame duration</source>
+        <translation>Nach einer Frame-Dauer</translation>
+    </message>
+    <message>
+        <source>The frame of the game that fires the trigger shows for the frame duration first</source>
+        <translation>Der Frame des Spiels, der den Trigger auslöst, wird zuerst für die Frame-Dauer gezeigt</translation>
+    </message>
+    <message>
+        <source>Immediately</source>
+        <translation>Sofort</translation>
+    </message>
+    <message>
+        <source>The first frame replaces the frame of the game that fires the trigger</source>
+        <translation>Der erste Frame ersetzt den Frame des Spiels, der den Trigger auslöst</translation>
+    </message>
+    <message>
+        <source>With the next frame</source>
+        <translation>Mit dem nächsten Frame</translation>
+    </message>
+    <message>
+        <source>The frame that fires the trigger stays until the game sends its next frame, however long that takes, and the first frame replaces that one. A scene that can be interrupted starts only on a frame that is not in the project</source>
+        <translation>Der Frame, der den Trigger auslöst, bleibt, bis das Spiel seinen nächsten Frame sendet, wie lange das auch dauert, und der erste Frame ersetzt diesen. Eine unterbrechbare Szene startet nur bei einem Frame, der nicht im Projekt ist</translation>
+    </message>
+    <message>
+        <source>When the scene starts after its trigger fired. A background scene starts at once</source>
+        <translation>Wann die Szene startet, nachdem ihr Trigger ausgelöst hat. Eine Hintergrundszene startet sofort</translation>
     </message>
     <message>
         <source>Keep its last frame</source>
@@ -8693,6 +8721,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Plays</source>
         <translation>Abspielen</translation>
+    </message>
+    <message>
+        <source>Starts</source>
+        <translation>Startet</translation>
     </message>
     <message>
         <source>Then plays</source>

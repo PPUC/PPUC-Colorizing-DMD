@@ -60,7 +60,8 @@ bool parseScenes(LegacyByteSource& source,
         scene.frameCount = littleEndian16(bytes + 2);
         scene.durationMs = littleEndian16(bytes + 4);
         scene.interruptable = bytes[6] != 0;
-        scene.immediateStart = bytes[7] != 0;
+        scene.startMode = bytes[7] != 0 ? document::kSceneStartImmediately
+                                        : document::kSceneStartAfterFirstFrame;
         scene.repeat = bytes[8];
         scene.frameGroups = bytes[9];
         scene.random = bytes[10] != 0;

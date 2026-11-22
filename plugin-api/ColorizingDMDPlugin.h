@@ -1,6 +1,7 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 13 (version 12 without SetFrameDuration,
+// ColorizingDMD editor API for plugins, version 14 (version 13 without
+// CDMDPI_SCENE_START_WITH_NEXT_FRAME, version 12 without SetFrameDuration either,
 // version 11 without the editor's actions either, version 10 without the language and the theme
 // either, version 9 without radio buttons either, version 8 without live forms and scenes
 // either, version 7 without Create HD, deleting frames and sections either, version 6 without
@@ -270,6 +271,9 @@ typedef void(MSGPIAPI* cdmdpi_form_closed_callback)(void* userData, uint32_t res
 #define CDMDPI_SCENE_REPLACE_BLACK 0x20   // black dynamic pixels show the background scene
 #define CDMDPI_SCENE_RESUME 0x40          // a trigger soon after it stopped continues it
 #define CDMDPI_SCENE_BACK_AND_FORTH 0x80  // to the last frame and back (libserum 2.99.7)
+// The frame that fires the trigger stays until the game's next frame, which the first frame
+// replaces (version 14, libserum 2.99.21); not together with CDMDPI_SCENE_IMMEDIATE_START.
+#define CDMDPI_SCENE_START_WITH_NEXT_FRAME 0x100
 
 // A scene as the editor's scene window sets it (see the handbook, "Scenes and Scaling"). Its
 // frames are frames of the project; each starts with the scene's duration and can be given its

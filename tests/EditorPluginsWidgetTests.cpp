@@ -891,7 +891,8 @@ void testScenes()
     scene.name = "Wipe";
     scene.durationMs = 40;
     scene.finish = CDMDPI_SCENE_BLACK;
-    scene.flags = CDMDPI_SCENE_INTERRUPTABLE | CDMDPI_SCENE_BACK_AND_FORTH;
+    scene.flags = CDMDPI_SCENE_INTERRUPTABLE | CDMDPI_SCENE_BACK_AND_FORTH |
+                  CDMDPI_SCENE_START_WITH_NEXT_FRAME;
     const uint32_t from[] = {1, 2};
     uint32_t sceneId = 0;
     uint32_t first = 0;
@@ -899,9 +900,12 @@ void testScenes()
            "no scene without a batch");
     expect(api->BeginEdit(plugin, "Transition") == 1, "a batch");
     ColorizingDMDScene wrong = scene;
-    wrong.flags = 0x100;
+    wrong.flags = 0x200;
     expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0,
            "an unknown flag is refused");
+    wrong.flags = CDMDPI_SCENE_IMMEDIATE_START | CDMDPI_SCENE_START_WITH_NEXT_FRAME;
+    expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0,
+           "two start modes are refused");
     wrong = scene;
     wrong.groups = 3;
     expect(api->CreateScene(plugin, &wrong, from, 2, nullptr, nullptr) == 0 &&
@@ -914,7 +918,7 @@ void testScenes()
         document.colorizationSettings() ? document.colorizationSettings()->scene(50000)
                                         : nullptr;
     expect(made && made->name == "Wipe" && made->frameCount == 2 && made->durationMs == 40 &&
-               made->interruptable && !made->immediateStart &&
+               made->interruptable && made->startMode == document::kSceneStartWithNextFrame &&
                made->options == (document::kSceneBlackWhenFinished |
                                  document::kSceneBackAndForth) &&
                document.colorizedPixel(4, render::Resolution::Sd, 5, 2) == 0xf800,
@@ -1069,7 +1073,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 13, "the API table is version 13");
+    expect(api && api->version == 14, "the API table is version 14");
 
     // Version 11 (issue #80): the language in effect and whether the theme is dark.
     char code[8] = {};

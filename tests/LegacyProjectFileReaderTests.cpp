@@ -668,7 +668,7 @@ void testFileReaderLoadsCrpxChunks()
     document::SceneDefinition replay;
     replay.sceneId = 7;
     replay.interruptable = true;
-    replay.immediateStart = true;
+    replay.startMode = document::kSceneStartImmediately;
     replay.random = true;
     settings.scenes = {opening, replay};
     settings.scalingAlgorithm = document::kScalingLineDoubling;

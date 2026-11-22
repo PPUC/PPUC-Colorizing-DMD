@@ -523,7 +523,12 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
             item.set("frameCount", scene.frameCount);
             item.set("durationMs", scene.durationMs);
             item.set("interruptable", scene.interruptable);
-            item.set("immediateStart", scene.immediateStart);
+            // A reader that does not know startWithNextFrame starts such a scene after its
+            // first frame.
+            item.set("immediateStart", scene.startMode == document::kSceneStartImmediately);
+            if (scene.startMode == document::kSceneStartWithNextFrame) {
+                item.set("startWithNextFrame", true);
+            }
             item.set("repeat", scene.repeat);
             item.set("frameGroups", scene.frameGroups);
             item.set("random", scene.random);
@@ -1574,7 +1579,11 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
             definition.durationMs =
                 static_cast<uint16_t>(scene.integer("durationMs", 0, UINT16_MAX));
             definition.interruptable = scene.boolean("interruptable", false);
-            definition.immediateStart = scene.boolean("immediateStart", false);
+            definition.startMode = scene.boolean("startWithNextFrame", false)
+                                       ? document::kSceneStartWithNextFrame
+                                   : scene.boolean("immediateStart", false)
+                                       ? document::kSceneStartImmediately
+                                       : document::kSceneStartAfterFirstFrame;
             definition.repeat = static_cast<uint8_t>(scene.integer("repeat", 0, 255));
             definition.frameGroups = static_cast<uint8_t>(scene.integer("frameGroups", 0, 255));
             definition.random = scene.boolean("random", false);

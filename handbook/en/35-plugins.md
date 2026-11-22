@@ -117,4 +117,6 @@ Version 13 adds `SetFrameDuration`, a change of an edit batch: how long a frame 
 `Frame` section's `Duration` sets it. A frame of a scene then shows for that time when the scene
 plays (see "Scenes and Scaling", "Frame durations"), so a plugin can give a scene the times of an
 animation; `CDMDPI_NONE` gives such a frame the scene's duration again.
+Version 14 adds `CDMDPI_SCENE_START_WITH_NEXT_FRAME` for `CreateScene`: the scene starts with the
+game's next frame (see "Scenes and Scaling", the setting `Starts`).
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

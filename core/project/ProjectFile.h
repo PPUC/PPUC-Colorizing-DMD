@@ -31,7 +31,9 @@ namespace colorizing::project {
 //                    sign (false when the exported cROMc is not signed),
 //                    sceneFrameDurations (true: the frames of scenes show for their own
 //                    durations; without it a reader gives them their scene's), scenes, each
-//                    with the pup.csv columns, its name, framesOf, the base of a variant, speed,
+//                    with the pup.csv columns (immediateStart for start mode 1;
+//                    startWithNextFrame, true for start mode 2, only then), its name, framesOf,
+//                    the base of a variant, speed,
 //                    a variant's speed in percent of its base's (without it, the speed that
 //                    gives its durationMs), and then, the scene that starts when it has
 //                    played) when the project has them,

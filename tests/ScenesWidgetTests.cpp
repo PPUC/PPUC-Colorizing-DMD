@@ -747,6 +747,33 @@ void testVariantFields()
     speed->setValue(0.5);
     expect(form.scene().speedPercent == 50 && duration->value() == 80,
            "half the speed shows each frame twice as long");
+
+    // When the scene starts: after one frame duration, immediately or with the next frame;
+    // a background scene starts at once.
+    QComboBox* start = nullptr;
+    QCheckBox* background = nullptr;
+    for (QComboBox* comboBox : form.findChildren<QComboBox*>()) {
+        if (comboBox->findData(document::kSceneStartWithNextFrame) >= 0 &&
+            comboBox->itemText(0) == QStringLiteral("After one frame duration")) {
+            start = comboBox;
+        }
+    }
+    for (QCheckBox* checkBox : form.findChildren<QCheckBox*>()) {
+        if (checkBox->text() == QStringLiteral("Play as a background")) {
+            background = checkBox;
+        }
+    }
+    document::SceneDefinition waiting = base;
+    waiting.startMode = document::kSceneStartWithNextFrame;
+    form.setScene(waiting, nullptr, {waiting});
+    expect(start && background && start->count() == 3 && start->isEnabled() &&
+               start->currentData().toInt() == document::kSceneStartWithNextFrame,
+           "the form shows that the scene starts with the next frame");
+    start->setCurrentIndex(start->findData(document::kSceneStartImmediately));
+    expect(form.scene().startMode == document::kSceneStartImmediately,
+           "the scene starts immediately when chosen");
+    background->setChecked(true);
+    expect(!start->isEnabled(), "a background scene has no start to choose");
 }
 
 void runScenesWidgetTests()

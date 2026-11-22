@@ -37,6 +37,9 @@ static_assert(document::kSceneOnlyDynamicContent == FLAG_SCENE_ONLY_DYNAMIC_CONT
 static_assert(document::kSceneResumeIfRetriggered == FLAG_SCENE_RESUME_IF_RETRIGGERED);
 static_assert(document::kSceneReplaceDynamicBlack == FLAG_SCENE_REPLACE_DYNAMIC_BLACK);
 static_assert(document::kScalingLineDoubling == SERUM_SCALING_LINE_DOUBLING);
+static_assert(document::kSceneStartAfterFirstFrame == SERUM_SCENE_START_AFTER_FIRST_FRAME);
+static_assert(document::kSceneStartImmediately == SERUM_SCENE_START_IMMEDIATELY);
+static_assert(document::kSceneStartWithNextFrame == SERUM_SCENE_START_WITH_NEXT_FRAME);
 static_assert(document::kScalingScale2x == SERUM_SCALING_SCALE2X);
 static_assert(document::kShadowOffsetNative == SERUM_SHADOW_OFFSET_NATIVE);
 static_assert(document::kShadowOffsetProportional == SERUM_SHADOW_OFFSET_PROPORTIONAL);
@@ -51,7 +54,7 @@ SceneData sceneData(const document::SceneDefinition& scene)
     data.frameCount = scene.frameCount;
     data.durationPerFrame = scene.durationMs;
     data.interruptable = scene.interruptable;
-    data.immediateStart = scene.immediateStart;
+    data.startMode = scene.startMode;
     data.repeat = scene.repeat;
     data.frameGroups = scene.frameGroups == 0 ? 1 : scene.frameGroups;
     data.random = scene.random;
@@ -169,7 +172,13 @@ std::optional<std::vector<document::SceneDefinition>> readSceneCsv(
             scene.frameCount = static_cast<uint16_t>(std::stoi(row[1]));
             scene.durationMs = static_cast<uint16_t>(std::stoi(row[2]));
             if (row.size() >= 4) scene.interruptable = std::stoi(row[3]) == 1;
-            if (row.size() >= 5) scene.immediateStart = std::stoi(row[4]) == 1;
+            if (row.size() >= 5) {
+                const int startMode = std::stoi(row[4]);
+                scene.startMode = (startMode == document::kSceneStartImmediately ||
+                                   startMode == document::kSceneStartWithNextFrame)
+                                      ? static_cast<uint8_t>(startMode)
+                                      : document::kSceneStartAfterFirstFrame;
+            }
             if (row.size() >= 6) scene.repeat = static_cast<uint8_t>(std::stoi(row[5]));
             if (row.size() >= 7) {
                 const uint8_t groups = static_cast<uint8_t>(std::stoi(row[6]));

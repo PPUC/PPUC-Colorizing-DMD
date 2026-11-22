@@ -1231,8 +1231,12 @@ int MSGPIAPI createScene(uint32_t endpointId, const ColorizingDMDScene* scene,
     constexpr uint32_t kAllFlags = CDMDPI_SCENE_INTERRUPTABLE | CDMDPI_SCENE_IMMEDIATE_START |
                                    CDMDPI_SCENE_RANDOM_GROUP | CDMDPI_SCENE_BACKGROUND |
                                    CDMDPI_SCENE_ONLY_DYNAMIC | CDMDPI_SCENE_REPLACE_BLACK |
-                                   CDMDPI_SCENE_RESUME | CDMDPI_SCENE_BACK_AND_FORTH;
+                                   CDMDPI_SCENE_RESUME | CDMDPI_SCENE_BACK_AND_FORTH |
+                                   CDMDPI_SCENE_START_WITH_NEXT_FRAME;
+    constexpr uint32_t kStartFlags =
+        CDMDPI_SCENE_IMMEDIATE_START | CDMDPI_SCENE_START_WITH_NEXT_FRAME;
     if (!scene || !frames || !count || scene->groups > 255 || scene->durationMs > 65535 ||
+        (scene->flags & kStartFlags) == kStartFlags ||
         scene->repeat > 255 || scene->finish > CDMDPI_SCENE_PREVIOUS ||
         scene->autoStartSeconds > 255 || (scene->flags & ~kAllFlags) ||
         (scene->sceneId != CDMDPI_NONE && scene->sceneId > 65535)) {
@@ -1246,7 +1250,11 @@ int MSGPIAPI createScene(uint32_t endpointId, const ColorizingDMDScene* scene,
     definition.name = scene->name ? scene->name : "";
     const uint32_t flags = scene->flags;
     definition.interruptable = (flags & CDMDPI_SCENE_INTERRUPTABLE) != 0;
-    definition.immediateStart = (flags & CDMDPI_SCENE_IMMEDIATE_START) != 0;
+    definition.startMode = (flags & CDMDPI_SCENE_IMMEDIATE_START)
+                               ? document::kSceneStartImmediately
+                           : (flags & CDMDPI_SCENE_START_WITH_NEXT_FRAME)
+                               ? document::kSceneStartWithNextFrame
+                               : document::kSceneStartAfterFirstFrame;
     definition.random = (flags & CDMDPI_SCENE_RANDOM_GROUP) != 0;
     uint8_t options = 0;
     if (scene->finish == CDMDPI_SCENE_BLACK) {
@@ -1398,7 +1406,7 @@ int MSGPIAPI isEditorActionEnabled(const char* actionId)
 }
 
 const ColorizingDMDEditorAPI kApi{
-    13,
+    14,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,

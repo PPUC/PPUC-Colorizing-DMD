@@ -5,6 +5,12 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- A scene can start with the next frame: `Starts` in the scene's settings replaces `Start
+  immediately`. With `With the next frame` the frame that fires the trigger stays until the game
+  sends its next frame, however long that takes, and the scene replaces that one, for scenes
+  that replace an animation of the ROM. Needs libserum 2.99.21.
+- Editor API version 14: `CreateScene` takes `CDMDPI_SCENE_START_WITH_NEXT_FRAME`.
+
 ## 3.99.48
 
 - Each frame of a scene can show for a time of its own, set with the frame's `Duration`.

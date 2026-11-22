@@ -40,6 +40,11 @@ frame filter's `With triggers` lists the frames that start something.
 A background scene plays through the background mask of the frames that follow, where they let a
 background show.
 
+`Starts` in the `Scene` section says when the scene starts after its trigger. When the scene
+replaces an animation of the ROM that begins after a frame that stays for a varying time, trigger
+it from that frame and choose `With the next frame`: the scene starts exactly when the ROM moves
+on.
+
 ## Watching it
 
 `Play` with the Runtime view on (see the next chapter) plays the game's frames as libserum would,

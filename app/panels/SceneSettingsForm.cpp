@@ -85,10 +85,24 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_interruptableCheckBox = new QCheckBox(tr("Can be interrupted"), this);
     m_interruptableCheckBox->setToolTip(
         tr("A frame of the game identified while the scene plays ends it"));
-    m_immediateCheckBox = new QCheckBox(tr("Start immediately"), this);
-    m_immediateCheckBox->setToolTip(
-        tr("Show the first frame when the trigger fires, without waiting for the next frame "
-           "of the game"));
+    m_startComboBox = new QComboBox(this);
+    m_startComboBox->addItem(tr("After one frame duration"), document::kSceneStartAfterFirstFrame);
+    m_startComboBox->setItemData(
+        0, tr("The frame of the game that fires the trigger shows for the frame duration first"),
+        Qt::ToolTipRole);
+    m_startComboBox->addItem(tr("Immediately"), document::kSceneStartImmediately);
+    m_startComboBox->setItemData(
+        1, tr("The first frame replaces the frame of the game that fires the trigger"),
+        Qt::ToolTipRole);
+    m_startComboBox->addItem(tr("With the next frame"), document::kSceneStartWithNextFrame);
+    m_startComboBox->setItemData(
+        2,
+        tr("The frame that fires the trigger stays until the game sends its next frame, "
+           "however long that takes, and the first frame replaces that one. A scene that can "
+           "be interrupted starts only on a frame that is not in the project"),
+        Qt::ToolTipRole);
+    m_startComboBox->setToolTip(
+        tr("When the scene starts after its trigger fired. A background scene starts at once"));
     m_finishComboBox = new QComboBox(this);
     m_finishComboBox->addItem(tr("Keep its last frame"), 0);
     m_finishComboBox->addItem(tr("Black"), document::kSceneBlackWhenFinished);
@@ -137,7 +151,7 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     frames->addRow(QString(), m_backAndForthCheckBox);
     QFormLayout* playback = makeInspectorForm();
     playback->addRow(QString(), m_interruptableCheckBox);
-    playback->addRow(QString(), m_immediateCheckBox);
+    playback->addRow(tr("Starts"), m_startComboBox);
     playback->addRow(tr("Then plays"), m_nextComboBox);
     playback->addRow(tr("When it has played"), m_finishComboBox);
     playback->addRow(m_autoStartLabel, m_autoStartSpinBox);
@@ -180,14 +194,14 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
             static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this,
             changed);
     connect(m_nameEdit, &QLineEdit::textEdited, this, changed);
-    for (QComboBox* comboBox :
-         {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox, m_nextComboBox}) {
+    for (QComboBox* comboBox : {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox,
+                                m_nextComboBox, m_startComboBox}) {
         connect(comboBox, static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
                 this, changed);
     }
     for (QCheckBox* checkBox : {m_randomCheckBox, m_backAndForthCheckBox,
-                                m_interruptableCheckBox, m_immediateCheckBox,
-                                m_backgroundCheckBox, m_onlyDynamicCheckBox, m_resumeCheckBox,
+                                m_interruptableCheckBox, m_backgroundCheckBox,
+                                m_onlyDynamicCheckBox, m_resumeCheckBox,
                                 m_replaceBlackCheckBox}) {
         connect(checkBox, &QCheckBox::toggled, this, changed);
     }
@@ -252,7 +266,7 @@ void SceneSettingsForm::setScene(
     m_timesSpinBox->setValue(scene.repeat >= 2 ? scene.repeat : 2);
     m_backAndForthCheckBox->setChecked(scene.options & document::kSceneBackAndForth);
     m_interruptableCheckBox->setChecked(scene.interruptable);
-    m_immediateCheckBox->setChecked(scene.immediateStart);
+    m_startComboBox->setCurrentIndex(std::max(0, m_startComboBox->findData(scene.startMode)));
     m_finishComboBox->setCurrentIndex(
         std::max(0, m_finishComboBox->findData(scene.options & document::kSceneFinishModeMask)));
     m_autoStartSpinBox->setValue(scene.autoStartSeconds);
@@ -290,6 +304,8 @@ void SceneSettingsForm::updateState()
     m_randomCheckBox->setEnabled(m_groupsSpinBox->value() > 1);
     m_backAndForthCheckBox->setEnabled(m_framesSpinBox->value() > 1);
     m_replaceBlackCheckBox->setEnabled(m_backgroundCheckBox->isChecked());
+    // libserum starts a background scene at once, whatever its start mode.
+    m_startComboBox->setEnabled(!m_backgroundCheckBox->isChecked());
     // A scene that another follows shows no finish: the other scene starts instead.
     m_finishComboBox->setEnabled(m_nextComboBox->currentData().toInt() < 0);
     // libserum reads the column as an end hold for a scene that cannot be interrupted and
@@ -350,7 +366,7 @@ document::SceneDefinition SceneSettingsForm::scene() const
             break;
     }
     scene.interruptable = m_interruptableCheckBox->isChecked();
-    scene.immediateStart = m_immediateCheckBox->isChecked();
+    scene.startMode = static_cast<uint8_t>(m_startComboBox->currentData().toInt());
     scene.autoStartSeconds = static_cast<uint8_t>(m_autoStartSpinBox->value());
     uint8_t options = static_cast<uint8_t>(m_scene.options & ~document::kSceneKnownOptions);
     options |= static_cast<uint8_t>(m_finishComboBox->currentData().toInt());

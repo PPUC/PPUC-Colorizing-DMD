@@ -861,7 +861,7 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             put(scene.frameCount, 2);
             put(scene.durationMs, 2);
             put(scene.interruptable ? 1 : 0, 1);
-            put(scene.immediateStart ? 1 : 0, 1);
+            put(scene.startMode, 1);
             put(scene.repeat, 1);
             put(scene.frameGroups == 0 ? 1 : scene.frameGroups, 1);
             put(scene.random ? 1 : 0, 1);

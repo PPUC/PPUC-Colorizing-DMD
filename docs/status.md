@@ -989,6 +989,15 @@ frames their scene's duration (`giveSceneFramesTheirSceneDuration()`), as the ed
 before. The Frame tester's `Timings To Scene…` applies a dump range in one step
 (`edit::setSceneFrameDurations()`). The plugin API sets them with SetFrameDuration (version 13).
 
+Scene start modes (owner decision 2026-11-22, for scenes that replace a ROM animation starting
+after a frame of varying length): `SceneDefinition::startMode` is after one frame duration,
+immediately or with the next frame (`kSceneStart...`, libserum 2.99.21, concentrate version 23),
+written to the cROM's existing start byte. libserum shows the triggering frame and starts the
+scene on the next other frame; an interruptable scene only on a frame it does not identify.
+The manifest keeps `immediateStart` for mode 1 and adds `startWithNextFrame` for mode 2 only, so
+an older editor starts such a scene after one frame duration. Background scenes, the only ones
+the canvas plays, ignore the mode. The plugin API sets it with `CDMDPI_SCENE_START_WITH_NEXT_FRAME` (version 14).
+
 Follow-up scenes (owner decision 2026-11-17, asked for by a colorizer): a scene can name the
 scene that starts when it has played (`SceneDefinition::nextSceneId`, manifest `then`, settings
 block part `kCromSettingsSceneFollowUps`, libserum 2.99.18, concentrate version 21). It replaces
