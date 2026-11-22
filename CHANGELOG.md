@@ -5,6 +5,12 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Each frame of a scene can show for a time of its own, set with the frame's `Duration`.
+  `Timings To Scene…` in the `Frame Tester` gives a scene the times of an animation in a dump.
+  Needs libserum 2.99.20.
+- A scene variant has a `Speed` (`2x`, `0.5x`, ...) instead of a frame duration of its own, so its
+  frames keep their times to each other; existing variants get the speed of their duration.
+
 ## 3.99.47
 
 - The tests build again with Qt versions before 6.12.

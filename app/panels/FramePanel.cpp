@@ -385,11 +385,21 @@ void FramePanel::refresh(const FramePanelState& state)
     m_durationSpinBox->setValue(durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
                                     ? static_cast<int>(durationMs)
                                     : 0);
+    // A frame of a scene shows for its duration when the scene plays; the scene's is where it
+    // starts.
+    const std::optional<document::SceneFrameRef>& sceneFrame = document->sceneFrame(frameIndex);
+    const document::SceneDefinition* scene =
+        sceneFrame && document->colorizationSettings()
+            ? document->colorizationSettings()->scene(sceneFrame->sceneId)
+            : nullptr;
     m_durationSpinBox->setToolTip(
-        durationMs <= static_cast<uint32_t>(kMaxFrameDurationMs)
-            ? tr("Per-frame duration")
-            : tr("Unsupported duration %1 ms is preserved until edited")
-                  .arg(durationMs));
+        durationMs > static_cast<uint32_t>(kMaxFrameDurationMs)
+            ? tr("Unsupported duration %1 ms is preserved until edited").arg(durationMs)
+        : scene ? tr("How long the frame shows when scene %1 plays; the scene's frame duration "
+                     "is %2 ms")
+                      .arg(scene->sceneId)
+                      .arg(scene->durationMs)
+                : tr("Per-frame duration"));
     m_backgroundLayerButton->setEnabled(backgroundData.has_value() && maxBackgroundId >= 0);
     // A sprite in one of the frame's slots.
     const std::vector<document::FrameSpriteReference>& spriteSlots =

@@ -2,8 +2,10 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialogButtonBox>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFormLayout>
 #include <QKeyEvent>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -142,6 +144,10 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     m_findButton = new QPushButton(tr("Find Frame"), this);
     m_addButton = new QPushButton(tr("Add To Project"), this);
     m_addButton->setToolTip(tr("Add the dump frame behind the project's frames"));
+    m_timingsButton = new QPushButton(tr("Timings To Scene…"), this);
+    m_timingsButton->setToolTip(
+        tr("Give the frames of a scene the times the dump frames from this one on show, e.g. "
+           "of the ROM animation the scene replaces"));
     m_showButton = new QPushButton(tr("Show In Editor"), this);
     m_showButton->setToolTip(
         tr("Close the tester and show the frame libserum identified, or the tested project "
@@ -191,6 +197,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
     findRow->addWidget(m_findButton);
     findRow->addStretch(1);
     findRow->addWidget(m_addButton);
+    findRow->addWidget(m_timingsButton);
     findRow->addWidget(m_showButton);
     findRow->addWidget(closeButton);
     auto* layout = new QVBoxLayout(this);
@@ -265,6 +272,7 @@ FrameTesterDialog::FrameTesterDialog(const document::ProjectDocument& document,
             m_findSpinBox->setRange(0, static_cast<int>(m_document.frameCount()) - 1);
         }
     });
+    connect(m_timingsButton, &QPushButton::clicked, this, [this]() { askForSceneTimings(); });
     connect(m_showButton, &QPushButton::clicked, this, [this]() {
         m_frameToShow = editorFrame();
         accept();
@@ -822,7 +830,116 @@ void FrameTesterDialog::updateControls()
         hasFrames && m_dumpMode &&
         comparisonMaskOf(m_document, static_cast<std::size_t>(m_findSpinBox->value())));
     m_addButton->setEnabled(hasFrames && m_dumpMode && onAddFrameRequested != nullptr);
+    bool hasScene = false;
+    if (m_document.colorizationSettings()) {
+        for (const document::SceneDefinition& scene : m_document.colorizationSettings()->scenes) {
+            hasScene = hasScene || !scene.isVariant();
+        }
+    }
+    m_timingsButton->setEnabled(hasFrames && m_dumpMode && hasScene &&
+                                onSceneTimingsRequested != nullptr);
     m_selectedButton->setEnabled(!m_selectedFrames.empty() && m_error.isEmpty());
+}
+
+std::optional<std::size_t> FrameTesterDialog::applySceneTimings(std::size_t first,
+                                                                std::size_t last,
+                                                                uint16_t sceneId,
+                                                                uint8_t group)
+{
+    if (!m_dumpMode || !onSceneTimingsRequested || first > last || last >= m_frames.size()) {
+        return std::nullopt;
+    }
+    setPlaying(0);
+    std::vector<uint32_t> durations;
+    for (std::size_t position = first; position <= last; ++position) {
+        durations.push_back(m_frames[position].durationMs);
+    }
+    const std::optional<std::size_t> applied =
+        onSceneTimingsRequested(sceneId, group, durations);
+    // The project changed: libserum gets it again; the dump stays where it is.
+    if (applied && loadProject()) {
+        feed(m_position);
+    }
+    return applied;
+}
+
+void FrameTesterDialog::askForSceneTimings()
+{
+    if (!m_dumpMode || m_frames.empty() || !m_document.colorizationSettings()) {
+        return;
+    }
+    setPlaying(0);
+    QDialog dialog(this);
+    dialog.setWindowTitle(tr("Timings To Scene"));
+    auto* sceneComboBox = new QComboBox(&dialog);
+    for (const document::SceneDefinition& scene : m_document.colorizationSettings()->scenes) {
+        if (!scene.isVariant()) {
+            sceneComboBox->addItem(
+                scene.name.empty() ? QString::number(scene.sceneId)
+                                   : QStringLiteral("%1 %2").arg(scene.sceneId).arg(
+                                         QString::fromStdString(scene.name)),
+                static_cast<int>(scene.sceneId));
+        }
+    }
+    auto* groupSpinBox = new QSpinBox(&dialog);
+    auto* firstSpinBox = new QSpinBox(&dialog);
+    auto* lastSpinBox = new QSpinBox(&dialog);
+    const int lastPosition = static_cast<int>(m_frames.size()) - 1;
+    firstSpinBox->setRange(0, lastPosition);
+    lastSpinBox->setRange(0, lastPosition);
+    firstSpinBox->setValue(static_cast<int>(m_position));
+    firstSpinBox->setToolTip(tr("The dump frame whose time the first frame of the scene gets"));
+    lastSpinBox->setToolTip(tr("The last dump frame whose time a frame of the scene gets"));
+    auto* summaryLabel = new QLabel(&dialog);
+    summaryLabel->setWordWrap(true);
+    const auto sceneOf = [this, sceneComboBox]() {
+        return m_document.colorizationSettings()->scene(
+            static_cast<uint16_t>(sceneComboBox->currentData().toInt()));
+    };
+    const auto updateSummary = [&]() {
+        const document::SceneDefinition* scene = sceneOf();
+        const int dumpFrames = std::max(0, lastSpinBox->value() - firstSpinBox->value() + 1);
+        summaryLabel->setText(
+            scene ? tr("%1 dump frames for the %2 frames of the group").arg(dumpFrames).arg(
+                        scene->frameCount)
+                  : QString());
+    };
+    // A scene's frames from the first dump frame on.
+    const auto fitToScene = [&]() {
+        if (const document::SceneDefinition* scene = sceneOf()) {
+            groupSpinBox->setRange(1, std::max<int>(1, scene->frameGroups));
+            lastSpinBox->setValue(std::min(
+                lastPosition, firstSpinBox->value() + std::max<int>(1, scene->frameCount) - 1));
+        }
+        updateSummary();
+    };
+    connect(sceneComboBox,
+            static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), &dialog,
+            fitToScene);
+    connect(firstSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            &dialog, fitToScene);
+    connect(lastSpinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+            &dialog, updateSummary);
+    fitToScene();
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                         &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    auto* form = new QFormLayout(&dialog);
+    form->addRow(tr("Scene"), sceneComboBox);
+    form->addRow(tr("Group"), groupSpinBox);
+    form->addRow(tr("From dump frame"), firstSpinBox);
+    form->addRow(tr("To dump frame"), lastSpinBox);
+    form->addRow(summaryLabel);
+    form->addRow(buttons);
+    if (dialog.exec() != QDialog::Accepted || !sceneOf() ||
+        lastSpinBox->value() < firstSpinBox->value()) {
+        return;
+    }
+    applySceneTimings(static_cast<std::size_t>(firstSpinBox->value()),
+                      static_cast<std::size_t>(lastSpinBox->value()),
+                      static_cast<uint16_t>(sceneComboBox->currentData().toInt()),
+                      static_cast<uint8_t>(groupSpinBox->value()));
 }
 
 bool FrameTesterDialog::isDumpMode() const

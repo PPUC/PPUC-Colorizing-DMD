@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <tuple>
 
 #include "document/Triggers.h"
 #include "legacy/LegacyByteWriter.h"
@@ -796,6 +797,48 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         }
     }
     const bool withFollowUps = !followUps.empty();
+    // The scene frames that show for a time of their own, by scene, group and frame.
+    struct FrameDuration {
+        uint16_t sceneId;
+        uint8_t group;
+        uint16_t frameIndex;
+        uint16_t durationMs;
+    };
+    std::vector<FrameDuration> frameDurations;
+    if (withScenes) {
+        const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
+        for (const document::ProjectFrameSnapshot& frame : snapshot.frames) {
+            if (!frame.scene || frame.scene->group == 0) {
+                continue;
+            }
+            const document::SceneDefinition* scene = settings.scene(frame.scene->sceneId);
+            if (!scene || scene->baseSceneId || frame.scene->frameIndex >= scene->frameCount ||
+                frame.scene->group > std::max<uint8_t>(scene->frameGroups, 1)) {
+                continue;
+            }
+            // The scene itself, then its variants at their speeds.
+            const auto add = [&](const document::SceneDefinition& played, uint16_t durationMs) {
+                if (durationMs != played.durationMs) {
+                    frameDurations.push_back({played.sceneId, frame.scene->group,
+                                              frame.scene->frameIndex, durationMs});
+                }
+            };
+            const uint32_t durationMs = frame.durationMs == 0 ? scene->durationMs
+                                                              : frame.durationMs;
+            add(*scene, document::sceneDurationAtSpeed(durationMs,
+                                                       document::kSceneSpeedPercentDefault));
+            for (const uint16_t variantId : settings.variantsOf(scene->sceneId)) {
+                const document::SceneDefinition& variant = *settings.scene(variantId);
+                add(variant, document::sceneDurationAtSpeed(durationMs, variant.speedPercent));
+            }
+        }
+        std::sort(frameDurations.begin(), frameDurations.end(),
+                  [](const FrameDuration& a, const FrameDuration& b) {
+                      return std::tie(a.sceneId, a.group, a.frameIndex) <
+                             std::tie(b.sceneId, b.group, b.frameIndex);
+                  });
+    }
+    const bool withFrameDurations = !frameDurations.empty();
     put(kCromSettingsMagic, 4);
     put(0, 4);  // the payload size, set below
     put((withScenes ? kCromSettingsScenes | kCromSettingsSceneFrames : 0) |
@@ -807,7 +850,8 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
             (withSpriteOffsets ? kCromSettingsSpriteOffsets : 0) |
             (noticeFrame ? kCromSettingsNoticeFrame : 0) |
             (colorizationText ? kCromSettingsColorizationText : 0) |
-            (withFollowUps ? kCromSettingsSceneFollowUps : 0),
+            (withFollowUps ? kCromSettingsSceneFollowUps : 0) |
+            (withFrameDurations ? kCromSettingsSceneFrameDurations : 0),
         4);
     if (withScenes) {
         const document::ColorizationSettings& settings = *snapshot.colorizationSettings;
@@ -958,6 +1002,16 @@ std::vector<uint8_t> cromSettingsBlock(const document::ProjectSnapshot& snapshot
         for (const auto& [sceneId, nextSceneId] : followUps) {
             put(sceneId, 2);
             put(nextSceneId, 2);
+        }
+    }
+    if (withFrameDurations) {
+        put(frameDurations.size(), 4);
+        for (const FrameDuration& duration : frameDurations) {
+            put(duration.sceneId, 2);
+            put(duration.group, 1);
+            put(0, 1);
+            put(duration.frameIndex, 2);
+            put(duration.durationMs, 2);
         }
     }
     const uint64_t payload = block.size() - 8;

@@ -343,6 +343,58 @@ void testScenes()
     expect(playScenes->isChecked(), "switched on again from the dialog");
 }
 
+// Timings To Scene: the dump frames from the current one on give the frames of a scene their
+// times, in one step, and libserum gets the project again.
+void testSceneTimingsFromDump()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 3));
+    document::SceneDefinition definition;
+    definition.sceneId = 50020;
+    definition.frameCount = 2;
+    definition.durationMs = 30;
+    expect(static_cast<bool>(edit::addScene(document, definition)), "the scene is added");
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("dump.txt"));
+    {
+        QFile file(path);
+        expect(file.open(QIODevice::WriteOnly), "write the dump");
+        file.write(QByteArray::fromStdString(dumpFrame(document.originalFrame(0), 0) +
+                                             dumpFrame(document.originalFrame(1), 120) +
+                                             dumpFrame(document.originalFrame(2), 170) +
+                                             dumpFrame(document.originalFrame(0), 400)));
+    }
+    app::setProjectTaskDialogDelayMs(10000);
+    app::FrameTesterDialog dialog(document, {0});
+    std::vector<uint32_t> given;
+    dialog.onSceneTimingsRequested = [&](uint16_t sceneId, uint8_t group,
+                                         const std::vector<uint32_t>& durationsMs)
+        -> std::optional<std::size_t> {
+        expect(sceneId == 50020 && group == 1, "the scene and group chosen");
+        given = durationsMs;
+        std::size_t applied = 0;
+        const auto command =
+            edit::setSceneFrameDurations(document, sceneId, group, durationsMs, &applied);
+        return applied;
+    };
+    expect(dialog.loadDumpFile(path) && dialog.frameCount() == 4, "the dump is loaded");
+    QPushButton* timings = nullptr;
+    for (QPushButton* button : dialog.findChildren<QPushButton*>()) {
+        if (button->text() == QStringLiteral("Timings To Scene…")) {
+            timings = button;
+        }
+    }
+    expect(timings && timings->isEnabled(), "a dump can give a scene its times");
+    expect(dialog.applySceneTimings(1, 2, 50020, 1) == std::optional<std::size_t>(2) &&
+               given == std::vector<uint32_t>{50, 230},
+           "the dump frames' times go to the scene's frames in their order");
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 50020);
+    expect(document.frameDurationMs(frames[0]) == 50 &&
+               document.frameDurationMs(frames[1]) == 230 && dialog.errorText().isEmpty(),
+           "the frames show for those times, and libserum gets the project again");
+    expect(!dialog.applySceneTimings(2, 1, 50020, 1), "an empty range gives nothing");
+}
+
 // A scene that frame 2 starts at once, for which libserum reports the scene's frame and not
 // frame 2, and one that frame 2 starts at the next step and that ROM frames cannot
 // interrupt, so that libserum identifies none while it plays: while a scene plays, Show In
@@ -495,6 +547,7 @@ void runFrameTesterWidgetTests()
     testArrowKeysStepFrames();
     testFindUnderMask();
     testScenes();
+    testSceneTimingsFromDump();
     testShowTriggerOfScene();
     testBackgroundScene();
 }

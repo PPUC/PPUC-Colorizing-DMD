@@ -1849,6 +1849,10 @@
         <translation>Nicht unterstützte Dauer %1 ms bleibt erhalten, bis sie bearbeitet wird</translation>
     </message>
     <message>
+        <source>How long the frame shows when scene %1 plays; the scene&apos;s frame duration is %2 ms</source>
+        <translation>Wie lange der Frame zu sehen ist, wenn Szene %1 spielt; die Frame-Dauer der Szene ist %2 ms</translation>
+    </message>
+    <message>
         <source>Target</source>
         <translation type="vanished">Ziel</translation>
     </message>
@@ -2212,6 +2216,14 @@ Use Create %1 Frame.</source>
         <translation>Den Dump-Frame hinter den Frames des Projekts anfügen</translation>
     </message>
     <message>
+        <source>Timings To Scene…</source>
+        <translation>Zeiten in Szene übernehmen…</translation>
+    </message>
+    <message>
+        <source>Give the frames of a scene the times the dump frames from this one on show, e.g. of the ROM animation the scene replaces</source>
+        <translation>Den Frames einer Szene die Zeiten der Dump-Frames ab diesem geben, z. B. der ROM-Animation, die die Szene ersetzt</translation>
+    </message>
+    <message>
         <source>Show In Editor</source>
         <translation>Im Editor zeigen</translation>
     </message>
@@ -2346,6 +2358,38 @@ Use Create %1 Frame.</source>
     <message>
         <source>Pause</source>
         <translation>Pause</translation>
+    </message>
+    <message>
+        <source>Timings To Scene</source>
+        <translation>Zeiten in Szene übernehmen</translation>
+    </message>
+    <message>
+        <source>The dump frame whose time the first frame of the scene gets</source>
+        <translation>Der Dump-Frame, dessen Zeit der erste Frame der Szene bekommt</translation>
+    </message>
+    <message>
+        <source>The last dump frame whose time a frame of the scene gets</source>
+        <translation>Der letzte Dump-Frame, dessen Zeit ein Frame der Szene bekommt</translation>
+    </message>
+    <message>
+        <source>%1 dump frames for the %2 frames of the group</source>
+        <translation>%1 Dump-Frames für die %2 Frames der Gruppe</translation>
+    </message>
+    <message>
+        <source>Scene</source>
+        <translation>Szene</translation>
+    </message>
+    <message>
+        <source>Group</source>
+        <translation>Gruppe</translation>
+    </message>
+    <message>
+        <source>From dump frame</source>
+        <translation>Ab Dump-Frame</translation>
+    </message>
+    <message>
+        <source>To dump frame</source>
+        <translation>Bis Dump-Frame</translation>
     </message>
 </context>
 <context>
@@ -4515,6 +4559,14 @@ Use Create %1 Frame.</source>
     <message>
         <source>Added the dump frame as frame %1</source>
         <translation>Dump-Frame als Frame %1 hinzugefügt</translation>
+    </message>
+    <message>
+        <source>Gave %1 of the %2 frames of scene %3 the times of the dump</source>
+        <translation>%1 der %2 Frames von Szene %3 haben die Zeiten des Dumps bekommen</translation>
+    </message>
+    <message>
+        <source>; %1 dump frames were left over</source>
+        <translation>; %1 Dump-Frames blieben übrig</translation>
     </message>
     <message>
         <source>Signing Notice</source>
@@ -8468,7 +8520,7 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>A scene that plays the frames of another plays them with its own settings and frame duration, e.g. once in front and as a looping background. It has no frames of its own; for other frames add a new scene</source>
-        <translation>Eine Szene, die die Frames einer anderen spielt, spielt sie mit eigenen Einstellungen und eigener Frame-Dauer, z. B. einmal im Vordergrund und als Hintergrund in Schleife. Sie hat keine eigenen Frames; für andere Frames eine neue Szene hinzufügen</translation>
+        <translation type="vanished">Eine Szene, die die Frames einer anderen spielt, spielt sie mit eigenen Einstellungen und eigener Frame-Dauer, z. B. einmal im Vordergrund und als Hintergrund in Schleife. Sie hat keine eigenen Frames; für andere Frames eine neue Szene hinzufügen</translation>
     </message>
     <message>
         <source>Frames of each group</source>
@@ -8492,7 +8544,23 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>How long each frame shows</source>
-        <translation>Wie lange jeder Frame zu sehen ist</translation>
+        <translation type="vanished">Wie lange jeder Frame zu sehen ist</translation>
+    </message>
+    <message>
+        <source>A scene that plays the frames of another plays them with its own settings and speed, e.g. once in front and as a looping background. It has no frames of its own; for other frames add a new scene</source>
+        <translation>Eine Szene, die die Frames einer anderen spielt, spielt sie mit eigenen Einstellungen und eigener Geschwindigkeit, z. B. einmal im Vordergrund und als Hintergrund in einer Schleife. Sie hat keine eigenen Frames; für andere Frames eine neue Szene anlegen</translation>
+    </message>
+    <message>
+        <source>How long each frame shows, unless the frame has a duration of its own (Frame section). A new duration goes to the frames that showed for the old one</source>
+        <translation>Wie lange jeder Frame zu sehen ist, wenn der Frame keine eigene Dauer hat (Abschnitt Frame). Eine neue Dauer bekommen die Frames, die die alte hatten</translation>
+    </message>
+    <message>
+        <source>x</source>
+        <translation>x</translation>
+    </message>
+    <message>
+        <source>How much faster than the scene it plays the frames: 2x shows each frame for half its time, 0.5x for twice its time. The frames keep their durations to each other</source>
+        <translation>Wie viel schneller als die Szene sie die Frames spielt: 2x zeigt jeden Frame halb so lange, 0,5x doppelt so lange. Die Frames behalten ihre Dauern zueinander</translation>
     </message>
     <message>
         <source>Once</source>
@@ -8617,6 +8685,10 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     <message>
         <source>Frame duration</source>
         <translation>Frame-Dauer</translation>
+    </message>
+    <message>
+        <source>Speed</source>
+        <translation>Geschwindigkeit</translation>
     </message>
     <message>
         <source>Plays</source>
@@ -8797,7 +8869,18 @@ Malen Sie sein Bild nur in den schlichten Originalfarben (den %3 Farben eines un
     </message>
     <message>
         <source>, the frames of %1</source>
-        <translation>, die Frames von %1</translation>
+        <translation type="vanished">, die Frames von %1</translation>
+    </message>
+    <message>
+        <source>, the frames of %1 at %2x</source>
+        <translation>, die Frames von %1 mit %2x</translation>
+    </message>
+    <message numerus="yes">
+        <source>, %n frame(s) with a duration of their own</source>
+        <translation>
+            <numerusform>, %n Frame mit eigener Dauer</numerusform>
+            <numerusform>, %n Frames mit eigener Dauer</numerusform>
+        </translation>
     </message>
     <message>
         <source>, then %1</source>

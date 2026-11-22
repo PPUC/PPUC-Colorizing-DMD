@@ -26,6 +26,11 @@ Scenes need a project with 128x32 ROM frames.
 The Inspector's `Scene` section holds the scene's settings while one of its frames is shown.
 Changes wait for `Apply`.
 
+Every frame starts with the scene's frame duration. A frame can show longer or shorter: set its
+`Duration` in the `Frame` section. When the scene replaces an animation of the ROM, load a dump of
+it into the `Frame Tester`, go to the animation's first frame and press `Timings To Scene…`: the
+scene's frames take the animation's times in one step.
+
 ## Starting it
 
 A frame of the game starts the scene through its trigger: choose the scene in `Scene` of the

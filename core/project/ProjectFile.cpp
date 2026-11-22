@@ -513,6 +513,9 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
         if (!settings.signCromc) {
             colorization.set("sign", false);
         }
+        // The frames of scenes show for their own durations; a reader of a file without it
+        // gives them their scene's (see readProjectEntries()).
+        colorization.set("sceneFrameDurations", true);
         JsonValue scenes = JsonValue::array();
         for (const document::SceneDefinition& scene : settings.scenes) {
             JsonValue item = JsonValue::object();
@@ -531,6 +534,7 @@ JsonValue manifestJson(const ProjectSnapshot& snapshot, const ProjectFileOptions
             }
             if (scene.baseSceneId) {
                 item.set("framesOf", *scene.baseSceneId);
+                item.set("speed", scene.speedPercent);
             }
             if (scene.nextSceneId) {
                 item.set("then", *scene.nextSceneId);
@@ -1559,6 +1563,8 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
             static_cast<uint8_t>(colorization.integer("scalingAlgorithm", 0, 255));
         settings.shadowOffset = static_cast<uint8_t>(colorization.integer("shadowOffset", 0, 255));
         settings.signCromc = colorization.boolean("sign", true);
+        // The variants of a file from before speeds, which played at a duration of their own.
+        std::vector<std::size_t> variantsWithoutSpeed;
         for (const JsonValue& item : colorization.optionalArray("scenes")) {
             const JsonObjectReader scene = objectItem(item, "scene");
             document::SceneDefinition definition;
@@ -1579,12 +1585,27 @@ void readManifest(const JsonValue& value, ProjectSnapshot& snapshot, FileKind* f
             if (scene.has("framesOf")) {
                 definition.baseSceneId =
                     static_cast<uint16_t>(scene.integer("framesOf", 0, UINT16_MAX));
+                if (scene.has("speed")) {
+                    definition.speedPercent = static_cast<uint16_t>(
+                        scene.integer("speed", document::kMinSceneSpeedPercent,
+                                      document::kMaxSceneSpeedPercent));
+                } else {
+                    variantsWithoutSpeed.push_back(settings.scenes.size());
+                }
             }
             if (scene.has("then")) {
                 definition.nextSceneId =
                     static_cast<uint16_t>(scene.integer("then", 0, UINT16_MAX));
             }
             settings.scenes.push_back(definition);
+        }
+        // Such a variant keeps playing at its duration: the speed that gives it.
+        for (const std::size_t index : variantsWithoutSpeed) {
+            document::SceneDefinition& variant = settings.scenes[index];
+            if (const document::SceneDefinition* base = settings.scene(*variant.baseSceneId)) {
+                variant.speedPercent =
+                    document::sceneSpeedForDuration(base->durationMs, variant.durationMs);
+            }
         }
         snapshot.colorizationSettings = std::move(settings);
     }
@@ -1920,7 +1941,17 @@ std::optional<ProjectSnapshot> readProjectEntries(
 {
     try {
         ProjectSnapshot snapshot;
-        readManifest(readJsonEntry(read, "manifest.json", true), snapshot, kind);
+        const JsonValue manifestValue = readJsonEntry(read, "manifest.json", true);
+        readManifest(manifestValue, snapshot, kind);
+        // Before frames of scenes had durations of their own, they played at their scene's,
+        // whatever their duration said.
+        bool sceneFrameDurations = false;
+        {
+            const JsonObjectReader manifest(manifestValue, "manifest");
+            sceneFrameDurations =
+                manifest.has("colorization") &&
+                manifest.object("colorization").boolean("sceneFrameDurations", false);
+        }
         const JsonValue orderValue = readJsonEntry(read, "order.json", true);
         const JsonObjectReader order(orderValue, "frame order");
         const std::vector<ComponentId> frameIds = readIds(order, "frames");
@@ -2052,6 +2083,9 @@ std::optional<ProjectSnapshot> readProjectEntries(
         readEditor(readJsonEntry(read, "editor.json", false), snapshot);
         if (oneTriggerPerFrame) {
             document::linkPupTriggerScenes(snapshot);
+        }
+        if (!sceneFrameDurations) {
+            document::giveSceneFramesTheirSceneDuration(snapshot);
         }
         if (std::optional<std::string> common = read("team/common.bin")) {
             snapshot.team = readTeamState(readJsonEntry(read, "team/state.json", true), *common);

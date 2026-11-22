@@ -9,6 +9,8 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <map>
+#include <regex>
 #include <stdexcept>
 #include <set>
 #include <string>
@@ -19,6 +21,7 @@
 #include "edit/EditBatch.h"
 #include "edit/SpriteAssignment.h"
 #include "edit/StructureCommand.h"
+#include "legacy/LegacyProjectSerializer.h"
 #include "platform/Utf8Path.h"
 #include "project/ProjectFile.h"
 #include "runtime/RuntimePreview.h"
@@ -733,7 +736,9 @@ void testVariants()
 
     document::SceneDefinition variant = makeScene(50701, 1, 1);
     variant.baseSceneId = 50700;
-    variant.durationMs = 60;
+    // Half the speed: the base's 30 ms become 60.
+    variant.speedPercent = 50;
+    variant.durationMs = 5;
     variant.options = document::kSceneAsBackground;
     const auto addedVariant = edit::addScene(document, variant);
     const document::SceneDefinition* added = document.colorizationSettings()->scene(50701);
@@ -915,6 +920,171 @@ void testFollowUpScenes()
            "a removed follow-up is no longer named");
 }
 
+// The entries of the settings block part kCromSettingsSceneFrameDurations: scene, group, frame
+// index and duration; nothing without that part. It is the block's last part here.
+std::vector<std::array<uint32_t, 4>> frameDurationEntries(const std::vector<uint8_t>& block)
+{
+    std::vector<std::array<uint32_t, 4>> entries;
+    const auto u32 = [&](std::size_t at) {
+        return static_cast<uint32_t>(block[at]) | static_cast<uint32_t>(block[at + 1]) << 8 |
+               static_cast<uint32_t>(block[at + 2]) << 16 |
+               static_cast<uint32_t>(block[at + 3]) << 24;
+    };
+    const auto u16 = [&](std::size_t at) {
+        return static_cast<uint32_t>(block[at]) | static_cast<uint32_t>(block[at + 1]) << 8;
+    };
+    if (block.size() < 12 || (u32(8) & legacy::kCromSettingsSceneFrameDurations) == 0) {
+        return entries;
+    }
+    // Count the entries back from the end: each is 8 bytes after a count.
+    for (std::size_t count = 0; 12 + 4 + 8 * count <= block.size(); ++count) {
+        const std::size_t at = block.size() - 8 * count - 4;
+        if (u32(at) == count) {
+            for (std::size_t entry = 0; entry < count; ++entry) {
+                const std::size_t e = at + 4 + 8 * entry;
+                entries.push_back({u16(e), block[e + 2], u16(e + 4), u16(e + 6)});
+            }
+            break;
+        }
+    }
+    return entries;
+}
+
+// A frame of a scene shows for its own duration: it starts with the scene's, keeps its own
+// when the scene's changes, takes the times of a dump in one step, goes to libserum (for each
+// variant at the variant's speed) and stays in the project file. A project file from before
+// gives the frames their scene's duration and a variant the speed of its duration.
+void testSceneFrameDurations()
+{
+    document::ProjectDocument document = document::ProjectDocument::fromSnapshot(
+        runtime_fixtures::makeProject(render::PlaneLayout::Ordinary, 2));
+    document::SceneDefinition base = makeScene(50750, 3, 2);
+    base.immediateStart = true;
+    const auto addedBase = edit::addScene(document, base);
+    const std::vector<std::size_t> frames = edit::sceneFrames(document, 50750);
+    expect(frames.size() == 6 && document.frameDurationMs(frames[0]) == 30,
+           "a new frame of a scene shows for the scene's duration");
+
+    // The times of a dump for group 1: one too many, one too short, one too long.
+    std::size_t applied = 0;
+    auto timed = edit::setSceneFrameDurations(document, 50750, 1, {100, 0, 70000, 5}, &applied);
+    const auto frameOf = [&](uint8_t group, uint16_t index) {
+        for (const std::size_t frame : edit::sceneFrames(document, 50750)) {
+            if (*document.sceneFrame(frame) == document::SceneFrameRef{50750, group, index}) {
+                return frame;
+            }
+        }
+        return document.frameCount();
+    };
+    expect(timed && applied == 3 && document.frameDurationMs(frameOf(1, 0)) == 100 &&
+               document.frameDurationMs(frameOf(1, 1)) == 1 &&
+               document.frameDurationMs(frameOf(1, 2)) == 65535 &&
+               document.frameDurationMs(frameOf(2, 0)) == 30,
+           "the frames of the group take the times in their order, within what libserum holds");
+    timed->revert(document);
+    expect(document.frameDurationMs(frameOf(1, 0)) == 30, "one step takes them back");
+    timed->apply(document);
+    const auto refused = [&](const std::function<void()>& run) {
+        try {
+            run();
+        } catch (const std::exception&) {
+            return true;
+        }
+        return false;
+    };
+    expect(refused([&] { (void)edit::setSceneFrameDurations(document, 50750, 3, {10}); }) &&
+               refused([&] { (void)edit::setSceneFrameDurations(document, 50799, 1, {10}); }),
+           "a group or scene the project does not have is refused");
+
+    // A new scene duration goes to the frames that showed for the old one.
+    document::SceneDefinition slower = *document.colorizationSettings()->scene(50750);
+    slower.durationMs = 40;
+    const auto changed = edit::changeScene(document, 50750, slower);
+    expect(document.frameDurationMs(frameOf(1, 0)) == 100 &&
+               document.frameDurationMs(frameOf(2, 0)) == 40,
+           "a frame with a duration of its own keeps it when the scene's changes");
+    const auto reset = edit::setSceneFrameDurations(document, 50750, 1, {100, 40, 40});
+
+    // A variant at twice the speed shows each frame for half its time.
+    document::SceneDefinition variant = makeScene(50751, 1, 1);
+    variant.baseSceneId = 50750;
+    variant.speedPercent = 200;
+    const auto addedVariant = edit::addScene(document, variant);
+    expect(addedVariant && document.colorizationSettings()->scene(50751)->durationMs == 20,
+           "a variant's frame duration is its base's at its speed");
+    expect(refused([&] { (void)edit::setSceneFrameDurations(document, 50751, 1, {10}); }),
+           "a variant takes no times of its own");
+    const std::vector<std::array<uint32_t, 4>> entries =
+        frameDurationEntries(legacy::cromSettingsBlock(document.toSnapshot()));
+    const std::vector<std::array<uint32_t, 4>> expected{{50750, 1, 0, 100},
+                                                        {50751, 1, 0, 50}};
+    expect(entries == expected,
+           "libserum gets the frames that show for a time of their own, for the scene and at "
+           "the variant's speed");
+
+    // The canvas plays a background scene with the frames' times.
+    document.setSceneTriggerId(0, 50750);
+    document::SceneDefinition background = *document.colorizationSettings()->scene(50750);
+    background.options = document::kSceneAsBackground;
+    background.immediateStart = false;
+    const auto behind = edit::changeScene(document, 50750, background);
+    expect(document.backgroundSceneFrame(0, 99) == frameOf(1, 0) &&
+               document.backgroundSceneFrame(0, 100) == frameOf(1, 1) &&
+               document.backgroundSceneFrame(0, 139) == frameOf(1, 1) &&
+               document.backgroundSceneFrame(0, 140) == frameOf(1, 2) &&
+               document.backgroundSceneFrame(0, 180) == frameOf(1, 0),
+           "the canvas shows each frame of a background scene for its own time");
+    // libserum shows the first frame for its own 100 ms.
+    const auto inFront = edit::changeScene(document, 50750, slower);
+    runtime::RuntimePreview& preview = runtime::RuntimePreview::instance();
+    std::string error;
+    expect(preview.openProject(document, runtime::PlaneRequest::Both, &error),
+           "the project loads: " + error);
+    const runtime::RuntimeFrame started = preview.colorize(document.originalFrame(0));
+    preview.close();
+    expect(started.shownFrameIndex == std::optional<std::size_t>(frameOf(1, 0)) &&
+               started.nextRotationMs > 40 && started.nextRotationMs <= 100,
+           "libserum shows the frame for its own time");
+    document.setSceneTriggerId(0, document::kNoTriggerId);
+
+    // The project file keeps the durations and the speed.
+    std::map<std::string, std::string> entriesOfFile;
+    project::forEachProjectEntry(document.toSnapshot(), {"test"},
+                                 [&](const std::string& name, const std::string& bytes) {
+                                     entriesOfFile[name] = bytes;
+                                 });
+    const auto read = [&](const std::map<std::string, std::string>& files) {
+        std::string message;
+        return project::readProjectEntries(
+            [&](const std::string& name) -> std::optional<std::string> {
+                const auto found = files.find(name);
+                return found == files.end() ? std::nullopt
+                                            : std::optional<std::string>(found->second);
+            },
+            message);
+    };
+    const std::optional<document::ProjectSnapshot> kept = read(entriesOfFile);
+    expect(kept && kept->colorizationSettings->scenes ==
+                       document.colorizationSettings()->scenes &&
+               kept->frames[frameOf(1, 0)].durationMs == 100,
+           "the project file keeps the frames' durations and the variant's speed");
+
+    // A file from before: the frames play at their scene's duration, the variant at the speed
+    // of its duration (40 ms against 40: 1x).
+    std::string manifest = entriesOfFile["manifest.json"];
+    manifest = std::regex_replace(manifest, std::regex(R"(,\s*"sceneFrameDurations"\s*:\s*true)"),
+                                  "");
+    manifest = std::regex_replace(manifest, std::regex(R"(,\s*"speed"\s*:\s*\d+)"), "");
+    manifest = std::regex_replace(manifest,
+                                  std::regex(R"("durationMs"\s*:\s*20\b)"), "\"durationMs\": 40");
+    std::map<std::string, std::string> older = entriesOfFile;
+    older["manifest.json"] = manifest;
+    const std::optional<document::ProjectSnapshot> before = read(older);
+    expect(before && before->frames[frameOf(1, 0)].durationMs == 40 &&
+               before->colorizationSettings->scene(50751)->speedPercent == 100,
+           "a file from before gives the frames their scene's duration and a variant its speed");
+}
+
 // A scene made from frames (the editor API's CreateScene): its frames are made like them.
 void testAddSceneLike()
 {
@@ -995,5 +1165,6 @@ void runSceneEditTests()
     testVariants();
     testVariantsInFileAndLibserum();
     testFollowUpScenes();
+    testSceneFrameDurations();
     testAddSceneLike();
 }

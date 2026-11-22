@@ -82,11 +82,25 @@ private:
 // Replaces the scene sceneId with `scene`. Its frames follow: with another ID they get the new
 // markers as originals, frames of groups or frame numbers it no longer has are deleted, and
 // those it has no frame for (also ones deleted from the strip before) are made as addScene()
-// makes them, behind the scene's last frame. A new frame duration is given to its frames. Its
-// variants follow it to another ID. A variant changes its settings only.
+// makes them, behind the scene's last frame. A new frame duration is given to its frames that
+// showed for the old one; a frame with a duration of its own keeps it. Its variants follow it
+// to another ID. A variant changes its settings only (its speed among them).
 [[nodiscard]] std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& document,
                                                             uint16_t sceneId,
                                                             const document::SceneDefinition& scene);
+// Gives the frames of group `group` of the scene the durations, in the order of their frame
+// numbers: the first duration to frame 1, and so on (as the times of a ROM animation the scene
+// replaces). Extra durations, and frames beyond the durations, are left; a duration of 0
+// counts as 1 ms, one beyond what libserum can hold as 65535 ms. applied (if given) is how
+// many frames had a frame for their duration. Throws std::out_of_range for a scene the project
+// does not have, std::invalid_argument for a variant or a group the scene does not have.
+// nullptr when nothing changes.
+[[nodiscard]] std::unique_ptr<SceneEditCommand> setSceneFrameDurations(
+    document::ProjectDocument& document,
+    uint16_t sceneId,
+    uint8_t group,
+    const std::vector<uint32_t>& durationsMs,
+    std::size_t* applied = nullptr);
 // Removes the scene and its variants; with deleteFrames its frames go too, otherwise they
 // stay as ordinary frames.
 [[nodiscard]] std::unique_ptr<SceneEditCommand> removeScene(document::ProjectDocument& document,

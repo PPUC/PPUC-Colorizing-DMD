@@ -271,14 +271,16 @@ typedef void(MSGPIAPI* cdmdpi_form_closed_callback)(void* userData, uint32_t res
 #define CDMDPI_SCENE_BACK_AND_FORTH 0x80  // to the last frame and back (libserum 2.99.7)
 
 // A scene as the editor's scene window sets it (see the handbook, "Scenes and Scaling"). Its
-// frames are frames of the project; the duration is the scene's, the same for all of them.
+// frames are frames of the project; each starts with the scene's duration and can be given its
+// own (ColorizingDMDFrameInfo's durationMs; CopyFrameSettings with CDMDPI_SETTINGS_DURATION).
 typedef struct ColorizingDMDScene
 {
    uint32_t sceneId;          // its PUP trigger: 50000 .. 61999, not taken; CDMDPI_NONE for
                               // the lowest free one
    const char* name;          // null or "" for none
    uint32_t groups;           // sets of frames, one played each time; 0 for 1, at most 255
-   uint32_t durationMs;       // how long each frame shows, 1 .. 65535; 0 for 33
+   uint32_t durationMs;       // how long each frame shows unless it has a duration of its
+                              // own, 1 .. 65535; 0 for 33
    uint32_t repeat;           // 0 plays once, 1 loops, 2 .. 255 that many times
    uint32_t finish;           // CDMDPI_SCENE_KEEP_LAST, _BLACK, _PREVIOUS
    uint32_t autoStartSeconds; // 0 .. 255: start after this many seconds without a new frame;
@@ -572,10 +574,11 @@ typedef struct ColorizingDMDEditorAPI
    // project as the Scenes section's New adds them, the others following the first group by
    // group. Each is made like the frame given for it, as AddFrame makes a frame: its colorized
    // pictures and its settings as Edit -> Copy Frame Settings copies them, without its trigger,
-   // DOF events and duration (the scene's), and without what a frame of a scene cannot have
-   // (dynamic zones, sprites, its identification). Its original is the scene marker. The frames
-   // given stay: delete them with DeleteFrames when they are not needed any more. Where a
-   // scene's frames lie in the project does not matter to libserum; MoveFrames moves them.
+   // DOF events and duration (it starts with the scene's), and without what a frame of a scene
+   // cannot have (dynamic zones, sprites, its identification). Its original is the scene
+   // marker. The frames given stay: delete them with DeleteFrames when they are not needed any
+   // more. Where a scene's frames lie in the project does not matter to libserum; MoveFrames
+   // moves them.
    // *sceneId and *firstFrame (each unless null) get the scene's ID and its first frame.
    // Refused for a scene the scene window refuses (an ID taken or out of range, values out of
    // range) and in a project of other ROM frames.

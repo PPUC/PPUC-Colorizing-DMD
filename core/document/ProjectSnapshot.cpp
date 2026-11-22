@@ -393,4 +393,20 @@ void normalizeSpriteRecord(SpriteRecord& sprite, uint32_t colorCount)
     }
 }
 
+void giveSceneFramesTheirSceneDuration(ProjectSnapshot& snapshot)
+{
+    if (!snapshot.colorizationSettings) {
+        return;
+    }
+    for (ProjectFrameSnapshot& frame : snapshot.frames) {
+        if (!frame.scene) {
+            continue;
+        }
+        if (const SceneDefinition* scene =
+                snapshot.colorizationSettings->scene(frame.scene->sceneId)) {
+            frame.durationMs = scene->durationMs;
+        }
+    }
+}
+
 }  // namespace colorizing::document

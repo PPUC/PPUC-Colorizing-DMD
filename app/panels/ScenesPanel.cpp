@@ -7,6 +7,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
+#include <QLocale>
 #include <QPixmap>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -158,7 +159,18 @@ void ScenesPanel::setProject(const document::ProjectDocument* document)
                                  .arg(scene.frameCount)
                                  .arg(scene.durationMs);
         if (scene.baseSceneId) {
-            text += tr(", the frames of %1").arg(*scene.baseSceneId);
+            text += tr(", the frames of %1 at %2x")
+                        .arg(*scene.baseSceneId)
+                        .arg(QLocale().toString(scene.speedPercent / 100.0, 'g', 4));
+        } else if (document) {
+            int own = 0;
+            for (const std::size_t frame : sceneFrames) {
+                const uint32_t durationMs = document->frameDurationMs(frame);
+                own += durationMs != 0 && durationMs != scene.durationMs ? 1 : 0;
+            }
+            if (own > 0) {
+                text += tr(", %n frame(s) with a duration of their own", "", own);
+            }
         }
         if (scene.nextSceneId) {
             text += tr(", then %1").arg(*scene.nextSceneId);

@@ -1385,22 +1385,41 @@ std::optional<std::size_t> ProjectDocument::backgroundSceneFrame(std::size_t fra
         m_sceneRevision = m_revision;
         m_sceneCacheValid = true;
     }
+    // A variant plays its base's frames, at its speed.
+    const uint16_t framesOf = scene->baseSceneId.value_or(scene->sceneId);
+    const uint16_t speed = scene->baseSceneId ? scene->speedPercent : kSceneSpeedPercentDefault;
+    const auto frameOf = [&](uint32_t step) -> std::optional<std::size_t> {
+        const auto found = m_sceneFrames.find(static_cast<uint32_t>(framesOf) << 16 | step);
+        return found == m_sceneFrames.end() ? std::nullopt
+                                            : std::optional<std::size_t>(found->second);
+    };
+    // Each frame shows for its own duration, as libserum plays it.
+    const auto durationOf = [&](uint32_t step) -> uint32_t {
+        const std::optional<std::size_t> frame = frameOf(step);
+        const uint32_t own = frame ? m_frames[*frame].durationMs : 0;
+        return own == 0 ? scene->durationMs : sceneDurationAtSpeed(own, speed);
+    };
     // The canvas plays it in a loop, back and forth as libserum does with that option.
     const uint32_t frames = std::max<uint32_t>(scene->frameCount, 1);
-    const uint32_t played = sceneElapsedMs / std::max<uint32_t>(scene->durationMs, 1);
-    uint32_t step = played % frames;
-    if ((scene->options & kSceneBackAndForth) != 0 && frames > 1) {
-        const uint32_t run = 2 * (frames - 1);
-        step = played % run;
-        step = step < frames ? step : run - step;
+    const bool backAndForth = (scene->options & kSceneBackAndForth) != 0 && frames > 1;
+    const uint32_t run = backAndForth ? 2 * (frames - 1) : frames;
+    const auto stepAt = [&](uint32_t position) {
+        return position < frames ? position : run - position;
+    };
+    uint64_t total = 0;
+    for (uint32_t position = 0; position < run; ++position) {
+        total += std::max<uint32_t>(durationOf(stepAt(position)), 1);
     }
-    // A variant plays its base's frames.
-    const uint16_t framesOf = scene->baseSceneId.value_or(scene->sceneId);
-    const auto found = m_sceneFrames.find(static_cast<uint32_t>(framesOf) << 16 | step);
-    if (found == m_sceneFrames.end()) {
-        return std::nullopt;
+    uint64_t elapsed = sceneElapsedMs % std::max<uint64_t>(total, 1);
+    uint32_t position = 0;
+    for (; position + 1 < run; ++position) {
+        const uint32_t duration = std::max<uint32_t>(durationOf(stepAt(position)), 1);
+        if (elapsed < duration) {
+            break;
+        }
+        elapsed -= duration;
     }
-    return found->second;
+    return frameOf(stepAt(position));
 }
 
 const Rgb565Frame* ProjectDocument::backgroundPicture(std::size_t frameIndex,

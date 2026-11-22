@@ -402,6 +402,46 @@ std::vector<std::size_t> sceneFrames(const document::ProjectDocument& document, 
     return frames;
 }
 
+std::unique_ptr<SceneEditCommand> setSceneFrameDurations(document::ProjectDocument& document,
+                                                         uint16_t sceneId,
+                                                         uint8_t group,
+                                                         const std::vector<uint32_t>& durationsMs,
+                                                         std::size_t* applied)
+{
+    const document::SceneDefinition& scene = requireScene(document, sceneId);
+    if (scene.baseSceneId) {
+        throw std::invalid_argument("a variant plays its base's frames at its speed");
+    }
+    if (group < 1 || group > groupsOf(scene)) {
+        throw std::invalid_argument("the scene has no group " + std::to_string(group));
+    }
+    std::vector<SceneFramesCommand::Change> changes;
+    std::size_t matched = 0;
+    for (const std::size_t frame : sceneFrames(document, sceneId)) {
+        const document::SceneFrameRef& ref = *document.sceneFrame(frame);
+        if (ref.group != group || ref.frameIndex >= durationsMs.size()) {
+            continue;
+        }
+        ++matched;
+        SceneFrameState before = sceneFrameState(document, frame);
+        SceneFrameState after = before;
+        after.durationMs = std::clamp<uint32_t>(durationsMs[ref.frameIndex], 1, UINT16_MAX);
+        if (after.durationMs != before.durationMs) {
+            changes.push_back({frame, std::move(before), std::move(after)});
+        }
+    }
+    if (applied) {
+        *applied = matched;
+    }
+    Steps steps(document);
+    if (!changes.empty()) {
+        auto command = std::make_unique<SceneFramesCommand>(std::move(changes));
+        command->apply(document);
+        steps.add(std::move(command));
+    }
+    return steps.finish(SceneEditCommand::Kind::ChangeScene, sceneId);
+}
+
 std::unique_ptr<SceneEditCommand> setColorizationSettings(
     document::ProjectDocument& document,
     document::ColorizationSettings settings)
@@ -462,7 +502,9 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
         return steps.finish(SceneEditCommand::Kind::ChangeScene, scene.sceneId);
     }
 
-    // Frames that stay: a new original for another ID, the new duration.
+    // Frames that stay: a new original for another ID, the new duration for those that showed
+    // for the scene's (a frame with a duration of its own keeps it).
+    const uint32_t previousDurationMs = requireScene(document, sceneId).durationMs;
     std::vector<SceneFramesCommand::Change> changes;
     std::vector<std::size_t> gone;
     std::vector<document::SceneFrameRef> present;
@@ -477,7 +519,9 @@ std::unique_ptr<SceneEditCommand> changeScene(document::ProjectDocument& documen
         SceneFrameState before = sceneFrameState(document, frame);
         SceneFrameState after = before;
         after.scene = ref;
-        after.durationMs = scene.durationMs;
+        if (before.durationMs == previousDurationMs || before.durationMs == 0) {
+            after.durationMs = scene.durationMs;
+        }
         if (scene.sceneId != sceneId) {
             after.original = runtime::sceneMarkerFrame(scene, ref, document.colorCount());
         }

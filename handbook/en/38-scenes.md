@@ -18,8 +18,9 @@ The project file keeps the scenes and which frame is which frame of which scene.
 
 The `Scenes` section of the left sidebar, below the sprites, lists the project's scenes: a thumbnail
 of the scene's first frame in the project (with the blue `HD` badge when that frame has HD data),
-and below it the scene ID, the groups and frames, the frame duration, `background` for a background
-scene and how many of its frames are missing in the project. The scenes are listed by their IDs.
+and below it the scene ID, the groups and frames, the frame duration, how many of its frames show
+for a time of their own, a variant's base and speed, `background` for a background scene and how
+many of its frames are missing in the project. The scenes are listed by their IDs.
 
 - `New` opens the scene window for a new scene and adds a frame for each of its frames behind
   the last frame of the project, group by group: uncolorized, with the marker as the original,
@@ -54,7 +55,8 @@ shown and go when a frame of another scene comes. With `Apply` the scene's frame
 - frames it no longer has are deleted, after a question, with their colorization;
 - with another scene ID its frames get the new markers as originals and keep their
   colorization;
-- a new frame duration is given to all its frames;
+- a new frame duration is given to its frames that showed for the old one; a frame with a
+  duration of its own keeps it (see "Frame durations" below);
 - a frame of the scene deleted from the strip before is added again. Applying the settings
   after changing a field and changing it back therefore brings back missing frames.
 
@@ -90,7 +92,8 @@ What one line of a `<rom>.pup.csv` says, and the scene's name and frames:
 | Frames | Frames of each group. |
 | Groups | Sets of frames the scene can show; each time it plays it shows one group. |
 | Pick the group at random | Otherwise the groups play in turn. |
-| Frame duration | How long each frame shows; 33 ms for a new scene (about 30 frames a second). |
+| Frame duration | How long each frame shows, unless the frame has a duration of its own (see "Frame durations" below); 33 ms for a new scene (about 30 frames a second). A variant shows the duration its speed gives and cannot change it. |
+| Speed | A variant only: how much faster than its base it plays the frames (see "Variants" below). |
 | Plays | Once, in a loop, or several times. |
 | Back and forth | Each time, the frames play to the last and back: 1 to 100, 99 to 2, then 1 to 100 again, so no frame shows twice in a row. The last time ends on the first frame; a scene with several groups picks its group each time it starts at the first frame. The canvas plays a background scene this way too. Needs libserum 2.99.7. |
 | Can be interrupted | A frame of the game identified while the scene plays ends it. |
@@ -112,7 +115,13 @@ The settings of a scene say how it plays: in front or as a background, once or i
 so on. To use the same frames in another way, a scene can play the frames of another scene, its
 base, with settings of its own: for example scene 50087 plays once in front, and scene 50088
 plays the frames of 50087 as a looping background. A variant can also run slower or faster than
-its base: its `Frame duration` is its own.
+its base: its `Speed` says how much faster, `1x` as fast as the base, `2x` twice as fast (each
+frame shows for half its time), `0.5x` at half the speed, from `0.1x` to `10x`. The frames keep
+their times to each other: a frame that shows three times as long as the others in the base
+does so in the variant too. Its `Frame duration` shows the base's at that speed.
+
+A variant made before speeds existed played at a frame duration of its own; opening the project
+gives it the speed that keeps that duration (a base of 40 ms and a variant of 20 ms: `2x`).
 
 - A variant has no frames of its own. Its frames and groups are its base's, and change with
   them; the scene window does not let them be edited. For other frames, add a new scene.
@@ -128,12 +137,39 @@ its base: its `Frame duration` is its own.
 Variants need libserum 2.99.10 or later; a `pup.csv` cannot describe them, the project and the
 `.cROMc` keep them.
 
+## Frame durations
+
+Each frame of a scene can show for a time of its own: a scene that replaces an animation of the
+ROM can play it with the animation's times, a pause on one frame, a fast run on others. A new
+frame of a scene shows for the scene's `Frame duration`; the `Duration` of the Inspector's
+`Frame` section changes it for the selected frames (its tooltip names the scene's duration).
+Type the scene's duration there again to make a frame follow the scene's.
+
+- A new `Frame duration` of the scene goes to the frames that showed for the old one; the
+  others keep theirs.
+- Played back and forth, a frame shows for its time in both directions.
+- The last frame before a scene that follows shows for its own time.
+- A variant plays every frame at its speed: at `2x`, a frame of 100 ms shows for 50 ms.
+- The canvas plays a background scene with the frames' times, as libserum does.
+
+To take the times of an animation from a frame dump, load the dump into the `Frame Tester`
+(see "Frame Tester"), go to the first frame of the animation and press `Timings To Scene…`.
+Choose the scene and its group; `To dump frame` follows the scene's number of frames. The first
+frame of the scene gets the time of the first dump frame, the second the time of the next one,
+and so on, in one undo step. When the range and the scene differ in length, only the frames
+both have are set; the status bar says how many. A time below 1 ms counts as 1 ms, one above
+65535 ms as 65535 ms.
+
+Frame durations of their own need libserum 2.99.20 or later; an earlier libserum plays every
+frame at the scene's duration. A project saved by an editor without them opens with every frame
+of a scene at its scene's duration, whatever its `Duration` field said, as that editor played it.
+
 ## One scene after another
 
-A scene has one frame duration. For an animation that plays slowly and then ends fast, for
+For an animation that plays slowly and then ends fast, for
 example a picture at 90 ms per frame that then dissolves to black at 16 ms per frame, make two
 scenes and set `Then plays` of the first to the second. When the first scene has played (all
-its repeats), its last frame shows for its frame duration (or for `Hold the last frame for`,
+its repeats), its last frame shows for its own duration (or for `Hold the last frame for`,
 when set), then the second scene starts and shows its first frame at once, with its own
 settings. No frame of the game has to start the second scene, so a frame that shows several
 times in an animation does not start it too early.

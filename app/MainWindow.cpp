@@ -3960,6 +3960,31 @@ void MainWindow::openFrameTester()
                 return false;
             }
         };
+        dialog.onSceneTimingsRequested =
+            [this](uint16_t sceneId, uint8_t group,
+                   const std::vector<uint32_t>& durationsMs) -> std::optional<std::size_t> {
+            try {
+                std::size_t applied = 0;
+                recordSceneEdit(edit::setSceneFrameDurations(*m_document, sceneId, group,
+                                                             durationsMs, &applied));
+                const document::SceneDefinition* scene =
+                    m_document->colorizationSettings()->scene(sceneId);
+                const std::size_t frames = scene ? scene->frameCount : applied;
+                QString text = tr("Gave %1 of the %2 frames of scene %3 the times of the dump")
+                                   .arg(static_cast<qulonglong>(applied))
+                                   .arg(static_cast<qulonglong>(frames))
+                                   .arg(sceneId);
+                if (durationsMs.size() > applied) {
+                    text += tr("; %1 dump frames were left over")
+                                .arg(static_cast<qulonglong>(durationsMs.size() - applied));
+                }
+                statusBar()->showMessage(text, 6000);
+                return applied;
+            } catch (const std::exception& ex) {
+                statusBar()->showMessage(QString::fromUtf8(ex.what()), 4000);
+                return std::nullopt;
+            }
+        };
         // The display shows the tester's picture while it is open, of the plane the DMD
         // output settings ask for (the other one when the frame has only that).
         m_dmdPictureOverride = [this, &dialog]() -> std::optional<document::Rgb565Frame> {

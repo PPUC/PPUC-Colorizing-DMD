@@ -48,6 +48,13 @@ public:
     // Adds the dump frame to the project; returns whether it was added. The project is loaded
     // again afterwards.
     std::function<bool(const runtime::TesterFrame& frame)> onAddFrameRequested;
+    // Gives the frames of the group of the scene the durations, in their order (see
+    // edit::setSceneFrameDurations()); returns how many frames took one, nothing when it
+    // failed. The project is loaded again afterwards.
+    std::function<std::optional<std::size_t>(uint16_t sceneId,
+                                             uint8_t group,
+                                             const std::vector<uint32_t>& durationsMs)>
+        onSceneTimingsRequested;
     // After the dialog closed through Show In Editor: the frame to show.
     [[nodiscard]] std::optional<std::size_t> frameToShow() const;
     // The frame Show In Editor goes to: the frame libserum identified, or the tested project
@@ -66,6 +73,13 @@ public:
     // when underMask), going round. Returns whether it was found.
     bool findProjectFrame(std::size_t frameIndex, bool underMask);
     void setPlaying(int direction);
+    // Dump: gives the frames of the group of the scene the durations of the dump frames from
+    // first to last (positions), the first frame of the scene the duration of `first`; the
+    // project is loaded again. Returns how many scene frames took one, nothing when it failed.
+    std::optional<std::size_t> applySceneTimings(std::size_t first,
+                                                 std::size_t last,
+                                                 uint16_t sceneId,
+                                                 uint8_t group);
     // Whether libserum plays the project's scenes (on by default); the project is loaded again.
     void setPlayScenes(bool play);
     // The scene the frame libserum shows belongs to, as the info line names it; empty for a
@@ -103,6 +117,8 @@ private:
     void playStep();
     void rotateStep();
     void updateControls();
+    // Asks for the scene, group and dump frames of applySceneTimings().
+    void askForSceneTimings();
     double speed() const;
 
     const document::ProjectDocument& m_document;
@@ -151,6 +167,7 @@ private:
     QCheckBox* m_underMaskCheckBox = nullptr;
     QPushButton* m_findButton = nullptr;
     QPushButton* m_addButton = nullptr;
+    QPushButton* m_timingsButton = nullptr;
     QPushButton* m_showButton = nullptr;
     QPushButton* m_selectedButton = nullptr;
 };

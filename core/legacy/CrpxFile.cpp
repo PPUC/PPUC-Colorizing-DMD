@@ -91,6 +91,8 @@ bool parseScenes(LegacyByteSource& source,
     }
     left -= static_cast<uint64_t>(frameCount) * kSceneFrameBytes;
     snapshot.colorizationSettings = std::move(settings);
+    // The Win32 editor played every frame of a scene at the scene's duration.
+    document::giveSceneFramesTheirSceneDuration(snapshot);
     // The frames came with one trigger ID each.
     document::linkPupTriggerScenes(snapshot);
     // Room a later version uses for more is skipped.

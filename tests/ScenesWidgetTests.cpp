@@ -8,6 +8,7 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -724,6 +725,28 @@ void testVariantFields()
     followed.nextSceneId = 50801;
     form.setScene(followed, nullptr, {followed, chosen});
     expect(next->currentData().toInt() == 50801, "the form shows the scene's follow-up");
+
+    // A variant has a speed in place of a duration of its own.
+    QDoubleSpinBox* speed = form.findChild<QDoubleSpinBox*>();
+    QSpinBox* duration = nullptr;
+    for (QSpinBox* spinBox : form.findChildren<QSpinBox*>()) {
+        if (spinBox->suffix() == QStringLiteral(" ms")) {
+            duration = spinBox;
+        }
+    }
+    expect(speed && duration && !speed->isEnabled() && duration->isEnabled(),
+           "a scene with frames of its own has a frame duration and no speed");
+    document::SceneDefinition timedBase = base;
+    timedBase.durationMs = 40;
+    document::SceneDefinition faster = chosen;
+    faster.speedPercent = 200;
+    form.setScene(faster, nullptr, {timedBase, faster});
+    expect(speed->isEnabled() && !duration->isEnabled() && speed->value() == 2.0 &&
+               duration->value() == 20,
+           "a variant has a speed, and shows the frame duration it gives");
+    speed->setValue(0.5);
+    expect(form.scene().speedPercent == 50 && duration->value() == 80,
+           "half the speed shows each frame twice as long");
 }
 
 void runScenesWidgetTests()

@@ -969,18 +969,32 @@ must still be written (cROM frame block, TRIG, plugin API) it is the scene, else
 trigger, else the monochrome trigger.
 
 Scene variants (owner decision 2026-10-27): a scene can play the frames of a base scene with its
-own playback settings and frame duration (`SceneDefinition::baseSceneId`, manifest `framesOf`,
+own playback settings (`SceneDefinition::baseSceneId`, manifest `framesOf`,
 settings block part `kCromSettingsSceneVariants`, libserum 2.99.10). A variant has no frames of
 its own and its frame count and groups are the base's (`document::normalizeSceneVariants()`);
 frames are never added to a variant or taken from a scene to make one: the author adds a new
 scene. Deleting a base deletes its variants. Scenes have a name (the project only).
+Since 2026-11-22 a variant has a speed instead of a duration (`SceneDefinition::speedPercent`,
+manifest `speed`, 10 to 1000): its duration is derived from the base's
+(`normalizeSceneVariants()`), and a file without `speed` gets the speed of its duration.
+
+Scene frame durations (owner decision 2026-11-22, asked for by authors replacing ROM animations
+of varying frame times): a frame of a scene shows for its own `FrameRecord::durationMs`, which
+starts as the scene's; a new scene duration goes only to the frames that had the old one. The
+export writes a frame whose duration differs from its scene's, and for each variant every base
+frame at the variant's speed whose time differs from the variant's duration (settings block part
+`kCromSettingsSceneFrameDurations`, libserum 2.99.20, concentrate version 22); libserum knows no
+speed. A project file without the manifest flag `sceneFrameDurations` and a `.cRPX` give the
+frames their scene's duration (`giveSceneFramesTheirSceneDuration()`), as the editor played them
+before. The Frame tester's `Timings To Scene…` applies a dump range in one step
+(`edit::setSceneFrameDurations()`). The plugin API sets them through CopyFrameSettings' duration
+only; a call of its own is open.
 
 Follow-up scenes (owner decision 2026-11-17, asked for by a colorizer): a scene can name the
 scene that starts when it has played (`SceneDefinition::nextSceneId`, manifest `then`, settings
 block part `kCromSettingsSceneFollowUps`, libserum 2.99.18, concentrate version 21). It replaces
 the finish mode; libserum holds the last frame for its duration (or the end hold), then starts
-the follow-up. Per-frame durations within one scene were the alternative and were not taken.
-The plugin API does not expose it yet.
+the follow-up. The plugin API does not expose it yet.
 
 Sprite offsets (owner decision 2026-10-28): a frame's sprite slot has an x and y offset
 (`FrameSpriteReference::offsetX/offsetY`, frame field `SPRO`, settings block part
@@ -1258,7 +1272,8 @@ readable (`m_closingForms`) while its closed callback runs, so the plugin can op
 from there. CreateScene is `edit::addSceneLike` (`addScene`, then each frame made like the
 given one as `addFrameLike` does, without Trigger, DofEvents and Duration); SetFrameScene a
 `FrameAttributeEditCommand` on SceneTriggerId. Requests 1 to 5 of the author's API request are
-covered; per-frame durations do not exist in a scene (one duration for all frames).
+covered; frames of a scene start with the scene's duration (CopyFrameSettings' duration gives
+them their own).
 v10 (2026-11-17, asked for by the same author): the field kind Radio in every form, a
 `QButtonGroup` of `QRadioButton`s (value in the property "choice") in a grid of four per line,
 rebuilt when SetFormField changes the choices; `buttonClicked` is the user-only signal.

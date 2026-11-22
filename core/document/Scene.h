@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -25,6 +26,31 @@ constexpr uint8_t kSceneKnownOptions = 127;
 // Triggers.h). Scenes of an imported pup.csv keep theirs.
 constexpr uint16_t kFirstSceneId = 50000;
 constexpr uint16_t kLastSceneId = 61999;
+// The speed of a scene variant in percent of its base's (SceneDefinition::speedPercent): 100
+// plays as fast as the base, 200 twice as fast, 50 at half the speed.
+constexpr uint16_t kSceneSpeedPercentDefault = 100;
+constexpr uint16_t kMinSceneSpeedPercent = 10;
+constexpr uint16_t kMaxSceneSpeedPercent = 1000;
+
+// How long a frame that shows durationMs in the base shows at speedPercent, as libserum gets
+// it: at least 1 ms, at most what a scene duration can hold.
+[[nodiscard]] inline uint16_t sceneDurationAtSpeed(uint32_t durationMs, uint16_t speedPercent)
+{
+    const uint32_t speed = std::max<uint32_t>(speedPercent, 1);
+    const uint64_t scaled = (static_cast<uint64_t>(durationMs) * 100 + speed / 2) / speed;
+    return static_cast<uint16_t>(std::clamp<uint64_t>(scaled, 1, UINT16_MAX));
+}
+
+// The speed that makes a scene of baseDurationMs play at durationMs per frame, within
+// kMinSceneSpeedPercent and kMaxSceneSpeedPercent: what a variant of a project from before
+// speeds gets for its fixed duration.
+[[nodiscard]] inline uint16_t sceneSpeedForDuration(uint32_t baseDurationMs, uint32_t durationMs)
+{
+    const uint64_t duration = std::max<uint32_t>(durationMs, 1);
+    const uint64_t speed = (static_cast<uint64_t>(baseDurationMs) * 100 + duration / 2) / duration;
+    return static_cast<uint16_t>(
+        std::clamp<uint64_t>(speed, kMinSceneSpeedPercent, kMaxSceneSpeedPercent));
+}
 
 // A scene of the colorization: libserum plays its frames when the PUP trigger sceneId fires.
 // It is what one line of a "<rom>.pup.csv" says, with that file's columns:
@@ -34,7 +60,10 @@ struct SceneDefinition {
     uint16_t sceneId = 0;
     // Frames per group.
     uint16_t frameCount = 1;
-    // How long each frame shows (33 ms: about 30 frames a second).
+    // How long each frame shows (33 ms: about 30 frames a second), unless the frame has a
+    // duration of its own: a frame of the scene whose duration (FrameRecord::durationMs)
+    // differs from it shows for that (libserum 2.99.20). A new frame of the scene gets it. For
+    // a variant it follows from the base's and the speed (normalizeSceneVariants()).
     uint16_t durationMs = 33;
     bool interruptable = false;
     bool immediateStart = false;
@@ -52,10 +81,14 @@ struct SceneDefinition {
     uint8_t options = 0;
     // The author's name for the scene (the project only; a pup.csv has none).
     std::string name;
-    // A variant plays the frames of the scene baseSceneId with its own settings, frame
-    // duration included (libserum 2.99.10); it has no frames of its own, and its frameCount
-    // and frameGroups are the base's. The base is a scene that is no variant.
+    // A variant plays the frames of the scene baseSceneId with its own settings (libserum
+    // 2.99.10); it has no frames of its own, and its frameCount and frameGroups are the base's.
+    // The base is a scene that is no variant.
     std::optional<uint16_t> baseSceneId;
+    // A variant plays its base's frames this much faster (kSceneSpeedPercentDefault is the
+    // base's speed): each frame, its own duration included, shows for its time in the base
+    // divided by the speed (sceneDurationAtSpeed()). Only a variant has one.
+    uint16_t speedPercent = kSceneSpeedPercentDefault;
     // The scene that starts when this one has played, in place of its finish mode (libserum
     // 2.99.18): its last frame shows for its duration, then the other scene starts. Another
     // scene of the project; a chain may come back to a scene it started from.
@@ -76,7 +109,7 @@ struct SceneDefinition {
                a.frameGroups == b.frameGroups && a.random == b.random &&
                a.autoStartSeconds == b.autoStartSeconds && a.options == b.options &&
                a.name == b.name && a.baseSceneId == b.baseSceneId &&
-               a.nextSceneId == b.nextSceneId;
+               a.speedPercent == b.speedPercent && a.nextSceneId == b.nextSceneId;
     }
     friend bool operator!=(const SceneDefinition& a, const SceneDefinition& b)
     {
@@ -155,9 +188,11 @@ struct ColorizationSettings {
     }
 };
 
-// Gives each variant its base's frame count and groups; a variant whose base is missing, is
-// itself or is a variant plays frames of its own instead. A scene that is to follow a scene
-// that is missing or itself follows none.
+// Gives each variant its base's frame count and groups, and the duration of its base at its
+// speed (kept within kMinSceneSpeedPercent and kMaxSceneSpeedPercent); a variant whose base is
+// missing, is itself or is a variant plays frames of its own instead. A scene that is no
+// variant has no speed of its own. A scene that is to follow a scene that is missing or itself
+// follows none.
 inline void normalizeSceneVariants(ColorizationSettings& settings)
 {
     for (SceneDefinition& scene : settings.scenes) {
@@ -177,6 +212,14 @@ inline void normalizeSceneVariants(ColorizationSettings& settings)
         }
         scene.frameCount = base->frameCount;
         scene.frameGroups = base->frameGroups;
+        scene.speedPercent =
+            std::clamp(scene.speedPercent, kMinSceneSpeedPercent, kMaxSceneSpeedPercent);
+        scene.durationMs = sceneDurationAtSpeed(base->durationMs, scene.speedPercent);
+    }
+    for (SceneDefinition& scene : settings.scenes) {
+        if (!scene.baseSceneId) {
+            scene.speedPercent = kSceneSpeedPercentDefault;
+        }
     }
 }
 

@@ -119,6 +119,11 @@ void discardExtraPlane(ProjectSnapshot& snapshot);
     IndexedFrame original,
     uint32_t durationMs);
 
+// Gives each frame of a scene its scene's frame duration: a project from before frames of
+// scenes had durations of their own played them at their scene's, whatever their duration
+// said (a .cRPX, a project file without sceneFrameDurations).
+void giveSceneFramesTheirSceneDuration(ProjectSnapshot& snapshot);
+
 [[nodiscard]] bool isValidProjectSnapshot(const ProjectSnapshot& snapshot,
                                           std::string* errorMessage = nullptr);
 

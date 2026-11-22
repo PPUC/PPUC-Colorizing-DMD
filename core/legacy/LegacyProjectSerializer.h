@@ -157,7 +157,10 @@ private:
 // (kCromSettingsNoticeFrame, libserum 2.99.14: its frame ID and its original), which libserum
 // never identifies; the notice gives no PUP or monochrome trigger. The follow-up scenes
 // (kCromSettingsSceneFollowUps, libserum 2.99.18: a scene and the scene that starts when it has
-// played) come last, after the colorization text.
+// played) come after the colorization text, then the durations of the scene frames that show
+// for a time of their own (kCromSettingsSceneFrameDurations, libserum 2.99.20: scene, group,
+// frame index and duration): a frame whose duration differs from its scene's, and for each
+// variant its base's frames at its speed whose time differs from the variant's duration.
 inline constexpr uint32_t kCromSettingsMagic = 0x31584353;  // "SCX1"
 inline constexpr uint32_t kCromSettingsScenes = 1;
 inline constexpr uint32_t kCromSettingsScaling = 2;
@@ -174,6 +177,7 @@ inline constexpr uint32_t kCromSettingsNoticeFrame = 512;
 // export gives libserum.
 inline constexpr uint32_t kCromSettingsColorizationText = 1024;
 inline constexpr uint32_t kCromSettingsSceneFollowUps = 2048;
+inline constexpr uint32_t kCromSettingsSceneFrameDurations = 4096;
 [[nodiscard]] std::vector<uint8_t> cromSettingsBlock(
     const document::ProjectSnapshot& snapshot,
     const std::string* colorizationText = nullptr);

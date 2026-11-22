@@ -471,9 +471,9 @@ public:
     // none (runtime::SnapshotSource gives libserum one). Nothing for another frame.
     [[nodiscard]] const SceneDefinition* backgroundScene(std::size_t frameIndex) const;
     // The project's frame of that scene that shows sceneElapsedMs after the scene started:
-    // a frame of group 1, one per durationMs, from the first again after the last (the
-    // editor plays it in a loop), or back from the last with kSceneBackAndForth. Nothing
-    // without a background scene or that frame.
+    // a frame of group 1, each for its own duration (a variant's at its speed), from the first
+    // again after the last (the editor plays it in a loop), or back from the last with
+    // kSceneBackAndForth. Nothing without a background scene or that frame.
     [[nodiscard]] std::optional<std::size_t> backgroundSceneFrame(
         std::size_t frameIndex,
         uint32_t sceneElapsedMs = 0) const;

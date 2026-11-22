@@ -11,6 +11,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QSpinBox;
@@ -43,6 +44,8 @@ public:
 
 private:
     void updateState();
+    // The variant speed the field shows, in percent.
+    [[nodiscard]] uint16_t speedPercent() const;
 
     document::SceneDefinition m_scene;
     std::function<std::string(const document::SceneDefinition&)> m_problem;
@@ -54,6 +57,7 @@ private:
     QSpinBox* m_framesSpinBox = nullptr;
     QSpinBox* m_groupsSpinBox = nullptr;
     QSpinBox* m_durationSpinBox = nullptr;
+    QDoubleSpinBox* m_speedSpinBox = nullptr;
     QComboBox* m_repeatComboBox = nullptr;
     QSpinBox* m_timesSpinBox = nullptr;
     QCheckBox* m_randomCheckBox = nullptr;

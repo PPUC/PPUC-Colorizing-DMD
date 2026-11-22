@@ -34,6 +34,10 @@ in the editor, saved or not.
   one and stops there; if every frame up to the end is identified, it stays where it was.
 - The left and right arrow keys go one frame back and forward, wherever the focus is, also after
   a click on a button or in a number field.
+- `Timings To Scene…` (a dump only) gives the frames of a scene the times of the dump frames
+  from the current one on: the times of the ROM animation the scene replaces. Choose the scene
+  and its group; the range follows the scene's number of frames and can be changed. One undo
+  step; libserum gets the project again. See "Scenes and Scaling", "Frame durations".
 - `Find Frame` looks for a project frame: among the selected frames, or in the dump from the
   frame after the current one on, going round, comparing the ROM frames pixel by pixel. With
   `Under its mask` the pixels the frame's comparison mask covers are left out, so a dump frame

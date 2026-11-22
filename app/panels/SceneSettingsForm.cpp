@@ -1,7 +1,10 @@
 #include "panels/SceneSettingsForm.h"
 
+#include <cmath>
+
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -36,8 +39,8 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_nameEdit->setPlaceholderText(tr("e.g. Jackpot"));
     m_framesOfComboBox = new QComboBox(this);
     m_framesOfComboBox->setToolTip(
-        tr("A scene that plays the frames of another plays them with its own settings and frame "
-           "duration, e.g. once in front and as a looping background. It has no frames of its "
+        tr("A scene that plays the frames of another plays them with its own settings and "
+           "speed, e.g. once in front and as a looping background. It has no frames of its "
            "own; for other frames add a new scene"));
     m_framesSpinBox = new QSpinBox(this);
     m_framesSpinBox->setRange(1, 65535);
@@ -51,7 +54,18 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     m_durationSpinBox = new QSpinBox(this);
     m_durationSpinBox->setRange(1, 65535);
     m_durationSpinBox->setSuffix(tr(" ms"));
-    m_durationSpinBox->setToolTip(tr("How long each frame shows"));
+    m_durationSpinBox->setToolTip(
+        tr("How long each frame shows, unless the frame has a duration of its own (Frame "
+           "section). A new duration goes to the frames that showed for the old one"));
+    m_speedSpinBox = new QDoubleSpinBox(this);
+    m_speedSpinBox->setDecimals(2);
+    m_speedSpinBox->setRange(document::kMinSceneSpeedPercent / 100.0,
+                             document::kMaxSceneSpeedPercent / 100.0);
+    m_speedSpinBox->setSingleStep(0.25);
+    m_speedSpinBox->setSuffix(tr("x"));
+    m_speedSpinBox->setToolTip(
+        tr("How much faster than the scene it plays the frames: 2x shows each frame for half "
+           "its time, 0.5x for twice its time. The frames keep their durations to each other"));
 
     m_repeatComboBox = new QComboBox(this);
     m_repeatComboBox->addItem(tr("Once"), kRepeatOnce);
@@ -118,6 +132,7 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
     frames->addRow(tr("Groups"), m_groupsSpinBox);
     frames->addRow(QString(), m_randomCheckBox);
     frames->addRow(tr("Frame duration"), m_durationSpinBox);
+    frames->addRow(tr("Speed"), m_speedSpinBox);
     frames->addRow(tr("Plays"), repeatRow);
     frames->addRow(QString(), m_backAndForthCheckBox);
     QFormLayout* playback = makeInspectorForm();
@@ -161,6 +176,9 @@ SceneSettingsForm::SceneSettingsForm(QWidget* parent)
         connect(spinBox, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this,
                 changed);
     }
+    connect(m_speedSpinBox,
+            static_cast<void (QDoubleSpinBox::*)(double)>(&QDoubleSpinBox::valueChanged), this,
+            changed);
     connect(m_nameEdit, &QLineEdit::textEdited, this, changed);
     for (QComboBox* comboBox :
          {m_repeatComboBox, m_finishComboBox, m_framesOfComboBox, m_nextComboBox}) {
@@ -229,6 +247,7 @@ void SceneSettingsForm::setScene(
     m_groupsSpinBox->setValue(std::max<int>(1, scene.frameGroups));
     m_randomCheckBox->setChecked(scene.random);
     m_durationSpinBox->setValue(std::max<int>(1, scene.durationMs));
+    m_speedSpinBox->setValue(scene.speedPercent / 100.0);
     m_repeatComboBox->setCurrentIndex(scene.repeat >= 2 ? kRepeatTimes : scene.repeat);
     m_timesSpinBox->setValue(scene.repeat >= 2 ? scene.repeat : 2);
     m_backAndForthCheckBox->setChecked(scene.options & document::kSceneBackAndForth);
@@ -250,18 +269,24 @@ void SceneSettingsForm::updateState()
     m_timesSpinBox->setEnabled(m_repeatComboBox->currentData().toInt() == kRepeatTimes);
     // A variant has its base's frames and groups.
     const int base = m_framesOfComboBox->currentData().toInt();
+    // and its frame duration follows from the base's and its speed.
     if (base >= 0) {
         for (const document::SceneDefinition& candidate : m_projectScenes) {
             if (candidate.sceneId == base) {
                 const QSignalBlocker framesBlocker(m_framesSpinBox);
                 const QSignalBlocker groupsBlocker(m_groupsSpinBox);
+                const QSignalBlocker durationBlocker(m_durationSpinBox);
                 m_framesSpinBox->setValue(std::max<int>(1, candidate.frameCount));
                 m_groupsSpinBox->setValue(std::max<int>(1, candidate.frameGroups));
+                m_durationSpinBox->setValue(document::sceneDurationAtSpeed(
+                    candidate.durationMs, speedPercent()));
             }
         }
     }
     m_framesSpinBox->setEnabled(base < 0);
     m_groupsSpinBox->setEnabled(base < 0);
+    m_durationSpinBox->setEnabled(base < 0);
+    m_speedSpinBox->setEnabled(base >= 0);
     m_randomCheckBox->setEnabled(m_groupsSpinBox->value() > 1);
     m_backAndForthCheckBox->setEnabled(m_framesSpinBox->value() > 1);
     m_replaceBlackCheckBox->setEnabled(m_backgroundCheckBox->isChecked());
@@ -287,6 +312,11 @@ void SceneSettingsForm::updateState()
     m_problemLabel->setVisible(!reason.empty());
 }
 
+uint16_t SceneSettingsForm::speedPercent() const
+{
+    return static_cast<uint16_t>(std::lround(m_speedSpinBox->value() * 100.0));
+}
+
 std::string SceneSettingsForm::problem() const
 {
     return m_problem ? m_problem(scene()) : std::string();
@@ -300,6 +330,7 @@ document::SceneDefinition SceneSettingsForm::scene() const
     scene.frameGroups = static_cast<uint8_t>(m_groupsSpinBox->value());
     scene.random = m_randomCheckBox->isChecked() && scene.frameGroups > 1;
     scene.durationMs = static_cast<uint16_t>(m_durationSpinBox->value());
+    scene.speedPercent = speedPercent();
     scene.name = m_nameEdit->text().trimmed().toStdString();
     const int base = m_framesOfComboBox->currentData().toInt();
     scene.baseSceneId =

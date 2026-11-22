@@ -28,10 +28,13 @@ namespace colorizing::project {
 //                    and ignored), license (kind, text, attribution, url, and contact,
 //                    commercialWithPpucDmd and realMachinesOnlyPpucDmd when set),
 //                    colorization (the cROM's settings: scalingAlgorithm, shadowOffset,
-//                    sign (false when the exported cROMc is not signed), scenes, each with
-//                    the pup.csv columns, its name, framesOf, the base of a variant, and
-//                    then, the scene that starts when it has played) when
-//                    the project has them,
+//                    sign (false when the exported cROMc is not signed),
+//                    sceneFrameDurations (true: the frames of scenes show for their own
+//                    durations; without it a reader gives them their scene's), scenes, each
+//                    with the pup.csv columns, its name, framesOf, the base of a variant, speed,
+//                    a variant's speed in percent of its base's (without it, the speed that
+//                    gives its durationMs), and then, the scene that starts when it has
+//                    played) when the project has them,
 //                    unsupported (names of entries unsupported/<n>.bin).
 //   order.json       the UUIDs of the frames, comparison masks, backgrounds and sprites in
 //                    their order, and the sections (name, first frame).
