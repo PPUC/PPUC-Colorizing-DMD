@@ -5,6 +5,8 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+## 3.99.49
+
 - A scene can start with the next frame: `Starts` in the scene's settings replaces `Start
   immediately`. With `With the next frame` the frame that fires the trigger stays until the game
   sends its next frame, however long that takes, and the scene replaces that one, for scenes
