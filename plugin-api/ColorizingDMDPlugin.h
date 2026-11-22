@@ -1,12 +1,13 @@
 // license:GPLv3+
 //
-// ColorizingDMD editor API for plugins, version 12 (version 11 without the editor's actions,
-// version 10 without the language and the theme either, version 9 without radio buttons either,
-// version 8 without live forms and scenes either, version 7 without Create HD, deleting frames and
-// sections either, version 6 without CopyFrameSettings either, version 5 without AddFrame,
-// MoveFrames and EndEdit's refusal either, version 4 without identification and the runtime either,
-// version 3 without ShowForm and the file, note and consent fields either, version 2 without the
-// pictures and the author's windows either, version 1 without the editing part either).
+// ColorizingDMD editor API for plugins, version 13 (version 12 without SetFrameDuration,
+// version 11 without the editor's actions either, version 10 without the language and the theme
+// either, version 9 without radio buttons either, version 8 without live forms and scenes
+// either, version 7 without Create HD, deleting frames and sections either, version 6 without
+// CopyFrameSettings either, version 5 without AddFrame, MoveFrames and EndEdit's refusal either,
+// version 4 without identification and the runtime either, version 3 without ShowForm and the
+// file, note and consent fields either, version 2 without the pictures and the author's windows
+// either, version 1 without the editing part either).
 //
 // The editor hosts plugins on the VPX plugin bus (libvpxhost, the plugin SDK's MsgPlugin.h).
 // A plugin in the editor's plugin folder, enabled under Settings -> Plugins, is loaded at the
@@ -272,7 +273,7 @@ typedef void(MSGPIAPI* cdmdpi_form_closed_callback)(void* userData, uint32_t res
 
 // A scene as the editor's scene window sets it (see the handbook, "Scenes and Scaling"). Its
 // frames are frames of the project; each starts with the scene's duration and can be given its
-// own (ColorizingDMDFrameInfo's durationMs; CopyFrameSettings with CDMDPI_SETTINGS_DURATION).
+// own (ColorizingDMDFrameInfo's durationMs; SetFrameDuration, version 13).
 typedef struct ColorizingDMDScene
 {
    uint32_t sceneId;          // its PUP trigger: 50000 .. 61999, not taken; CDMDPI_NONE for
@@ -631,5 +632,17 @@ typedef struct ColorizingDMDEditorAPI
    int(MSGPIAPI* RunEditorAction)(uint32_t endpointId, const char* actionId);
    // 1 when RunEditorAction would run the action now (a plugin grays its own buttons with it).
    int(MSGPIAPI* IsEditorActionEnabled)(const char* actionId);
+
+   // ---- Frame durations (version 13) -------------------------------------------------------
+   // A change of an edit batch, as those of version 2.
+   //
+   // How long the frame shows, in milliseconds, as the Frame section's Duration field sets it
+   // (ColorizingDMDFrameInfo.durationMs): 0 .. 65535. A frame of a scene shows for it when the
+   // scene plays, in place of the scene's duration (libserum 2.99.20; a variant plays it at its
+   // speed), so a plugin can give the frames of a scene the times of an animation; for it 0 is
+   // refused, and CDMDPI_NONE gives it the scene's duration again. A frame of the game keeps
+   // its duration for the editor's playback and the frame tester. Refused for a frame that is
+   // not there, a duration out of range and CDMDPI_NONE for a frame of the game.
+   int(MSGPIAPI* SetFrameDuration)(uint32_t endpointId, uint32_t frame, uint32_t durationMs);
 
 } ColorizingDMDEditorAPI;

@@ -987,8 +987,7 @@ frame at the variant's speed whose time differs from the variant's duration (set
 speed. A project file without the manifest flag `sceneFrameDurations` and a `.cRPX` give the
 frames their scene's duration (`giveSceneFramesTheirSceneDuration()`), as the editor played them
 before. The Frame tester's `Timings To Scene…` applies a dump range in one step
-(`edit::setSceneFrameDurations()`). The plugin API sets them through CopyFrameSettings' duration
-only; a call of its own is open.
+(`edit::setSceneFrameDurations()`). The plugin API sets them with SetFrameDuration (version 13).
 
 Follow-up scenes (owner decision 2026-11-17, asked for by a colorizer): a scene can name the
 scene that starts when it has played (`SceneDefinition::nextSceneId`, manifest `then`, settings
@@ -1272,8 +1271,8 @@ readable (`m_closingForms`) while its closed callback runs, so the plugin can op
 from there. CreateScene is `edit::addSceneLike` (`addScene`, then each frame made like the
 given one as `addFrameLike` does, without Trigger, DofEvents and Duration); SetFrameScene a
 `FrameAttributeEditCommand` on SceneTriggerId. Requests 1 to 5 of the author's API request are
-covered; frames of a scene start with the scene's duration (CopyFrameSettings' duration gives
-them their own).
+covered; frames of a scene start with the scene's duration (SetFrameDuration, v13, gives them
+their own).
 v10 (2026-11-17, asked for by the same author): the field kind Radio in every form, a
 `QButtonGroup` of `QRadioButton`s (value in the property "choice") in a grid of four per line,
 rebuilt when SetFormField changes the choices; `buttonClicked` is the user-only signal.
@@ -1288,6 +1287,8 @@ editor's own answer is the `Quick Actions` section (`QuickActionsPanel`, first i
 optional): menu entries by shortcut id, chosen by the author and kept in QSettings
 `quickActions/items`, with the shadow and grow directions as groups. Open: plugin commands in it
 (menu entries of plugins would need ids), an order the author sets in Choose...
+v13 (2026-11-22): SetFrameDuration, a FrameAttributeEditCommand on DurationMs in an edit batch:
+0 .. 65535, not 0 for a frame of a scene, CDMDPI_NONE for a frame of a scene its scene's duration.
 The plugin API tests only build with plugin hosting (`COLORIZINGDMD_LIBVPXHOST_DIR`,
 `COLORIZINGDMD_VPINBALL_DIR`): a build without them skips `EditorApi.cpp` and the API part of
 `EditorPluginsWidgetTests.cpp`. Locally, use libvpxhost and the vpinball SDK at CI's pins.

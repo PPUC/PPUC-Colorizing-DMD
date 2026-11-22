@@ -947,6 +947,32 @@ void testScenes()
                document.sceneTriggerId(0) == document::kNoTriggerId &&
                api->EndEdit(plugin, 1) == 1,
            "CDMDPI_NONE clears the trigger");
+
+    // Version 13: a frame's own duration; a frame of the scene shows for it when it plays.
+    const uint32_t gameDuration = document.frameDurationMs(1);
+    expect(api->SetFrameDuration(plugin, 3, 120) == 0, "no duration without a batch");
+    expect(api->BeginEdit(plugin, "Times") == 1 && api->SetFrameDuration(plugin, 3, 120) == 1 &&
+               api->SetFrameDuration(plugin, 1, 250) == 1 &&
+               document.frameDurationMs(3) == 120 && document.frameDurationMs(1) == 250 &&
+               document.frameDurationMs(4) == 40,
+           "a frame of the scene and a frame of the game take a duration of their own");
+    info = {};
+    expect(api->GetFrameInfo(3, &info) == 1 && info.durationMs == 120,
+           "as the frame's summary says");
+    expect(api->SetFrameDuration(plugin, 3, 0) == 0 &&
+               api->SetFrameDuration(plugin, 3, 65536) == 0 &&
+               api->SetFrameDuration(plugin, 1, CDMDPI_NONE) == 0 &&
+               api->SetFrameDuration(plugin, 9, 100) == 0 && document.frameDurationMs(3) == 120,
+           "not 0 for a frame of a scene, not beyond 65535, no scene's duration for a frame of "
+           "the game, not a frame that is not there");
+    expect(api->SetFrameDuration(plugin, 4, 90) == 1 &&
+               api->SetFrameDuration(plugin, 4, CDMDPI_NONE) == 1 &&
+               document.frameDurationMs(4) == 40,
+           "CDMDPI_NONE gives a frame of a scene the scene's duration again");
+    expect(api->EndEdit(plugin, 1) == 1 &&
+               histories.undo(edit::structureHistoryKey(), document) &&
+               document.frameDurationMs(3) == 40 && document.frameDurationMs(1) == gameDuration,
+           "one undo takes the durations back");
 }
 #endif
 
@@ -1043,7 +1069,7 @@ void runEditorPluginsWidgetTests()
 
 #ifdef COLORIZINGDMD_HAS_EDITOR_PLUGIN_API
     const auto* api = static_cast<const ColorizingDMDEditorAPI*>(vpx::editorApiTable());
-    expect(api && api->version == 12, "the API table is version 12");
+    expect(api && api->version == 13, "the API table is version 13");
 
     // Version 11 (issue #80): the language in effect and whether the theme is dark.
     char code[8] = {};

@@ -3,6 +3,7 @@
 #ifdef COLORIZINGDMD_HAS_VPX_PLUGINS
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <exception>
 #include <functional>
@@ -1323,6 +1324,41 @@ int MSGPIAPI setFrameScene(uint32_t endpointId, uint32_t frame, uint32_t scene)
     });
 }
 
+// ---- Frame durations (version 13) -----------------------------------------------------------
+
+// As the Frame section's Duration field sets it; CDMDPI_NONE gives a frame of a scene the
+// scene's duration again.
+int MSGPIAPI setFrameDuration(uint32_t endpointId, uint32_t frame, uint32_t durationMs)
+{
+    return change(endpointId, [&](document::ProjectDocument& document) {
+        if (frame >= document.frameCount()) {
+            throw std::out_of_range("frame index out of range");
+        }
+        const std::optional<document::SceneFrameRef>& sceneFrame = document.sceneFrame(frame);
+        uint32_t after = durationMs;
+        if (durationMs == CDMDPI_NONE) {
+            const std::optional<document::ColorizationSettings>& settings =
+                document.colorizationSettings();
+            const document::SceneDefinition* scene =
+                sceneFrame && settings ? settings->scene(sceneFrame->sceneId) : nullptr;
+            if (!scene) {
+                throw std::invalid_argument("only a frame of a scene has a scene's duration");
+            }
+            after = scene->durationMs;
+        } else if (durationMs > UINT16_MAX || (sceneFrame && durationMs == 0)) {
+            throw std::out_of_range("duration out of range");
+        }
+        const uint32_t before = document.frameDurationMs(frame);
+        if (before == after) {
+            return std::unique_ptr<edit::EditCommand>();
+        }
+        auto command = std::make_unique<edit::FrameAttributeEditCommand>(
+            frame, edit::FrameAttribute::DurationMs, before, after);
+        command->apply(document);
+        return std::unique_ptr<edit::EditCommand>(std::move(command));
+    });
+}
+
 int MSGPIAPI getLanguage(char* code, uint32_t capacity)
 {
     if (!g_backend) {
@@ -1362,7 +1398,7 @@ int MSGPIAPI isEditorActionEnabled(const char* actionId)
 }
 
 const ColorizingDMDEditorAPI kApi{
-    12,
+    13,
     &getProjectInfo,
     &getFrameInfo,
     &getOriginalFrame,
@@ -1424,6 +1460,7 @@ const ColorizingDMDEditorAPI kApi{
     &isDarkTheme,
     &runEditorAction,
     &isEditorActionEnabled,
+    &setFrameDuration,
 };
 
 void MSGPIAPI onGetApi(const unsigned int, void*, void* msgData)

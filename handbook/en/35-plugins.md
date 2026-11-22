@@ -113,4 +113,8 @@ none, invert, undo and redo the selection, from the background mask, mirror), `B
 To Black`, `Remove Dynamic Zones`, `Assign Dynamic Set`, `Dynamic To Static`, and every
 direction of `Shadow Next To Selection` and `Grow Selection`; none of them opens a window. A
 plugin can so offer buttons for them, for example the eight shadow directions.
+Version 13 adds `SetFrameDuration`, a change of an edit batch: how long a frame shows, as the
+`Frame` section's `Duration` sets it. A frame of a scene then shows for that time when the scene
+plays (see "Scenes and Scaling", "Frame durations"), so a plugin can give a scene the times of an
+animation; `CDMDPI_NONE` gives such a frame the scene's duration again.
 Its functions run on the editor's main thread; a plugin thread goes through `RunOnMainThread`.

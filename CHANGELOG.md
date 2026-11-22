@@ -10,6 +10,8 @@ tagged; the changes since the last tag are listed under *Next version*.
   Needs libserum 2.99.20.
 - A scene variant has a `Speed` (`2x`, `0.5x`, ...) instead of a frame duration of its own, so its
   frames keep their times to each other; existing variants get the speed of their duration.
+- Editor API version 13: `SetFrameDuration` sets how long a frame shows, also a frame of a scene
+  with a time of its own.
 
 ## 3.99.47
 
