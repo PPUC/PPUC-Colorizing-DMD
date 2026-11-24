@@ -5,6 +5,9 @@ tagged; the changes since the last tag are listed under *Next version*.
 
 ## Next version
 
+- Built with libserum 2.99.22, which signs a `.cROMc` in a new way. libserum 2.99.22 and later
+  treat a `.cROMc` signed by an earlier editor as modified; export it again.
+
 ## 3.99.49
 
 - A scene can start with the next frame: `Starts` in the scene's settings replaces `Start

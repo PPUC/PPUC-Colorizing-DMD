@@ -290,7 +290,7 @@ bool markCromcModified(const fs::path& cromc)
     }
     // No signature: a block with no certificate and an empty signature.
     std::string block = "SSIG";
-    block += std::string("\x01\x00\x00\x00", 4);
+    block += std::string("\x02\x00\x00\x00", 4);
     block += std::string(4, '\0');  // no certificate chain
     block += std::string(64, '\0');
     const uint32_t length = static_cast<uint32_t>(block.size() + 8);
